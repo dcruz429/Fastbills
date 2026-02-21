@@ -171,21 +171,31 @@ export function CreateTaskDialog() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Due Date</Label>
-              <Input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                data-testid="input-new-due-date"
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label>IE Date</Label>
               <Input
                 type="date"
                 value={formData.ieDate}
-                onChange={(e) => setFormData({ ...formData, ieDate: e.target.value })}
+                onChange={(e) => {
+                  const ieDate = e.target.value;
+                  let dueDate = "";
+                  if (ieDate) {
+                    const d = new Date(ieDate);
+                    d.setDate(d.getDate() + 30);
+                    dueDate = d.toISOString().split("T")[0];
+                  }
+                  setFormData({ ...formData, ieDate, dueDate });
+                }}
                 data-testid="input-new-ie-date"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Due Date <span className="text-muted-foreground text-xs">(IE + 30 days)</span></Label>
+              <Input
+                type="date"
+                value={formData.dueDate}
+                readOnly
+                className="bg-muted cursor-not-allowed"
+                data-testid="input-new-due-date"
               />
             </div>
           </div>

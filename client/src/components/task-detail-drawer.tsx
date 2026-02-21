@@ -249,23 +249,33 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Due Date</Label>
+                <Label className="text-xs text-muted-foreground">IE Date</Label>
                 <Input
                   type="date"
-                  value={editData.dueDate || ""}
-                  onChange={(e) => setEditData({ ...editData, dueDate: e.target.value })}
-                  data-testid="input-task-due-date"
+                  value={editData.ieDate || ""}
+                  onChange={(e) => {
+                    const ieDate = e.target.value;
+                    let dueDate = "";
+                    if (ieDate) {
+                      const d = new Date(ieDate);
+                      d.setDate(d.getDate() + 30);
+                      dueDate = d.toISOString().split("T")[0];
+                    }
+                    setEditData({ ...editData, ieDate, dueDate });
+                  }}
+                  data-testid="input-task-ie-date"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">IE Date</Label>
+              <Label className="text-xs text-muted-foreground">Due Date <span className="text-xs">(IE + 30 days)</span></Label>
               <Input
                 type="date"
-                value={editData.ieDate || ""}
-                onChange={(e) => setEditData({ ...editData, ieDate: e.target.value })}
-                data-testid="input-task-ie-date"
+                value={editData.dueDate || ""}
+                readOnly
+                className="bg-muted cursor-not-allowed"
+                data-testid="input-task-due-date"
               />
             </div>
 

@@ -197,10 +197,15 @@ export async function registerRoutes(
       }
       const data: any = { ...parsed.data };
       data.uploaderId = req.session.userId;
-      if (data.dueDate) data.dueDate = new Date(data.dueDate);
-      else data.dueDate = null;
-      if (data.ieDate) data.ieDate = new Date(data.ieDate);
-      else data.ieDate = null;
+      if (data.ieDate) {
+        data.ieDate = new Date(data.ieDate);
+        const due = new Date(data.ieDate);
+        due.setDate(due.getDate() + 30);
+        data.dueDate = due;
+      } else {
+        data.ieDate = null;
+        data.dueDate = null;
+      }
       if (data.assignedUserId) {
         data.status = "assigned";
       } else {
@@ -240,8 +245,17 @@ export async function registerRoutes(
       if (!existing) return res.status(404).json({ message: "Task not found" });
 
       const updates = { ...req.body };
-      if (updates.dueDate) updates.dueDate = new Date(updates.dueDate);
-      if (updates.ieDate) updates.ieDate = new Date(updates.ieDate);
+      if (updates.ieDate !== undefined) {
+        if (updates.ieDate) {
+          updates.ieDate = new Date(updates.ieDate);
+          const due = new Date(updates.ieDate);
+          due.setDate(due.getDate() + 30);
+          updates.dueDate = due;
+        } else {
+          updates.ieDate = null;
+          updates.dueDate = null;
+        }
+      }
 
       if (updates.assignedUserId !== undefined) {
         if (updates.assignedUserId && !existing.assignedUserId) {
