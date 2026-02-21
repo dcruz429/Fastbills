@@ -1,16 +1,356 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import session from "express-session";
 import { storage } from "./storage";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+import { z } from "zod";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
+
+declare module "express-session" {
+  interface SessionData {
+    userId: number;
+  }
+}
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  next();
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "workflow-secret-key",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        sameSite: "lax",
+      },
+    })
+  );
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+      const user = await storage.getUserByUsername(username);
+      if (!user || !(await comparePasswords(password, user.password))) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      if (!user.active) {
+        return res.status(403).json({ message: "Account deactivated" });
+      }
+      req.session.userId = user.id;
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ ok: true });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    const { password: _, ...safeUser } = user;
+    res.json(safeUser);
+  });
+
+  app.get("/api/users", requireAuth, async (_req, res) => {
+    const allUsers = await storage.getAllUsers();
+    res.json(allUsers.map(({ password: _, ...u }) => u));
+  });
+
+  app.post("/api/users", requireAuth, async (req, res) => {
+    try {
+      const { username, password, fullName, role } = req.body;
+      if (!username || !password || !fullName) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      const hashed = await hashPassword(password);
+      const user = await storage.createUser({ username, password: hashed, fullName, role: role || "verifier" });
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/users/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = await storage.updateUser(id, req.body);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/clinics", requireAuth, async (_req, res) => {
+    res.json(await storage.getAllClinics());
+  });
+
+  app.post("/api/clinics", requireAuth, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ message: "Name required" });
+      res.json(await storage.createClinic({ name }));
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/clinics/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteClinic(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/insurances", requireAuth, async (_req, res) => {
+    res.json(await storage.getAllInsurances());
+  });
+
+  app.post("/api/insurances", requireAuth, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ message: "Name required" });
+      res.json(await storage.createInsurance({ name }));
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/insurances/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteInsurance(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/tasks", requireAuth, async (_req, res) => {
+    res.json(await storage.getAllTasks());
+  });
+
+  const createTaskSchema = z.object({
+    patientName: z.string().min(1, "Patient name is required"),
+    clinicId: z.number().nullable().optional(),
+    insuranceId: z.number().nullable().optional(),
+    assignedUserId: z.number().nullable().optional(),
+    priority: z.enum(["low", "medium", "critical"]).default("low"),
+    status: z.enum(["working_on_it", "billed", "done", "dropped", "assigned", "unassigned"]).optional(),
+    bucket: z.enum(["for_verification", "ready_for_billing", "done"]).default("for_verification"),
+    dueDate: z.string().nullable().optional(),
+    ieDate: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+  });
+
+  app.post("/api/tasks", requireAuth, async (req, res) => {
+    try {
+      const parsed = createTaskSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
+      }
+      const data: any = { ...parsed.data };
+      data.uploaderId = req.session.userId;
+      if (data.dueDate) data.dueDate = new Date(data.dueDate);
+      else data.dueDate = null;
+      if (data.ieDate) data.ieDate = new Date(data.ieDate);
+      else data.ieDate = null;
+      if (data.assignedUserId) {
+        data.status = "assigned";
+      } else {
+        data.status = "unassigned";
+        data.assignedUserId = null;
+      }
+      const task = await storage.createTask(data);
+
+      await storage.createTaskActivity({
+        taskId: task.id,
+        userId: req.session.userId!,
+        action: "Task created",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
+
+      if (data.assignedUserId) {
+        await storage.createNotification({
+          userId: data.assignedUserId,
+          taskId: task.id,
+          message: `You have been assigned to task: ${data.patientName}`,
+          read: false,
+        });
+      }
+
+      res.json(task);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await storage.getTask(id);
+      if (!existing) return res.status(404).json({ message: "Task not found" });
+
+      const updates = { ...req.body };
+      if (updates.dueDate) updates.dueDate = new Date(updates.dueDate);
+      if (updates.ieDate) updates.ieDate = new Date(updates.ieDate);
+
+      if (updates.assignedUserId !== undefined) {
+        if (updates.assignedUserId && !existing.assignedUserId) {
+          if (!updates.status) updates.status = "assigned";
+        } else if (!updates.assignedUserId && existing.assignedUserId) {
+          if (!updates.status) updates.status = "unassigned";
+        }
+      }
+
+      if (updates.bucket === "done" && existing.bucket !== "done") {
+        if (!updates.status || (updates.status !== "done" && updates.status !== "billed" && updates.status !== "dropped")) {
+          updates.status = "done";
+        }
+      }
+
+      const fieldsToTrack = ["patientName", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate"];
+      for (const field of fieldsToTrack) {
+        if (updates[field] !== undefined && String(updates[field]) !== String((existing as any)[field])) {
+          await storage.createTaskActivity({
+            taskId: id,
+            userId: req.session.userId!,
+            action: `Updated ${field}`,
+            field,
+            oldValue: String((existing as any)[field] ?? ""),
+            newValue: String(updates[field] ?? ""),
+          });
+        }
+      }
+
+      if (updates.assignedUserId && updates.assignedUserId !== existing.assignedUserId) {
+        await storage.createNotification({
+          userId: updates.assignedUserId,
+          taskId: id,
+          message: `You have been assigned to task: ${existing.patientName}`,
+          read: false,
+        });
+      }
+
+      if (updates.bucket === "ready_for_billing" && existing.bucket !== "ready_for_billing") {
+        if (existing.assignedUserId) {
+          await storage.createNotification({
+            userId: existing.assignedUserId,
+            taskId: id,
+            message: `Task "${existing.patientName}" moved to Ready for Billing`,
+            read: false,
+          });
+        }
+      }
+
+      const task = await storage.updateTask(id, updates);
+      res.json(task);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/tasks/:id/notes", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { note } = req.body;
+      if (!note) return res.status(400).json({ message: "Note required" });
+
+      const existing = await storage.getTask(id);
+      if (!existing) return res.status(404).json({ message: "Task not found" });
+
+      const existingNotes = existing.notes || "";
+      const user = await storage.getUser(req.session.userId!);
+      const timestamp = new Date().toISOString();
+      const newNotes = existingNotes
+        ? `${existingNotes}\n\n[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`
+        : `[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`;
+
+      await storage.updateTask(id, { notes: newNotes });
+      await storage.createTaskActivity({
+        taskId: id,
+        userId: req.session.userId!,
+        action: "Added note",
+        field: "notes",
+        oldValue: null,
+        newValue: note,
+      });
+
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/tasks/:taskId/activity", requireAuth, async (req, res) => {
+    const taskId = parseInt(req.params.taskId);
+    res.json(await storage.getTaskActivity(taskId));
+  });
+
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    if (!req.session.userId) return res.json([]);
+    res.json(await storage.getNotifications(req.session.userId));
+  });
+
+  app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
+    await storage.markNotificationRead(parseInt(req.params.id));
+    res.json({ ok: true });
+  });
+
+  app.post("/api/notifications/read-all", requireAuth, async (req, res) => {
+    if (req.session.userId) {
+      await storage.markAllNotificationsRead(req.session.userId);
+    }
+    res.json({ ok: true });
+  });
 
   return httpServer;
 }
