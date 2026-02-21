@@ -1,0 +1,436 @@
+Purpose
+
+Build a workflow management system to track patient tasks through insurance verification and billing workflow stages.
+
+System must prioritize:
+
+Accountability
+
+Speed of billing turnaround
+
+Supervisor oversight
+
+Automatic escalation of delays
+
+Workflow Buckets
+
+Primary workflow:
+
+FOR VERIFICATION
+
+READY FOR BILLING
+
+DONE
+
+Movement rules:
+
+FOR VERIFICATION → READY FOR BILLING
+READY FOR BILLING → DONE
+
+Admin may override movement in any direction.
+
+Status Values (Required)
+
+Statuses must exist exactly:
+
+Working on it
+
+Billed
+
+Done
+
+Dropped
+
+Assigned
+
+Unassigned
+
+Default new task:
+
+Unassigned
+
+User Roles
+Verifier
+
+Verify insurance.
+
+Edit verification fields.
+
+Move task to READY FOR BILLING.
+
+Biller
+
+Bill verified patients.
+
+Mark Billed / Done / Dropped.
+
+Assigner
+
+Create tasks.
+
+Assign staff.
+
+Set priorities and due dates.
+
+Admin
+
+Full access.
+
+Can:
+
+Edit users.
+
+Override workflow.
+
+Edit dropdown lists.
+
+Main Board Interface
+
+Single dashboard board view.
+
+Grouped sections:
+
+FOR VERIFICATION
+READY FOR BILLING
+DONE
+
+Each collapsible.
+
+Required Columns
+
+Patient Name
+Input Date
+Uploader
+Clinic
+IE Date
+Due Date
+Priority
+
+Priority dropdown:
+
+Low
+Medium
+Critical
+
+Insurance
+
+Status
+
+Assigned User
+
+Notes indicator icon.
+
+Color Tag Rules
+
+Status tags:
+
+Working on it → Lime Green
+Billed → Dark Green
+Done → Bright Green
+Dropped → Dark Gray
+Assigned → Pink
+Unassigned → Red
+
+Priority:
+
+Low → Blue
+Medium → Orange
+Critical → Red flashing badge.
+
+Yes. Flashing. Supervisors notice danger faster.
+
+Employee Workload Dashboard (🔥 Major Feature)
+
+Each employee must have:
+
+Active task count.
+
+Overdue tasks.
+
+Critical tasks assigned.
+
+Supervisor view:
+
+Leaderboard style:
+
+Employee | Verification Tasks | Billing Tasks | Overdue | Critical.
+
+Sorting required.
+
+Purpose:
+
+Supervisors instantly see overload or underperformance.
+
+Overdue Intelligence Engine
+
+System calculates:
+
+IF Today > Due Date AND bucket ≠ DONE
+
+Task becomes:
+
+OVERDUE.
+
+UI:
+
+Red highlight row.
+
+Automatic notifications:
+
+Verifier overdue → notify supervisor.
+
+Billing overdue → notify billing supervisor.
+
+Automatic Escalation Ladder (Huge)
+
+If overdue:
+
+1 Day:
+
+Notify assigned employee.
+
+3 Days:
+
+Notify supervisor.
+
+5 Days:
+
+Notify Admin.
+
+Dashboard tile:
+
+“🔥 Escalated Cases”.
+
+Auto Billing Queue Generator
+
+READY FOR BILLING automatically generates:
+
+Billing Queue page.
+
+Sort priority:
+
+Critical first.
+
+Then oldest IE Date.
+
+Then earliest Due Date.
+
+Billers open queue and work top-down.
+
+No hunting.
+
+Supervisor Command Dashboard
+
+Dashboard Page Required.
+
+Tiles:
+
+Total Tasks.
+
+FOR VERIFICATION count.
+
+READY FOR BILLING count.
+
+DONE today.
+
+Unassigned Tasks.
+
+Critical Tasks.
+
+Overdue Tasks.
+
+Escalated Tasks.
+
+Charts:
+
+Tasks by Clinic.
+
+Tasks by Insurance.
+
+Tasks by Employee.
+
+Average Days to Verify.
+
+Average Days to Bill.
+
+Filters:
+
+Clinic.
+
+Date Range.
+
+Insurance.
+
+Priority.
+
+Employee.
+
+Audit History (MANDATORY)
+
+Every change recorded:
+
+Created.
+
+Assigned.
+
+Status change.
+
+Bucket move.
+
+Due Date change.
+
+Priority change.
+
+Store:
+
+User.
+
+Timestamp.
+
+Old Value.
+
+New Value.
+
+This protects your agency legally.
+
+Task Detail Drawer
+
+Click row opens right panel.
+
+Fields:
+
+Everything editable.
+
+Notes timeline.
+
+Activity history.
+
+Optional attachments.
+
+Assignment Automation
+
+If Assigned User added:
+
+Status auto changes:
+
+Assigned.
+
+If removed:
+
+Status becomes:
+
+Unassigned.
+
+Notifications
+
+In-App notifications minimum.
+
+Optional Email:
+
+Assignment.
+
+Overdue.
+
+Moved to READY FOR BILLING.
+
+Critical task assigned.
+
+Admin Settings Page
+
+Admin controls:
+
+Clinic list.
+
+Insurance list.
+
+Priority options.
+
+Escalation timing.
+
+User roles.
+
+Database Structure
+
+Users.
+
+Tasks.
+
+Task Activity.
+
+Clinics.
+
+Insurances.
+
+Notifications.
+
+Escalations.
+
+Search + Filtering
+
+Search:
+
+Patient Name.
+
+Insurance.
+
+Clinic.
+
+Assigned User.
+
+Filters:
+
+Bucket.
+
+Status.
+
+Priority.
+
+Clinic.
+
+Employee.
+
+Reporting Export
+
+CSV Export required.
+
+Filters respected.
+
+Security
+
+Login required.
+
+Role middleware required.
+
+Users only edit allowed fields.
+
+Technology Requirements (Replit Friendly)
+
+Frontend:
+
+React.
+
+Table:
+
+TanStack Table or AG Grid.
+
+Backend:
+
+Node + Express or NextJS.
+
+Database:
+
+Postgres.
+
+Auth:
+
+Email/password session.
+
+MVP Acceptance Criteria
+
+Supervisor logs in and instantly sees:
+
+🔥 overdue work.
+
+🔥 who is overloaded.
+
+🔥 what billing is waiting.
