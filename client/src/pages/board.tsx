@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearch } from "wouter";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -61,10 +62,15 @@ const bucketConfig = {
 
 export default function BoardPage() {
   const { user } = useAuth();
+  const searchString = useSearch();
+  const params = new URLSearchParams(searchString);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterClinic, setFilterClinic] = useState("all");
+  const [filterBucket, setFilterBucket] = useState("all");
+  const [filterOverdue, setFilterOverdue] = useState(false);
+  const [filterEscalated, setFilterEscalated] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openBuckets, setOpenBuckets] = useState<Record<string, boolean>>({
@@ -72,6 +78,17 @@ export default function BoardPage() {
     ready_for_billing: true,
     done: false,
   });
+
+  useEffect(() => {
+    if (params.get("status")) setFilterStatus(params.get("status")!);
+    if (params.get("priority")) setFilterPriority(params.get("priority")!);
+    if (params.get("bucket")) {
+      setFilterBucket(params.get("bucket")!);
+      setOpenBuckets((prev) => ({ ...prev, [params.get("bucket")!]: true }));
+    }
+    if (params.get("overdue") === "true") setFilterOverdue(true);
+    if (params.get("escalated") === "true") setFilterEscalated(true);
+  }, [searchString]);
 
   const visibleBuckets = user?.role === "verifier"
     ? ["for_verification", "done"] as const
@@ -85,6 +102,7 @@ export default function BoardPage() {
 
   const { data: clinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
 
+  const now = new Date();
   const filteredTasks = (tasks || []).filter((t) => {
     if (search) {
       const s = search.toLowerCase();
@@ -100,6 +118,15 @@ export default function BoardPage() {
     if (filterStatus !== "all" && t.status !== filterStatus) return false;
     if (filterPriority !== "all" && t.priority !== filterPriority) return false;
     if (filterClinic !== "all" && t.clinicId?.toString() !== filterClinic) return false;
+    if (filterBucket !== "all" && t.bucket !== filterBucket) return false;
+    if (filterOverdue) {
+      if (!t.dueDate || new Date(t.dueDate) >= now || t.bucket === "done") return false;
+    }
+    if (filterEscalated) {
+      if (!t.dueDate || t.bucket === "done") return false;
+      const diff = (now.getTime() - new Date(t.dueDate).getTime()) / (1000 * 60 * 60 * 24);
+      if (diff < 3) return false;
+    }
     return true;
   });
 
@@ -168,7 +195,34 @@ export default function BoardPage() {
             ))}
           </SelectContent>
         </Select>
+        {(filterBucket !== "all" || filterOverdue || filterEscalated) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setFilterBucket("all");
+              setFilterOverdue(false);
+              setFilterEscalated(false);
+              setFilterStatus("all");
+              setFilterPriority("all");
+              setFilterClinic("all");
+              window.history.replaceState({}, "", "/board");
+            }}
+            className="text-xs"
+            data-testid="button-clear-filters"
+          >
+            Clear filters
+          </Button>
+        )}
       </div>
+
+      {(filterOverdue || filterEscalated) && (
+        <div className="px-4 pb-2">
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+            {filterOverdue ? "Showing: Overdue tasks" : "Showing: Escalated tasks (3+ days overdue)"}
+          </span>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
         {isLoading ? (

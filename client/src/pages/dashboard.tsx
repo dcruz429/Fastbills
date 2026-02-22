@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { useLocation } from "wouter";
 import type { TaskWithRelations } from "@shared/schema";
 
 const CHART_COLORS = ["hsl(210 85% 45%)", "hsl(25 90% 48%)", "hsl(340 75% 48%)", "hsl(160 70% 40%)", "hsl(280 65% 50%)"];
@@ -36,11 +37,15 @@ type StatCardProps = {
   color: string;
   bgColor: string;
   testId: string;
+  onClick?: () => void;
 };
 
-function StatCard({ label, value, icon: Icon, color, bgColor, testId }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, color, bgColor, testId, onClick }: StatCardProps) {
   return (
-    <Card>
+    <Card
+      className={onClick ? "cursor-pointer hover:ring-2 hover:ring-primary/30 transition-shadow" : ""}
+      onClick={onClick}
+    >
       <CardContent className="flex items-center gap-3 p-4">
         <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg shrink-0", bgColor)}>
           <Icon className={cn("h-5 w-5", color)} />
@@ -56,6 +61,7 @@ function StatCard({ label, value, icon: Icon, color, bgColor, testId }: StatCard
 
 export default function DashboardPage() {
   const { user: currentUser } = useAuth();
+  const [, navigate] = useLocation();
   const { data: tasks, isLoading } = useQuery<TaskWithRelations[]>({
     queryKey: ["/api/tasks"],
   });
@@ -133,14 +139,14 @@ export default function DashboardPage() {
       </h1>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total Tasks" value={totalTasks} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-total" />
-        <StatCard label="For Verification" value={verificationCount} icon={ShieldCheck} color="text-amber-600 dark:text-amber-400" bgColor="bg-amber-100 dark:bg-amber-900/20" testId="stat-verification" />
-        <StatCard label="Ready for Billing" value={billingCount} icon={FileCheck} color="text-blue-600 dark:text-blue-400" bgColor="bg-blue-100 dark:bg-blue-900/20" testId="stat-billing" />
-        <StatCard label="Done Today" value={doneToday} icon={CheckCircle2} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-100 dark:bg-emerald-900/20" testId="stat-done-today" />
-        <StatCard label="Unassigned" value={unassigned} icon={UserX} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-unassigned" />
-        <StatCard label="Critical Tasks" value={critical} icon={Zap} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-critical" />
-        <StatCard label="Overdue" value={overdue} icon={AlertTriangle} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-overdue" />
-        <StatCard label="Escalated (3+ days)" value={escalated} icon={Flame} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-escalated" />
+        <StatCard label="Total Tasks" value={totalTasks} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-total" onClick={() => navigate("/board")} />
+        <StatCard label="For Verification" value={verificationCount} icon={ShieldCheck} color="text-amber-600 dark:text-amber-400" bgColor="bg-amber-100 dark:bg-amber-900/20" testId="stat-verification" onClick={() => navigate("/board?bucket=for_verification")} />
+        <StatCard label="Ready for Billing" value={billingCount} icon={FileCheck} color="text-blue-600 dark:text-blue-400" bgColor="bg-blue-100 dark:bg-blue-900/20" testId="stat-billing" onClick={() => navigate("/board?bucket=ready_for_billing")} />
+        <StatCard label="Done Today" value={doneToday} icon={CheckCircle2} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-100 dark:bg-emerald-900/20" testId="stat-done-today" onClick={() => navigate("/board?bucket=done")} />
+        <StatCard label="Unassigned" value={unassigned} icon={UserX} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-unassigned" onClick={() => navigate("/board?status=unassigned")} />
+        <StatCard label="Critical Tasks" value={critical} icon={Zap} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-critical" onClick={() => navigate("/board?priority=critical")} />
+        <StatCard label="Overdue" value={overdue} icon={AlertTriangle} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-overdue" onClick={() => navigate("/board?overdue=true")} />
+        <StatCard label="Escalated (3+ days)" value={escalated} icon={Flame} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-escalated" onClick={() => navigate("/board?escalated=true")} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
