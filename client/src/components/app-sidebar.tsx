@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
-  { title: "Board", url: "/", icon: ClipboardList, roles: ["admin", "verifier", "biller", "assigner"] },
+  { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "verifier", "biller", "assigner"] },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "verifier", "biller", "assigner"] },
   { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "verifier", "biller", "assigner"] },
   { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "biller", "assigner"] },
