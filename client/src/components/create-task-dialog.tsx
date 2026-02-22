@@ -152,12 +152,13 @@ export function CreateTaskDialog() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Priority</Label>
+              <Label>Priority {formData.ieDate && <span className="text-muted-foreground text-xs">(auto from IE)</span>}</Label>
               <Select
                 value={formData.priority}
                 onValueChange={(v) => setFormData({ ...formData, priority: v })}
+                disabled={!!formData.ieDate}
               >
-                <SelectTrigger data-testid="select-new-priority">
+                <SelectTrigger data-testid="select-new-priority" className={formData.ieDate ? "bg-muted cursor-not-allowed" : ""}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -178,12 +179,15 @@ export function CreateTaskDialog() {
                 onChange={(e) => {
                   const ieDate = e.target.value;
                   let dueDate = "";
+                  let priority = formData.priority;
                   if (ieDate) {
                     const d = new Date(ieDate);
                     d.setDate(d.getDate() + 30);
                     dueDate = d.toISOString().split("T")[0];
+                    const daysSinceIE = Math.floor((Date.now() - new Date(ieDate).getTime()) / (1000 * 60 * 60 * 24));
+                    priority = daysSinceIE >= 21 ? "critical" : daysSinceIE >= 11 ? "medium" : "low";
                   }
-                  setFormData({ ...formData, ieDate, dueDate });
+                  setFormData({ ...formData, ieDate, dueDate, priority });
                 }}
                 data-testid="input-new-ie-date"
               />

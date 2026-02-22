@@ -137,12 +137,13 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Priority</Label>
+                <Label className="text-xs text-muted-foreground">Priority {editData.ieDate && <span className="text-xs">(auto from IE)</span>}</Label>
                 <Select
                   value={editData.priority || "low"}
                   onValueChange={(v) => setEditData({ ...editData, priority: v })}
+                  disabled={!!editData.ieDate}
                 >
-                  <SelectTrigger data-testid="select-task-priority">
+                  <SelectTrigger data-testid="select-task-priority" className={editData.ieDate ? "bg-muted cursor-not-allowed" : ""}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -256,12 +257,15 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                   onChange={(e) => {
                     const ieDate = e.target.value;
                     let dueDate = "";
+                    let priority = editData.priority;
                     if (ieDate) {
                       const d = new Date(ieDate);
                       d.setDate(d.getDate() + 30);
                       dueDate = d.toISOString().split("T")[0];
+                      const daysSinceIE = Math.floor((Date.now() - new Date(ieDate).getTime()) / (1000 * 60 * 60 * 24));
+                      priority = daysSinceIE >= 21 ? "critical" : daysSinceIE >= 11 ? "medium" : "low";
                     }
-                    setEditData({ ...editData, ieDate, dueDate });
+                    setEditData({ ...editData, ieDate, dueDate, priority });
                   }}
                   data-testid="input-task-ie-date"
                 />

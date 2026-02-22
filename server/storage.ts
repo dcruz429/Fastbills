@@ -119,8 +119,22 @@ export class DatabaseStorage implements IStorage {
       if (isOverdue && t.dueDate) {
         overdueDays = Math.floor((now.getTime() - new Date(t.dueDate).getTime()) / (1000 * 60 * 60 * 24));
       }
+
+      let computedPriority = t.priority;
+      if (t.ieDate && t.bucket !== "done") {
+        const daysSinceIE = Math.floor((now.getTime() - new Date(t.ieDate).getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSinceIE >= 21) {
+          computedPriority = "critical";
+        } else if (daysSinceIE >= 11) {
+          computedPriority = "medium";
+        } else {
+          computedPriority = "low";
+        }
+      }
+
       return {
         ...t,
+        priority: computedPriority,
         uploader: t.uploaderId ? userMap.get(t.uploaderId) || null : null,
         clinic: t.clinicId ? clinicMap.get(t.clinicId) || null : null,
         insurance: t.insuranceId ? insuranceMap.get(t.insuranceId) || null : null,
