@@ -61,6 +61,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
       setEditData({
         patientLastName: nameParts[0],
         patientFirstName: nameParts.slice(1).join(", "),
+        chartNumber: task.chartNumber || "",
         clinicId: task.clinicId,
         insuranceId: task.insuranceId,
         assignedUserId: task.assignedUserId,
@@ -117,6 +118,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
     const updates: Record<string, any> = {};
     const combinedName = `${editData.patientLastName?.trim() || ""}, ${editData.patientFirstName?.trim() || ""}`;
     if (combinedName !== task?.patientName) updates.patientName = combinedName;
+    if ((editData.chartNumber || "") !== (task?.chartNumber || "")) updates.chartNumber = editData.chartNumber || null;
     if (editData.clinicId !== task?.clinicId) updates.clinicId = editData.clinicId ? Number(editData.clinicId) : null;
     if (editData.insuranceId !== task?.insuranceId) updates.insuranceId = editData.insuranceId ? Number(editData.insuranceId) : null;
     if (editData.assignedUserId !== task?.assignedUserId) updates.assignedUserId = editData.assignedUserId ? Number(editData.assignedUserId) : null;
@@ -176,6 +178,16 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                   data-testid="input-task-patient-last-name"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Chart #</Label>
+              <Input
+                value={editData.chartNumber || ""}
+                onChange={(e) => setEditData({ ...editData, chartNumber: e.target.value })}
+                placeholder="Enter chart number"
+                data-testid="input-task-chart-number"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

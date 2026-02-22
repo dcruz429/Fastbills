@@ -90,6 +90,7 @@ export default function BoardPage() {
       const s = search.toLowerCase();
       if (
         !t.patientName.toLowerCase().includes(s) &&
+        !(t.chartNumber || "").toLowerCase().includes(s) &&
         !t.clinic?.name?.toLowerCase().includes(s) &&
         !t.insurance?.name?.toLowerCase().includes(s) &&
         !t.assignedUser?.fullName?.toLowerCase().includes(s)

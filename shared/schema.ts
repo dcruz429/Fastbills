@@ -30,6 +30,7 @@ export const insurances = pgTable("insurances", {
 export const tasks = pgTable("tasks", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   patientName: text("patient_name").notNull(),
+  chartNumber: text("chart_number"),
   inputDate: timestamp("input_date").notNull().defaultNow(),
   uploaderId: integer("uploader_id").references(() => users.id),
   clinicId: integer("clinic_id").references(() => clinics.id),

@@ -184,6 +184,7 @@ export async function registerRoutes(
 
   const createTaskSchema = z.object({
     patientName: z.string().min(1, "Patient name is required"),
+    chartNumber: z.string().nullable().optional(),
     clinicId: z.number().nullable().optional(),
     insuranceId: z.number().nullable().optional(),
     assignedUserId: z.number().nullable().optional(),
@@ -295,7 +296,7 @@ export async function registerRoutes(
         }
       }
 
-      const fieldsToTrack = ["patientName", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate"];
+      const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate"];
       for (const field of fieldsToTrack) {
         if (updates[field] !== undefined && String(updates[field]) !== String((existing as any)[field])) {
           await storage.createTaskActivity({

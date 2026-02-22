@@ -22,6 +22,7 @@ export function CreateTaskDialog() {
   const [formData, setFormData] = useState({
     patientFirstName: "",
     patientLastName: "",
+    chartNumber: "",
     clinicId: "",
     insuranceId: "",
     assignedUserId: "",
@@ -44,6 +45,7 @@ export function CreateTaskDialog() {
       setFormData({
         patientFirstName: "",
         patientLastName: "",
+        chartNumber: "",
         clinicId: "",
         insuranceId: "",
         assignedUserId: "",
@@ -64,6 +66,7 @@ export function CreateTaskDialog() {
 
     createMutation.mutate({
       patientName: `${formData.patientLastName.trim()}, ${formData.patientFirstName.trim()}`,
+      chartNumber: formData.chartNumber.trim() || null,
       clinicId: formData.clinicId ? Number(formData.clinicId) : null,
       insuranceId: formData.insuranceId ? Number(formData.insuranceId) : null,
       assignedUserId: formData.assignedUserId ? Number(formData.assignedUserId) : null,
@@ -107,6 +110,16 @@ export function CreateTaskDialog() {
                 data-testid="input-new-patient-last-name"
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Chart #</Label>
+            <Input
+              value={formData.chartNumber}
+              onChange={(e) => setFormData({ ...formData, chartNumber: e.target.value })}
+              placeholder="Enter chart number"
+              data-testid="input-new-chart-number"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
