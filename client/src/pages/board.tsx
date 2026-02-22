@@ -116,7 +116,7 @@ export default function BoardPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between gap-3 p-4 pb-2 flex-wrap">
         <h1 className="text-xl font-bold tracking-tight" data-testid="text-board-title">Task Board</h1>
-        <CreateTaskDialog />
+        {(user?.role === "admin" || user?.role === "assigner") && <CreateTaskDialog />}
       </div>
 
       <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">

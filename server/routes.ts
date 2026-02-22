@@ -197,6 +197,10 @@ export async function registerRoutes(
 
   app.post("/api/tasks", requireAuth, async (req, res) => {
     try {
+      const creator = await storage.getUser(req.session.userId!);
+      if (!creator || (creator.role !== "admin" && creator.role !== "assigner")) {
+        return res.status(403).json({ message: "Only admins and assigners can create tasks" });
+      }
       const parsed = createTaskSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
