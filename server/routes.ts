@@ -117,10 +117,28 @@ export async function registerRoutes(
   app.patch("/api/users/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const user = await storage.updateUser(id, req.body);
+      const updateData = { ...req.body };
+      if (updateData.password) {
+        updateData.password = await hashPassword(updateData.password);
+      }
+      const user = await storage.updateUser(id, updateData);
       if (!user) return res.status(404).json({ message: "User not found" });
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/users/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const currentUser = (req as any).session?.userId;
+      if (id === currentUser) {
+        return res.status(400).json({ message: "Cannot delete yourself" });
+      }
+      await storage.deleteUser(id);
+      res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

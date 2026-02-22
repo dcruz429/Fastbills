@@ -284,6 +284,8 @@ function InsuranceSettings() {
 function UserSettings() {
   const { toast } = useToast();
   const [newUser, setNewUser] = useState({ username: "", password: "", fullName: "", role: "verifier" });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editData, setEditData] = useState({ fullName: "", role: "", password: "" });
   const { data: users, isLoading } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
   const addMutation = useMutation({
@@ -298,6 +300,20 @@ function UserSettings() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const payload: any = { fullName: data.fullName, role: data.role };
+      if (data.password) payload.password = data.password;
+      await apiRequest("PATCH", `/api/users/${id}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setEditingId(null);
+      toast({ title: "User updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const toggleMutation = useMutation({
     mutationFn: async ({ id, active }: { id: number; active: boolean }) => {
       await apiRequest("PATCH", `/api/users/${id}`, { active });
@@ -305,6 +321,17 @@ function UserSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/users/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "User deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   if (isLoading) return <Skeleton className="h-32" />;
@@ -373,26 +400,106 @@ function UserSettings() {
 
       <div className="space-y-1">
         {users?.map((u) => (
-          <div key={u.id} className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30" data-testid={`user-item-${u.id}`}>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{u.fullName}</span>
-              <Badge variant="secondary" className="no-default-active-elevate text-xs capitalize">
-                {u.role}
-              </Badge>
-              {!u.active && (
-                <Badge variant="secondary" className="no-default-active-elevate text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">
-                  Inactive
-                </Badge>
-              )}
-            </div>
-            <Button
-              size="sm"
-              variant={u.active ? "secondary" : "default"}
-              onClick={() => toggleMutation.mutate({ id: u.id, active: !u.active })}
-              data-testid={`button-toggle-user-${u.id}`}
-            >
-              {u.active ? "Deactivate" : "Activate"}
-            </Button>
+          <div key={u.id} className="py-2 px-3 rounded-md bg-muted/30" data-testid={`user-item-${u.id}`}>
+            {editingId === u.id ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Full Name</Label>
+                    <Input
+                      value={editData.fullName}
+                      onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
+                      className="h-8 text-sm"
+                      data-testid={`input-edit-user-fullname-${u.id}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Role</Label>
+                    <Select value={editData.role} onValueChange={(v) => setEditData({ ...editData, role: v })}>
+                      <SelectTrigger className="h-8 text-sm" data-testid={`select-edit-user-role-${u.id}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="verifier">Verifier</SelectItem>
+                        <SelectItem value="biller">Biller</SelectItem>
+                        <SelectItem value="assigner">Assigner</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">New Password (leave blank to keep current)</Label>
+                    <Input
+                      type="password"
+                      value={editData.password}
+                      onChange={(e) => setEditData({ ...editData, password: e.target.value })}
+                      placeholder="Leave blank to keep current"
+                      className="h-8 text-sm"
+                      data-testid={`input-edit-user-password-${u.id}`}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => editData.fullName.trim() && updateMutation.mutate({ id: u.id, data: editData })}
+                    disabled={!editData.fullName.trim() || updateMutation.isPending}
+                    data-testid={`button-save-user-${u.id}`}
+                  >
+                    <Check className="h-3.5 w-3.5 mr-1" />
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setEditingId(null)}
+                    data-testid={`button-cancel-user-${u.id}`}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{u.fullName}</span>
+                  <Badge variant="secondary" className="no-default-active-elevate text-xs capitalize">
+                    {u.role}
+                  </Badge>
+                  {!u.active && (
+                    <Badge variant="secondary" className="no-default-active-elevate text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">
+                      Inactive
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => { setEditingId(u.id); setEditData({ fullName: u.fullName, role: u.role, password: "" }); }}
+                    data-testid={`button-edit-user-${u.id}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={u.active ? "secondary" : "default"}
+                    onClick={() => toggleMutation.mutate({ id: u.id, active: !u.active })}
+                    data-testid={`button-toggle-user-${u.id}`}
+                  >
+                    {u.active ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => deleteMutation.mutate(u.id)}
+                    data-testid={`button-delete-user-${u.id}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
