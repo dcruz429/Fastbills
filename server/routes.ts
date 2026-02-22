@@ -255,6 +255,10 @@ export async function registerRoutes(
       if (!existing) return res.status(404).json({ message: "Task not found" });
 
       const updates = { ...req.body };
+      const editor = await storage.getUser(req.session.userId!);
+      if (updates.assignedUserId !== undefined && editor && editor.role !== "admin" && editor.role !== "assigner") {
+        delete updates.assignedUserId;
+      }
       if (updates.ieDate !== undefined) {
         if (updates.ieDate) {
           updates.ieDate = new Date(updates.ieDate);

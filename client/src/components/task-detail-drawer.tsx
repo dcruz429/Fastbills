@@ -234,20 +234,28 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Assigned To</Label>
-                <Select
-                  value={editData.assignedUserId?.toString() || "none"}
-                  onValueChange={(v) => setEditData({ ...editData, assignedUserId: v === "none" ? null : Number(v) })}
-                >
-                  <SelectTrigger data-testid="select-task-assigned">
-                    <SelectValue placeholder="Select user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Unassigned</SelectItem>
-                    {allUsers?.filter(u => u.active).map((u) => (
-                      <SelectItem key={u.id} value={u.id.toString()}>{u.fullName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {user?.role === "admin" || user?.role === "assigner" ? (
+                  <Select
+                    value={editData.assignedUserId?.toString() || "none"}
+                    onValueChange={(v) => setEditData({ ...editData, assignedUserId: v === "none" ? null : Number(v) })}
+                  >
+                    <SelectTrigger data-testid="select-task-assigned">
+                      <SelectValue placeholder="Select user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Unassigned</SelectItem>
+                      {allUsers?.filter(u => u.active).map((u) => (
+                        <SelectItem key={u.id} value={u.id.toString()}>{u.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={allUsers?.find(u => u.id === task?.assignedUserId)?.fullName || "Unassigned"}
+                    disabled
+                    data-testid="select-task-assigned"
+                  />
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">IE Date</Label>
