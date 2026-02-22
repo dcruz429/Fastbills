@@ -206,7 +206,7 @@ export default function BoardPage() {
               setFilterStatus("all");
               setFilterPriority("all");
               setFilterClinic("all");
-              window.history.replaceState({}, "", "/board");
+              window.history.replaceState({}, "", "/");
             }}
             className="text-xs"
             data-testid="button-clear-filters"

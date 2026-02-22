@@ -139,14 +139,14 @@ export default function DashboardPage() {
       </h1>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total Tasks" value={totalTasks} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-total" onClick={() => navigate("/board")} />
-        <StatCard label="For Verification" value={verificationCount} icon={ShieldCheck} color="text-amber-600 dark:text-amber-400" bgColor="bg-amber-100 dark:bg-amber-900/20" testId="stat-verification" onClick={() => navigate("/board?bucket=for_verification")} />
-        <StatCard label="Ready for Billing" value={billingCount} icon={FileCheck} color="text-blue-600 dark:text-blue-400" bgColor="bg-blue-100 dark:bg-blue-900/20" testId="stat-billing" onClick={() => navigate("/board?bucket=ready_for_billing")} />
-        <StatCard label="Done Today" value={doneToday} icon={CheckCircle2} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-100 dark:bg-emerald-900/20" testId="stat-done-today" onClick={() => navigate("/board?bucket=done")} />
-        <StatCard label="Unassigned" value={unassigned} icon={UserX} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-unassigned" onClick={() => navigate("/board?status=unassigned")} />
-        <StatCard label="Critical Tasks" value={critical} icon={Zap} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-critical" onClick={() => navigate("/board?priority=critical")} />
-        <StatCard label="Overdue" value={overdue} icon={AlertTriangle} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-overdue" onClick={() => navigate("/board?overdue=true")} />
-        <StatCard label="Escalated (3+ days)" value={escalated} icon={Flame} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-escalated" onClick={() => navigate("/board?escalated=true")} />
+        <StatCard label="Total Tasks" value={totalTasks} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-total" onClick={() => navigate("/")} />
+        <StatCard label="For Verification" value={verificationCount} icon={ShieldCheck} color="text-amber-600 dark:text-amber-400" bgColor="bg-amber-100 dark:bg-amber-900/20" testId="stat-verification" onClick={() => navigate("/?bucket=for_verification")} />
+        <StatCard label="Ready for Billing" value={billingCount} icon={FileCheck} color="text-blue-600 dark:text-blue-400" bgColor="bg-blue-100 dark:bg-blue-900/20" testId="stat-billing" onClick={() => navigate("/?bucket=ready_for_billing")} />
+        <StatCard label="Done Today" value={doneToday} icon={CheckCircle2} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-100 dark:bg-emerald-900/20" testId="stat-done-today" onClick={() => navigate("/?bucket=done")} />
+        <StatCard label="Unassigned" value={unassigned} icon={UserX} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-unassigned" onClick={() => navigate("/?status=unassigned")} />
+        <StatCard label="Critical Tasks" value={critical} icon={Zap} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-critical" onClick={() => navigate("/?priority=critical")} />
+        <StatCard label="Overdue" value={overdue} icon={AlertTriangle} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-overdue" onClick={() => navigate("/?overdue=true")} />
+        <StatCard label="Escalated (3+ days)" value={escalated} icon={Flame} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-escalated" onClick={() => navigate("/?escalated=true")} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
