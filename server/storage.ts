@@ -161,12 +161,24 @@ export class DatabaseStorage implements IStorage {
     return task;
   }
 
-  async getTaskActivity(taskId: number): Promise<TaskActivity[]> {
-    return db
-      .select()
+  async getTaskActivity(taskId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: taskActivity.id,
+        taskId: taskActivity.taskId,
+        userId: taskActivity.userId,
+        action: taskActivity.action,
+        field: taskActivity.field,
+        oldValue: taskActivity.oldValue,
+        newValue: taskActivity.newValue,
+        timestamp: taskActivity.timestamp,
+        userName: users.fullName,
+      })
       .from(taskActivity)
+      .leftJoin(users, eq(taskActivity.userId, users.id))
       .where(eq(taskActivity.taskId, taskId))
       .orderBy(desc(taskActivity.timestamp));
+    return rows;
   }
 
   async createTaskActivity(data: InsertTaskActivity): Promise<TaskActivity> {

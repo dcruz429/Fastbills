@@ -334,6 +334,9 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                       data-testid={`activity-item-${a.id}`}
                     >
                       <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <UserIcon className="h-3 w-3" />
+                        <span className="font-medium text-foreground">{(a as any).userName || "System"}</span>
+                        <span className="mx-0.5">·</span>
                         <Clock className="h-3 w-3" />
                         <span>{format(new Date(a.timestamp), "MMM d, h:mm a")}</span>
                       </div>
