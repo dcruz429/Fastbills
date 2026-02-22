@@ -17,6 +17,7 @@ import type { TaskWithRelations, Clinic } from "@shared/schema";
 export default function ReportsPage() {
   const [filterClinic, setFilterClinic] = useState("all");
   const [filterBucket, setFilterBucket] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
 
   const { data: tasks, isLoading } = useQuery<TaskWithRelations[]>({
@@ -27,6 +28,7 @@ export default function ReportsPage() {
   const filtered = (tasks || []).filter((t) => {
     if (filterClinic !== "all" && t.clinicId?.toString() !== filterClinic) return false;
     if (filterBucket !== "all" && t.bucket !== filterBucket) return false;
+    if (filterStatus !== "all" && t.status !== filterStatus) return false;
     if (filterPriority !== "all" && t.priority !== filterPriority) return false;
     return true;
   });
@@ -105,6 +107,20 @@ export default function ReportsPage() {
             <SelectItem value="for_verification">For Verification</SelectItem>
             <SelectItem value="ready_for_billing">Ready for Billing</SelectItem>
             <SelectItem value="done">Done</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[150px]" data-testid="select-report-status">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            <SelectItem value="assigned">Assigned</SelectItem>
+            <SelectItem value="working_on_it">Working on it</SelectItem>
+            <SelectItem value="done">Done</SelectItem>
+            <SelectItem value="billed">Billed</SelectItem>
+            <SelectItem value="dropped">Dropped</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterPriority} onValueChange={setFilterPriority}>
