@@ -208,7 +208,7 @@ export async function registerRoutes(
       const data: any = { ...parsed.data };
       data.uploaderId = req.session.userId;
       if (data.ieDate) {
-        data.ieDate = new Date(data.ieDate);
+        data.ieDate = new Date(data.ieDate + "T12:00:00");
         const due = new Date(data.ieDate);
         due.setDate(due.getDate() + 30);
         data.dueDate = due;
@@ -261,7 +261,7 @@ export async function registerRoutes(
       }
       if (updates.ieDate !== undefined) {
         if (updates.ieDate) {
-          updates.ieDate = new Date(updates.ieDate);
+          updates.ieDate = new Date(updates.ieDate + "T12:00:00");
           const due = new Date(updates.ieDate);
           due.setDate(due.getDate() + 30);
           updates.dueDate = due;

@@ -118,8 +118,10 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
     if (editData.priority !== task?.priority) updates.priority = editData.priority;
     if (editData.status !== task?.status) updates.status = editData.status;
     if (editData.bucket !== task?.bucket) updates.bucket = editData.bucket;
-    if (editData.dueDate) updates.dueDate = editData.dueDate;
-    if (editData.ieDate) updates.ieDate = editData.ieDate;
+    const originalIeDate = task?.ieDate ? formatEST(new Date(task.ieDate), "yyyy-MM-dd") : "";
+    if (editData.ieDate !== originalIeDate) {
+      updates.ieDate = editData.ieDate || null;
+    }
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates);
