@@ -172,8 +172,14 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/tasks", requireAuth, async (_req, res) => {
-    res.json(await storage.getAllTasks());
+  app.get("/api/tasks", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (user && user.role === "verifier") {
+      const allTasks = await storage.getAllTasks();
+      res.json(allTasks.filter((t) => t.assignedUserId === user.id));
+    } else {
+      res.json(await storage.getAllTasks());
+    }
   });
 
   const createTaskSchema = z.object({
