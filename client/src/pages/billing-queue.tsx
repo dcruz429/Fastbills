@@ -20,7 +20,7 @@ export default function BillingQueuePage() {
   const billingTasks = (tasks || [])
     .filter((t) => t.bucket === "ready_for_billing")
     .sort((a, b) => {
-      const priorityOrder = { critical: 0, medium: 1, low: 2 };
+      const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
       const pa = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2;
       const pb = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 2;
       if (pa !== pb) return pa - pb;

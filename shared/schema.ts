@@ -6,7 +6,7 @@ import { z } from "zod";
 export const roleEnum = pgEnum("role", ["admin", "verifier", "biller", "assigner"]);
 export const bucketEnum = pgEnum("bucket", ["for_verification", "ready_for_billing", "done"]);
 export const statusEnum = pgEnum("status", ["working_on_it", "billed", "done", "dropped", "assigned", "unassigned"]);
-export const priorityEnum = pgEnum("priority", ["low", "medium", "critical"]);
+export const priorityEnum = pgEnum("priority", ["low", "medium", "high", "critical"]);
 
 export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),

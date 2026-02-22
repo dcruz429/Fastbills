@@ -13,7 +13,8 @@ const statusColors: Record<string, string> = {
 const priorityColors: Record<string, string> = {
   low: "bg-blue-500 text-white dark:bg-blue-600",
   medium: "bg-orange-500 text-white dark:bg-orange-600",
-  critical: "bg-red-600 text-white dark:bg-red-700",
+  high: "bg-red-500 text-white dark:bg-red-600",
+  critical: "bg-red-700 text-white dark:bg-red-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -28,6 +29,7 @@ const statusLabels: Record<string, string> = {
 const priorityLabels: Record<string, string> = {
   low: "Low",
   medium: "Medium",
+  high: "High",
   critical: "Critical",
 };
 

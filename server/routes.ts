@@ -188,7 +188,7 @@ export async function registerRoutes(
     clinicId: z.number().nullable().optional(),
     insuranceId: z.number().nullable().optional(),
     assignedUserId: z.number().nullable().optional(),
-    priority: z.enum(["low", "medium", "critical"]).default("low"),
+    priority: z.enum(["low", "medium", "high", "critical"]).default("low"),
     status: z.enum(["working_on_it", "billed", "done", "dropped", "assigned", "unassigned"]).optional(),
     bucket: z.enum(["for_verification", "ready_for_billing", "done"]).default("for_verification"),
     dueDate: z.string().nullable().optional(),

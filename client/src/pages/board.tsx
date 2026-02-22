@@ -153,6 +153,7 @@ export default function BoardPage() {
             <SelectItem value="all">All Priorities</SelectItem>
             <SelectItem value="low">Low</SelectItem>
             <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="high">High</SelectItem>
             <SelectItem value="critical">Critical</SelectItem>
           </SelectContent>
         </Select>

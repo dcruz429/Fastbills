@@ -188,9 +188,10 @@ export function CreateTaskDialog() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="low">Low (0-10 days)</SelectItem>
+                  <SelectItem value="medium">Medium (11-19 days)</SelectItem>
+                  <SelectItem value="high">High (20-29 days)</SelectItem>
+                  <SelectItem value="critical">Critical (30+ days)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -211,7 +212,7 @@ export function CreateTaskDialog() {
                     d.setDate(d.getDate() + 30);
                     dueDate = d.toISOString().split("T")[0];
                     const daysSinceIE = Math.floor((Date.now() - new Date(ieDate).getTime()) / (1000 * 60 * 60 * 24));
-                    priority = daysSinceIE >= 21 ? "critical" : daysSinceIE >= 11 ? "medium" : "low";
+                    priority = daysSinceIE >= 30 ? "critical" : daysSinceIE >= 20 ? "high" : daysSinceIE >= 11 ? "medium" : "low";
                   }
                   setFormData({ ...formData, ieDate, dueDate, priority });
                 }}
