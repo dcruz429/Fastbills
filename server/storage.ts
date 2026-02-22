@@ -46,6 +46,7 @@ export interface IStorage {
   getTaskActivity(taskId: number): Promise<TaskActivity[]>;
   createTaskActivity(data: InsertTaskActivity): Promise<TaskActivity>;
 
+  getNotification(id: number): Promise<Notification | undefined>;
   getNotifications(userId: number): Promise<Notification[]>;
   createNotification(data: InsertNotification): Promise<Notification>;
   markNotificationRead(id: number): Promise<void>;
@@ -191,6 +192,11 @@ export class DatabaseStorage implements IStorage {
   async createTaskActivity(data: InsertTaskActivity): Promise<TaskActivity> {
     const [activity] = await db.insert(taskActivity).values(data).returning();
     return activity;
+  }
+
+  async getNotification(id: number): Promise<Notification | undefined> {
+    const [notif] = await db.select().from(notifications).where(eq(notifications.id, id));
+    return notif;
   }
 
   async getNotifications(userId: number): Promise<Notification[]> {

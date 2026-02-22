@@ -397,6 +397,10 @@ export async function registerRoutes(
   });
 
   app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
+    const notif = await storage.getNotification(parseInt(req.params.id));
+    if (!notif || notif.userId !== req.session.userId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
     await storage.markNotificationRead(parseInt(req.params.id));
     res.json({ ok: true });
   });
