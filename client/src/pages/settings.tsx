@@ -16,12 +16,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, ShieldCheck, Users } from "lucide-react";
+import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X } from "lucide-react";
 import type { Clinic, Insurance, User } from "@shared/schema";
 
 function ClinicSettings() {
   const { toast } = useToast();
   const [newName, setNewName] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
   const { data: clinics, isLoading } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
 
   const addMutation = useMutation({
@@ -32,6 +34,18 @@ function ClinicSettings() {
       queryClient.invalidateQueries({ queryKey: ["/api/clinics"] });
       setNewName("");
       toast({ title: "Clinic added" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      await apiRequest("PATCH", `/api/clinics/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clinics"] });
+      setEditingId(null);
+      toast({ title: "Clinic updated" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -70,15 +84,62 @@ function ClinicSettings() {
       <div className="space-y-1">
         {clinics?.map((c) => (
           <div key={c.id} className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30" data-testid={`clinic-item-${c.id}`}>
-            <span className="text-sm">{c.name}</span>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => deleteMutation.mutate(c.id)}
-              data-testid={`button-delete-clinic-${c.id}`}
-            >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
+            {editingId === c.id ? (
+              <div className="flex items-center gap-2 flex-1 mr-2">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="h-7 text-sm"
+                  data-testid={`input-edit-clinic-${c.id}`}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && editName.trim()) updateMutation.mutate({ id: c.id, name: editName.trim() });
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => editName.trim() && updateMutation.mutate({ id: c.id, name: editName.trim() })}
+                  disabled={!editName.trim() || updateMutation.isPending}
+                  data-testid={`button-save-clinic-${c.id}`}
+                >
+                  <Check className="h-3.5 w-3.5 text-green-600" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => setEditingId(null)}
+                  data-testid={`button-cancel-clinic-${c.id}`}
+                >
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <span className="text-sm">{c.name}</span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => { setEditingId(c.id); setEditName(c.name); }}
+                    data-testid={`button-edit-clinic-${c.id}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => deleteMutation.mutate(c.id)}
+                    data-testid={`button-delete-clinic-${c.id}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         ))}
         {clinics?.length === 0 && (
@@ -92,6 +153,8 @@ function ClinicSettings() {
 function InsuranceSettings() {
   const { toast } = useToast();
   const [newName, setNewName] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
   const { data: insurances, isLoading } = useQuery<Insurance[]>({ queryKey: ["/api/insurances"] });
 
   const addMutation = useMutation({
@@ -102,6 +165,18 @@ function InsuranceSettings() {
       queryClient.invalidateQueries({ queryKey: ["/api/insurances"] });
       setNewName("");
       toast({ title: "Insurance added" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      await apiRequest("PATCH", `/api/insurances/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/insurances"] });
+      setEditingId(null);
+      toast({ title: "Insurance updated" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -140,15 +215,62 @@ function InsuranceSettings() {
       <div className="space-y-1">
         {insurances?.map((i) => (
           <div key={i.id} className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30" data-testid={`insurance-item-${i.id}`}>
-            <span className="text-sm">{i.name}</span>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => deleteMutation.mutate(i.id)}
-              data-testid={`button-delete-insurance-${i.id}`}
-            >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
+            {editingId === i.id ? (
+              <div className="flex items-center gap-2 flex-1 mr-2">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="h-7 text-sm"
+                  data-testid={`input-edit-insurance-${i.id}`}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && editName.trim()) updateMutation.mutate({ id: i.id, name: editName.trim() });
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => editName.trim() && updateMutation.mutate({ id: i.id, name: editName.trim() })}
+                  disabled={!editName.trim() || updateMutation.isPending}
+                  data-testid={`button-save-insurance-${i.id}`}
+                >
+                  <Check className="h-3.5 w-3.5 text-green-600" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => setEditingId(null)}
+                  data-testid={`button-cancel-insurance-${i.id}`}
+                >
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <span className="text-sm">{i.name}</span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => { setEditingId(i.id); setEditName(i.name); }}
+                    data-testid={`button-edit-insurance-${i.id}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => deleteMutation.mutate(i.id)}
+                    data-testid={`button-delete-insurance-${i.id}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         ))}
         {insurances?.length === 0 && (

@@ -31,10 +31,12 @@ export interface IStorage {
 
   getAllClinics(): Promise<Clinic[]>;
   createClinic(data: InsertClinic): Promise<Clinic>;
+  updateClinic(id: number, data: Partial<InsertClinic>): Promise<Clinic | undefined>;
   deleteClinic(id: number): Promise<void>;
 
   getAllInsurances(): Promise<Insurance[]>;
   createInsurance(data: InsertInsurance): Promise<Insurance>;
+  updateInsurance(id: number, data: Partial<InsertInsurance>): Promise<Insurance | undefined>;
   deleteInsurance(id: number): Promise<void>;
 
   getAllTasks(): Promise<TaskWithRelations[]>;
@@ -87,6 +89,11 @@ export class DatabaseStorage implements IStorage {
     return clinic;
   }
 
+  async updateClinic(id: number, data: Partial<InsertClinic>): Promise<Clinic | undefined> {
+    const [clinic] = await db.update(clinics).set(data).where(eq(clinics.id, id)).returning();
+    return clinic;
+  }
+
   async deleteClinic(id: number): Promise<void> {
     await db.delete(clinics).where(eq(clinics.id, id));
   }
@@ -97,6 +104,11 @@ export class DatabaseStorage implements IStorage {
 
   async createInsurance(data: InsertInsurance): Promise<Insurance> {
     const [ins] = await db.insert(insurances).values(data).returning();
+    return ins;
+  }
+
+  async updateInsurance(id: number, data: Partial<InsertInsurance>): Promise<Insurance | undefined> {
+    const [ins] = await db.update(insurances).set(data).where(eq(insurances.id, id)).returning();
     return ins;
   }
 

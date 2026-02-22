@@ -140,6 +140,18 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/clinics/:id", requireAuth, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ message: "Name required" });
+      const clinic = await storage.updateClinic(parseInt(req.params.id), { name });
+      if (!clinic) return res.status(404).json({ message: "Clinic not found" });
+      res.json(clinic);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.delete("/api/clinics/:id", requireAuth, async (req, res) => {
     try {
       await storage.deleteClinic(parseInt(req.params.id));
@@ -158,6 +170,18 @@ export async function registerRoutes(
       const { name } = req.body;
       if (!name) return res.status(400).json({ message: "Name required" });
       res.json(await storage.createInsurance({ name }));
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/insurances/:id", requireAuth, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ message: "Name required" });
+      const ins = await storage.updateInsurance(parseInt(req.params.id), { name });
+      if (!ins) return res.status(404).json({ message: "Insurance not found" });
+      res.json(ins);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
