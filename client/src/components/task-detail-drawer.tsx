@@ -19,7 +19,18 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import { Clock, User as UserIcon, ArrowRight, MessageSquare, History } from "lucide-react";
+import { Clock, User as UserIcon, ArrowRight, MessageSquare, History, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import type { TaskWithRelations, User, Clinic, Insurance, TaskActivity } from "@shared/schema";
 
 type Props = {
@@ -67,6 +78,20 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks", task?.id, "activity"] });
       toast({ title: "Task updated successfully" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/tasks/${task?.id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "Task deleted successfully" });
+      onClose();
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -299,6 +324,39 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
             >
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
+
+            {user?.role === "admin" && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    data-testid="button-delete-task"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Task
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{task?.patientName}"? This action cannot be undone. All notes and activity history will also be removed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteMutation.mutate()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      data-testid="button-confirm-delete"
+                    >
+                      {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
 
             <Separator />
 

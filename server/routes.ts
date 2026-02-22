@@ -326,6 +326,22 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can delete tasks" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getTask(id);
+      if (!existing) return res.status(404).json({ message: "Task not found" });
+      await storage.deleteTask(id);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.post("/api/tasks/:id/notes", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
