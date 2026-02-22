@@ -22,6 +22,17 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Audit Trail**: All task changes recorded with user, timestamp, old/new values
 - **Overdue Detection**: Visual highlighting, escalation levels (1/3/5 days)
 
+## Task Workflow
+1. **For Verification**: Task created and assigned to a verifier. Verifier works on it.
+2. **Verifier marks Done** → Task auto-moves to "Ready for Billing", status becomes "Unassigned", assignment cleared. All admins/assigners get notified to assign a biller.
+3. **Admin/Assigner assigns a biller** → Status becomes "Assigned".
+4. **Biller marks Billed** → Task auto-moves to "Done" bucket.
+
+Status options are role-restricted:
+- Verifier: Assigned, Working on it, Done
+- Biller: Assigned, Working on it, Billed
+- Admin/Assigner: All statuses
+
 ## User Roles
 - **Admin**: Full access, override workflow, manage settings
 - **Verifier**: Verify insurance, move to Ready for Billing

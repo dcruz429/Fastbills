@@ -191,12 +191,37 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    <SelectItem value="assigned">Assigned</SelectItem>
-                    <SelectItem value="working_on_it">Working on it</SelectItem>
-                    <SelectItem value="billed">Billed</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                    <SelectItem value="dropped">Dropped</SelectItem>
+                    {(user?.role === "admin" || user?.role === "assigner") ? (
+                      <>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        <SelectItem value="assigned">Assigned</SelectItem>
+                        <SelectItem value="working_on_it">Working on it</SelectItem>
+                        <SelectItem value="billed">Billed</SelectItem>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="dropped">Dropped</SelectItem>
+                      </>
+                    ) : user?.role === "verifier" ? (
+                      <>
+                        <SelectItem value="assigned">Assigned</SelectItem>
+                        <SelectItem value="working_on_it">Working on it</SelectItem>
+                        <SelectItem value="done">Done</SelectItem>
+                      </>
+                    ) : user?.role === "biller" ? (
+                      <>
+                        <SelectItem value="assigned">Assigned</SelectItem>
+                        <SelectItem value="working_on_it">Working on it</SelectItem>
+                        <SelectItem value="billed">Billed</SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        <SelectItem value="assigned">Assigned</SelectItem>
+                        <SelectItem value="working_on_it">Working on it</SelectItem>
+                        <SelectItem value="billed">Billed</SelectItem>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="dropped">Dropped</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

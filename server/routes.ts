@@ -271,15 +271,25 @@ export async function registerRoutes(
         }
       }
 
-      if (updates.assignedUserId !== undefined) {
+      if (updates.status === "done" && existing.bucket === "for_verification") {
+        updates.bucket = "ready_for_billing";
+        updates.status = "unassigned";
+        updates.assignedUserId = null;
+      }
+
+      if (updates.status === "billed" && existing.bucket === "ready_for_billing") {
+        updates.bucket = "done";
+      }
+
+      if (updates.assignedUserId !== undefined && updates.status === undefined) {
         if (updates.assignedUserId && !existing.assignedUserId) {
-          if (!updates.status) updates.status = "assigned";
+          updates.status = "assigned";
         } else if (!updates.assignedUserId && existing.assignedUserId) {
-          if (!updates.status) updates.status = "unassigned";
+          updates.status = "unassigned";
         }
       }
 
-      if (updates.bucket === "done" && existing.bucket !== "done") {
+      if (updates.bucket === "done" && existing.bucket !== "done" && updates.status !== "billed") {
         if (!updates.status || (updates.status !== "done" && updates.status !== "billed" && updates.status !== "dropped")) {
           updates.status = "done";
         }
@@ -309,11 +319,13 @@ export async function registerRoutes(
       }
 
       if (updates.bucket === "ready_for_billing" && existing.bucket !== "ready_for_billing") {
-        if (existing.assignedUserId) {
+        const allUsers = await storage.getAllUsers();
+        const adminsAndAssigners = allUsers.filter(u => u.role === "admin" || u.role === "assigner");
+        for (const admin of adminsAndAssigners) {
           await storage.createNotification({
-            userId: existing.assignedUserId,
+            userId: admin.id,
             taskId: id,
-            message: `Task "${existing.patientName}" moved to Ready for Billing`,
+            message: `Task "${existing.patientName}" moved to Ready for Billing and needs a biller assigned`,
             read: false,
           });
         }
