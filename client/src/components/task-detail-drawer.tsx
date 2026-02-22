@@ -55,8 +55,12 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
 
   useEffect(() => {
     if (task) {
+      const nameParts = task.patientName.includes(", ")
+        ? task.patientName.split(", ")
+        : ["", task.patientName];
       setEditData({
-        patientName: task.patientName,
+        patientLastName: nameParts[0],
+        patientFirstName: nameParts.slice(1).join(", "),
         clinicId: task.clinicId,
         insuranceId: task.insuranceId,
         assignedUserId: task.assignedUserId,
@@ -111,7 +115,8 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
 
   const handleSave = () => {
     const updates: Record<string, any> = {};
-    if (editData.patientName !== task?.patientName) updates.patientName = editData.patientName;
+    const combinedName = `${editData.patientLastName?.trim() || ""}, ${editData.patientFirstName?.trim() || ""}`;
+    if (combinedName !== task?.patientName) updates.patientName = combinedName;
     if (editData.clinicId !== task?.clinicId) updates.clinicId = editData.clinicId ? Number(editData.clinicId) : null;
     if (editData.insuranceId !== task?.insuranceId) updates.insuranceId = editData.insuranceId ? Number(editData.insuranceId) : null;
     if (editData.assignedUserId !== task?.assignedUserId) updates.assignedUserId = editData.assignedUserId ? Number(editData.assignedUserId) : null;
@@ -156,13 +161,24 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
           <div className="p-4 space-y-5">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Patient Name</Label>
+                <Label className="text-xs text-muted-foreground">First Name</Label>
                 <Input
-                  value={editData.patientName || ""}
-                  onChange={(e) => setEditData({ ...editData, patientName: e.target.value })}
-                  data-testid="input-task-patient-name"
+                  value={editData.patientFirstName || ""}
+                  onChange={(e) => setEditData({ ...editData, patientFirstName: e.target.value })}
+                  data-testid="input-task-patient-first-name"
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Last Name</Label>
+                <Input
+                  value={editData.patientLastName || ""}
+                  onChange={(e) => setEditData({ ...editData, patientLastName: e.target.value })}
+                  data-testid="input-task-patient-last-name"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Priority {editData.ieDate && <span className="text-xs">(auto from IE)</span>}</Label>
                 <Select

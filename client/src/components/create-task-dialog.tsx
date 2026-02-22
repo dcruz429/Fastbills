@@ -20,7 +20,8 @@ export function CreateTaskDialog() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
-    patientName: "",
+    patientFirstName: "",
+    patientLastName: "",
     clinicId: "",
     insuranceId: "",
     assignedUserId: "",
@@ -41,7 +42,8 @@ export function CreateTaskDialog() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setOpen(false);
       setFormData({
-        patientName: "",
+        patientFirstName: "",
+        patientLastName: "",
         clinicId: "",
         insuranceId: "",
         assignedUserId: "",
@@ -58,10 +60,10 @@ export function CreateTaskDialog() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.patientName.trim()) return;
+    if (!formData.patientFirstName.trim() || !formData.patientLastName.trim()) return;
 
     createMutation.mutate({
-      patientName: formData.patientName.trim(),
+      patientName: `${formData.patientLastName.trim()}, ${formData.patientFirstName.trim()}`,
       clinicId: formData.clinicId ? Number(formData.clinicId) : null,
       insuranceId: formData.insuranceId ? Number(formData.insuranceId) : null,
       assignedUserId: formData.assignedUserId ? Number(formData.assignedUserId) : null,
@@ -86,14 +88,25 @@ export function CreateTaskDialog() {
           <DialogTitle>Create New Task</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Patient Name *</Label>
-            <Input
-              value={formData.patientName}
-              onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-              placeholder="Enter patient name"
-              data-testid="input-new-patient-name"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>First Name *</Label>
+              <Input
+                value={formData.patientFirstName}
+                onChange={(e) => setFormData({ ...formData, patientFirstName: e.target.value })}
+                placeholder="First name"
+                data-testid="input-new-patient-first-name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Last Name *</Label>
+              <Input
+                value={formData.patientLastName}
+                onChange={(e) => setFormData({ ...formData, patientLastName: e.target.value })}
+                placeholder="Last name"
+                data-testid="input-new-patient-last-name"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -207,7 +220,7 @@ export function CreateTaskDialog() {
           <Button
             type="submit"
             className="w-full"
-            disabled={createMutation.isPending || !formData.patientName.trim()}
+            disabled={createMutation.isPending || !formData.patientFirstName.trim() || !formData.patientLastName.trim()}
             data-testid="button-submit-task"
           >
             {createMutation.isPending ? "Creating..." : "Create Task"}
