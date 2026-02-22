@@ -392,6 +392,32 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                 <MessageSquare className="h-4 w-4" />
                 Notes
               </h3>
+              {task.notes && (
+                <div className="space-y-2 max-h-48 overflow-y-auto" data-testid="notes-display">
+                  {task.notes.split("\n\n").filter(Boolean).map((block, idx) => {
+                    const headerMatch = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
+                    if (headerMatch) {
+                      return (
+                        <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50 space-y-0.5" data-testid={`note-item-${idx}`}>
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <UserIcon className="h-3 w-3" />
+                            <span className="font-medium text-foreground">{headerMatch[1]}</span>
+                            <span className="mx-0.5">·</span>
+                            <Clock className="h-3 w-3" />
+                            <span>{formatEST(new Date(headerMatch[2]), "MMM d, h:mm a")}</span>
+                          </div>
+                          <p className="text-foreground whitespace-pre-wrap">{headerMatch[3]}</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50" data-testid={`note-item-${idx}`}>
+                        <p className="text-foreground whitespace-pre-wrap">{block}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div className="flex gap-2">
                 <Textarea
                   placeholder="Add a note..."
