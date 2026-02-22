@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { useState } from "react";
 import { Download, BarChart3 } from "lucide-react";
-import { format } from "date-fns";
+import { formatEST } from "@/lib/date-utils";
 import type { TaskWithRelations, Clinic } from "@shared/schema";
 
 export default function ReportsPage() {
@@ -42,9 +42,9 @@ export default function ReportsPage() {
       t.clinic?.name || "",
       t.insurance?.name || "",
       t.assignedUser?.fullName || "",
-      t.dueDate ? format(new Date(t.dueDate), "yyyy-MM-dd") : "",
-      t.ieDate ? format(new Date(t.ieDate), "yyyy-MM-dd") : "",
-      format(new Date(t.createdAt), "yyyy-MM-dd"),
+      t.dueDate ? formatEST(new Date(t.dueDate), "yyyy-MM-dd") : "",
+      t.ieDate ? formatEST(new Date(t.ieDate), "yyyy-MM-dd") : "",
+      formatEST(new Date(t.createdAt), "yyyy-MM-dd"),
     ]);
 
     const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
@@ -52,7 +52,7 @@ export default function ReportsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `tasks-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.download = `tasks-export-${formatEST(new Date(), "yyyy-MM-dd")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -146,7 +146,7 @@ export default function ReportsPage() {
                     <td className="py-2 px-3 text-muted-foreground capitalize">{t.priority}</td>
                     <td className="py-2 px-3 text-muted-foreground hidden md:table-cell">{t.clinic?.name || "-"}</td>
                     <td className="py-2 px-3 text-muted-foreground hidden md:table-cell">
-                      {t.dueDate ? format(new Date(t.dueDate), "MM/dd/yy") : "-"}
+                      {t.dueDate ? formatEST(new Date(t.dueDate), "MM/dd/yy") : "-"}
                     </td>
                   </tr>
                 ))}

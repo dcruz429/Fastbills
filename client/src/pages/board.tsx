@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge, PriorityBadge } from "@/components/status-badge";
 import { TaskDetailDrawer } from "@/components/task-detail-drawer";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
-import { format } from "date-fns";
+import { formatEST } from "@/lib/date-utils";
 import {
   Search,
   ChevronDown,
@@ -272,7 +272,7 @@ export default function BoardPage() {
                                       {task.insurance?.name || "-"}
                                     </td>
                                     <td className="py-2.5 px-3 text-muted-foreground hidden lg:table-cell">
-                                      {task.ieDate ? format(new Date(task.ieDate), "MM/dd") : "-"}
+                                      {task.ieDate ? formatEST(new Date(task.ieDate), "MM/dd") : "-"}
                                     </td>
                                     <td className="py-2.5 px-3">
                                       <span
@@ -284,7 +284,7 @@ export default function BoardPage() {
                                         )}
                                       >
                                         {task.dueDate
-                                          ? format(new Date(task.dueDate), "MM/dd")
+                                          ? formatEST(new Date(task.dueDate), "MM/dd")
                                           : "-"}
                                       </span>
                                     </td>

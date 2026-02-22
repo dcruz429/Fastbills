@@ -17,7 +17,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { formatEST } from "@/lib/date-utils";
 import { useState, useEffect } from "react";
 import { Clock, User as UserIcon, ArrowRight, MessageSquare, History, Trash2 } from "lucide-react";
 import {
@@ -63,8 +63,8 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
         priority: task.priority,
         status: task.status,
         bucket: task.bucket,
-        dueDate: task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "",
-        ieDate: task.ieDate ? format(new Date(task.ieDate), "yyyy-MM-dd") : "",
+        dueDate: task.dueDate ? formatEST(new Date(task.dueDate), "yyyy-MM-dd") : "",
+        ieDate: task.ieDate ? formatEST(new Date(task.ieDate), "yyyy-MM-dd") : "",
         notes: task.notes || "",
       });
     }
@@ -146,7 +146,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
             {task.patientName}
           </SheetTitle>
           <p className="text-xs text-muted-foreground">
-            Task #{task.id} - Created {format(new Date(task.createdAt), "MMM d, yyyy")}
+            Task #{task.id} - Created {formatEST(new Date(task.createdAt), "MMM d, yyyy")}
           </p>
         </SheetHeader>
 
@@ -429,7 +429,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                         <span className="font-medium text-foreground">{(a as any).userName || "System"}</span>
                         <span className="mx-0.5">·</span>
                         <Clock className="h-3 w-3" />
-                        <span>{format(new Date(a.timestamp), "MMM d, h:mm a")}</span>
+                        <span>{formatEST(new Date(a.timestamp), "MMM d, h:mm a")}</span>
                       </div>
                       <p className="font-medium text-foreground">{a.action}</p>
                       {a.field && (

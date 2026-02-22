@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge, PriorityBadge } from "@/components/status-badge";
 import { TaskDetailDrawer } from "@/components/task-detail-drawer";
-import { format } from "date-fns";
+import { formatEST } from "@/lib/date-utils";
 import { Flame, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TaskWithRelations } from "@shared/schema";
@@ -104,10 +104,10 @@ export default function BillingQueuePage() {
                         <td className="py-2.5 px-3"><PriorityBadge priority={task.priority} /></td>
                         <td className="py-2.5 px-3"><StatusBadge status={task.status} /></td>
                         <td className="py-2.5 px-3 text-muted-foreground">
-                          {task.ieDate ? format(new Date(task.ieDate), "MM/dd/yy") : "-"}
+                          {task.ieDate ? formatEST(new Date(task.ieDate), "MM/dd/yy") : "-"}
                         </td>
                         <td className={cn("py-2.5 px-3", isOverdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-muted-foreground")}>
-                          {task.dueDate ? format(new Date(task.dueDate), "MM/dd/yy") : "-"}
+                          {task.dueDate ? formatEST(new Date(task.dueDate), "MM/dd/yy") : "-"}
                         </td>
                         <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
                           {task.insurance?.name || "-"}

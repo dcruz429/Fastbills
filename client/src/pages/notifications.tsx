@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Bell, Check, CheckCheck } from "lucide-react";
-import { format } from "date-fns";
+import { formatEST } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import type { Notification } from "@shared/schema";
 
@@ -90,7 +90,7 @@ export default function NotificationsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm" data-testid={`notification-message-${n.id}`}>{n.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {format(new Date(n.createdAt), "MMM d, h:mm a")}
+                    {formatEST(new Date(n.createdAt), "MMM d, h:mm a")}
                   </p>
                 </div>
                 {!n.read && (
