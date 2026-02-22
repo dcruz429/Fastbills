@@ -24,6 +24,7 @@ import {
   Cell,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 import type { TaskWithRelations } from "@shared/schema";
 
 const CHART_COLORS = ["hsl(210 85% 45%)", "hsl(25 90% 48%)", "hsl(340 75% 48%)", "hsl(160 70% 40%)", "hsl(280 65% 50%)"];
@@ -54,6 +55,7 @@ function StatCard({ label, value, icon: Icon, color, bgColor, testId }: StatCard
 }
 
 export default function DashboardPage() {
+  const { user: currentUser } = useAuth();
   const { data: tasks, isLoading } = useQuery<TaskWithRelations[]>({
     queryKey: ["/api/tasks"],
   });
@@ -71,7 +73,10 @@ export default function DashboardPage() {
     );
   }
 
-  const allTasks = tasks || [];
+  const isStaffView = currentUser?.role === "verifier" || currentUser?.role === "biller";
+  const allTasks = (tasks || []).filter((t) =>
+    isStaffView ? t.assignedUserId === currentUser?.id : true
+  );
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -124,7 +129,7 @@ export default function DashboardPage() {
   return (
     <div className="p-4 space-y-5 overflow-y-auto h-full">
       <h1 className="text-xl font-bold tracking-tight" data-testid="text-dashboard-title">
-        Supervisor Dashboard
+        {isStaffView ? "My Dashboard" : "Supervisor Dashboard"}
       </h1>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

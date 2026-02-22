@@ -32,6 +32,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 import type { TaskWithRelations, Clinic, Insurance, User } from "@shared/schema";
 
 const bucketConfig = {
@@ -59,6 +60,7 @@ const bucketConfig = {
 };
 
 export default function BoardPage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
@@ -70,6 +72,12 @@ export default function BoardPage() {
     ready_for_billing: true,
     done: false,
   });
+
+  const visibleBuckets = user?.role === "verifier"
+    ? ["for_verification"] as const
+    : user?.role === "biller"
+    ? ["ready_for_billing", "done"] as const
+    : ["for_verification", "ready_for_billing", "done"] as const;
 
   const { data: tasks, isLoading } = useQuery<TaskWithRelations[]>({
     queryKey: ["/api/tasks"],
@@ -168,7 +176,7 @@ export default function BoardPage() {
             ))}
           </div>
         ) : (
-          Object.entries(bucketConfig).map(([bucket, config]) => {
+          Object.entries(bucketConfig).filter(([bucket]) => (visibleBuckets as readonly string[]).includes(bucket)).map(([bucket, config]) => {
             const bucketTasks = tasksByBucket[bucket as keyof typeof tasksByBucket];
             const isOpen = openBuckets[bucket];
 

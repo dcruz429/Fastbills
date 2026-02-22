@@ -27,11 +27,11 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
-  { title: "Board", url: "/", icon: ClipboardList },
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Workload", url: "/workload", icon: Users },
-  { title: "Billing Queue", url: "/billing-queue", icon: Flame },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Board", url: "/", icon: ClipboardList, roles: ["admin", "verifier", "biller", "assigner"] },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "verifier", "biller", "assigner"] },
+  { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "verifier", "biller", "assigner"] },
+  { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "biller", "assigner"] },
+  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "assigner"] },
 ];
 
 const adminItems = [
@@ -67,7 +67,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {navItems.filter((item) => item.roles.includes(user?.role || "")).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     data-testid={`nav-${item.title.toLowerCase().replace(/\s/g, "-")}`}

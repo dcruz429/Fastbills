@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Zap, ShieldCheck, FileCheck } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import type { TaskWithRelations, User } from "@shared/schema";
 
 type EmployeeStats = {
@@ -16,6 +17,7 @@ type EmployeeStats = {
 };
 
 export default function WorkloadPage() {
+  const { user: currentUser } = useAuth();
   const { data: tasks, isLoading } = useQuery<TaskWithRelations[]>({
     queryKey: ["/api/tasks"],
   });
@@ -30,11 +32,12 @@ export default function WorkloadPage() {
     );
   }
 
+  const isStaffView = currentUser?.role === "verifier" || currentUser?.role === "biller";
   const allTasks = tasks || [];
   const now = new Date();
 
   const employeeStats: EmployeeStats[] = (users || [])
-    .filter((u) => u.active)
+    .filter((u) => u.active && (isStaffView ? u.id === currentUser?.id : true))
     .map((user) => {
       const userTasks = allTasks.filter((t) => t.assignedUserId === user.id && t.bucket !== "done");
       return {
@@ -52,10 +55,10 @@ export default function WorkloadPage() {
     <div className="p-4 space-y-5 overflow-y-auto h-full">
       <div>
         <h1 className="text-xl font-bold tracking-tight" data-testid="text-workload-title">
-          Employee Workload
+          {isStaffView ? "My Workload" : "Employee Workload"}
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Active task distribution across team members
+          {isStaffView ? "Your active task distribution" : "Active task distribution across team members"}
         </p>
       </div>
 
