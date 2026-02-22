@@ -174,7 +174,7 @@ export async function registerRoutes(
 
   app.get("/api/tasks", requireAuth, async (req, res) => {
     const user = await storage.getUser(req.session.userId!);
-    if (user && user.role === "verifier") {
+    if (user && (user.role === "verifier" || user.role === "biller")) {
       const allTasks = await storage.getAllTasks();
       res.json(allTasks.filter((t) => t.assignedUserId === user.id));
     } else {
