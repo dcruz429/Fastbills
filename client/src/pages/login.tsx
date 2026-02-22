@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -39,11 +39,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-              <ShieldCheck className="h-7 w-7" />
-            </div>
+            <img src={logoImg} alt="FastBills" className="h-16 object-contain" data-testid="img-login-logo" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">FastBills</h1>
           <p className="text-muted-foreground text-sm">
             Patient Insurance Verification & Billing
           </p>

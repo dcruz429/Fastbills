@@ -8,6 +8,7 @@ import {
   LogOut,
   Flame,
 } from "lucide-react";
+import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import {
   Sidebar,
   SidebarContent,
@@ -52,13 +53,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-bold">
-            FB
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">FastBills</span>
-            <span className="text-xs text-muted-foreground">Patient Billing</span>
-          </div>
+          <img src={logoImg} alt="FastBills" className="h-8 object-contain" data-testid="img-sidebar-logo" />
         </div>
       </SidebarHeader>
 
