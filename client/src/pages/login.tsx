@@ -43,7 +43,7 @@ export default function LoginPage() {
               <ShieldCheck className="h-7 w-7" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">WorkFlow Pro</h1>
+          <h1 className="text-2xl font-bold tracking-tight">FastBills</h1>
           <p className="text-muted-foreground text-sm">
             Patient Insurance Verification & Billing
           </p>

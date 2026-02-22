@@ -1,4 +1,4 @@
-# WorkFlow Pro - Patient Billing Management System
+# FastBills - Patient Billing Management System
 
 ## Overview
 A workflow management system for tracking patient tasks through insurance verification and billing stages. Focused on accountability, speed of billing turnaround, supervisor oversight, and automatic escalation of delays.

@@ -53,10 +53,10 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-bold">
-            WF
+            FB
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">WorkFlow Pro</span>
+            <span className="text-sm font-semibold">FastBills</span>
             <span className="text-xs text-muted-foreground">Patient Billing</span>
           </div>
         </div>
