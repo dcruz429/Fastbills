@@ -74,7 +74,7 @@ export default function BoardPage() {
   });
 
   const visibleBuckets = user?.role === "verifier"
-    ? ["for_verification"] as const
+    ? ["for_verification", "done"] as const
     : user?.role === "biller"
     ? ["ready_for_billing", "done"] as const
     : ["for_verification", "ready_for_billing", "done"] as const;

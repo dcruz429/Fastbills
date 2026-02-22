@@ -282,6 +282,10 @@ export async function registerRoutes(
         updates.bucket = "done";
       }
 
+      if (updates.status === "dropped") {
+        updates.bucket = "done";
+      }
+
       if (updates.assignedUserId !== undefined && updates.status === undefined) {
         if (updates.assignedUserId && !existing.assignedUserId) {
           updates.status = "assigned";

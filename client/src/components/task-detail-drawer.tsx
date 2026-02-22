@@ -235,6 +235,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                         <SelectItem value="assigned">Assigned</SelectItem>
                         <SelectItem value="working_on_it">Working on it</SelectItem>
                         <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="dropped">Dropped</SelectItem>
                       </>
                     ) : user?.role === "biller" ? (
                       <>
