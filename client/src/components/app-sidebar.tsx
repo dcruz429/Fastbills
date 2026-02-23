@@ -7,8 +7,22 @@ import {
   Bell,
   LogOut,
   Flame,
+  KeyRound,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -28,8 +42,8 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
-  { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "verifier", "biller", "assigner"] },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "verifier", "biller", "assigner"] },
+  { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "verifier", "biller", "assigner"] },
   { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "verifier", "biller", "assigner"] },
   { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "biller", "assigner"] },
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "assigner"] },
@@ -39,9 +53,85 @@ const adminItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
+function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/auth/change-password", { currentPassword, newPassword });
+    },
+    onSuccess: () => {
+      toast({ title: "Password changed successfully" });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      onClose();
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const canSubmit = currentPassword && newPassword && newPassword === confirmPassword && newPassword.length >= 4;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Change Password</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Current Password</Label>
+            <Input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              data-testid="input-current-password"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">New Password</Label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              data-testid="input-new-password"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Confirm New Password</Label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              data-testid="input-confirm-password"
+            />
+            {confirmPassword && newPassword !== confirmPassword && (
+              <p className="text-xs text-red-500">Passwords do not match</p>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} data-testid="button-cancel-password">Cancel</Button>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={!canSubmit || mutation.isPending}
+            data-testid="button-save-password"
+          >
+            {mutation.isPending ? "Saving..." : "Change Password"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   const { data: notifications } = useQuery<any[]>({
     queryKey: ["/api/notifications"],
@@ -129,6 +219,15 @@ export function AppSidebar() {
           <Button
             size="icon"
             variant="ghost"
+            onClick={() => setPasswordDialogOpen(true)}
+            data-testid="button-change-password"
+            title="Change password"
+          >
+            <KeyRound className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
             onClick={logout}
             data-testid="button-logout"
           >
@@ -136,6 +235,8 @@ export function AppSidebar() {
           </Button>
         </div>
       </SidebarFooter>
+
+      <ChangePasswordDialog open={passwordDialogOpen} onClose={() => setPasswordDialogOpen(false)} />
     </Sidebar>
   );
 }

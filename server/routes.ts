@@ -90,6 +90,26 @@ export async function registerRoutes(
     res.json(safeUser);
   });
 
+  app.post("/api/auth/change-password", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current and new password required" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      if (!(await comparePasswords(currentPassword, user.password))) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+      const hashed = await hashPassword(newPassword);
+      await storage.updateUser(userId, { password: hashed });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/users", requireAuth, async (_req, res) => {
     const allUsers = await storage.getAllUsers();
     res.json(allUsers.map(({ password: _, ...u }) => u));
