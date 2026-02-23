@@ -42,6 +42,7 @@ export const tasks = pgTable("tasks", {
   bucket: bucketEnum("bucket").notNull().default("for_verification"),
   assignedUserId: integer("assigned_user_id").references(() => users.id),
   notes: text("notes"),
+  rtp: boolean("rtp").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

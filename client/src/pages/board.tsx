@@ -348,7 +348,14 @@ export default function BoardPage() {
                                       <PriorityBadge priority={task.priority} />
                                     </td>
                                     <td className="py-2.5 px-3">
-                                      <StatusBadge status={task.status} />
+                                      <div className="flex items-center gap-1">
+                                        <StatusBadge status={task.status} />
+                                        {task.status === "dropped" && task.rtp && (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400" data-testid={`badge-rtp-${task.id}`}>
+                                            RTP
+                                          </span>
+                                        )}
+                                      </div>
                                     </td>
                                     <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
                                       <span className="truncate max-w-[100px] inline-block">

@@ -19,7 +19,8 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { formatEST } from "@/lib/date-utils";
 import { useState, useEffect } from "react";
-import { Clock, User as UserIcon, ArrowRight, MessageSquare, History, Trash2 } from "lucide-react";
+import { Clock, User as UserIcon, ArrowRight, MessageSquare, History, Trash2, CheckSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,6 +72,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
         dueDate: task.dueDate ? formatEST(new Date(task.dueDate), "yyyy-MM-dd") : "",
         ieDate: task.ieDate ? formatEST(new Date(task.ieDate), "yyyy-MM-dd") : "",
         notes: task.notes || "",
+        rtp: task.rtp || false,
       });
     }
   }, [task]);
@@ -271,6 +273,20 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                     )}
                   </SelectContent>
                 </Select>
+                {(editData.status === "dropped" || task.status === "dropped") && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Checkbox
+                      id="rtp-checkbox"
+                      checked={editData.rtp || false}
+                      onCheckedChange={(checked) => setEditData({ ...editData, rtp: !!checked })}
+                      disabled={user?.role !== "verifier"}
+                      data-testid="checkbox-rtp"
+                    />
+                    <Label htmlFor="rtp-checkbox" className="text-xs font-medium cursor-pointer">
+                      RTP (Ready to Process)
+                    </Label>
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Bucket</Label>

@@ -334,6 +334,10 @@ export async function registerRoutes(
         }
       }
 
+      if (updates.status !== undefined && updates.status !== "dropped" && existing.status === "dropped") {
+        updates.rtp = false;
+      }
+
       if (updates.status === "done" && existing.bucket === "for_verification") {
         updates.bucket = "ready_for_billing";
         updates.status = "unassigned";
@@ -362,7 +366,7 @@ export async function registerRoutes(
         }
       }
 
-      const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate"];
+      const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate", "rtp"];
       for (const field of fieldsToTrack) {
         if (updates[field] !== undefined && String(updates[field]) !== String((existing as any)[field])) {
           await storage.createTaskActivity({
