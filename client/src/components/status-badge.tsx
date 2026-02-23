@@ -2,12 +2,12 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const statusColors: Record<string, string> = {
-  working_on_it: "bg-lime-500 text-white dark:bg-lime-600",
+  unassigned: "bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-200",
+  assigned: "bg-blue-500 text-white dark:bg-blue-600",
+  working_on_it: "bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-amber-950",
   billed: "bg-green-800 text-white dark:bg-green-700",
-  done: "bg-emerald-500 text-white dark:bg-emerald-400 dark:text-emerald-950",
-  dropped: "bg-gray-600 text-white dark:bg-gray-500",
-  assigned: "bg-pink-400 text-white dark:bg-pink-500",
-  unassigned: "bg-red-500 text-white dark:bg-red-600",
+  done: "bg-green-500 text-white dark:bg-green-600",
+  dropped: "bg-gray-700 text-white dark:bg-gray-800",
 };
 
 const priorityColors: Record<string, string> = {
