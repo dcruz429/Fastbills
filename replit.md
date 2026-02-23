@@ -34,7 +34,8 @@ Status options are role-restricted:
 - Admin/Assigner: All statuses
 
 ## User Roles
-- **Admin**: Full access, override workflow, manage settings
+- **Admin**: Full access, override workflow, manage settings, manage users
+- **Manager**: Same as Admin, but cannot edit/delete/deactivate existing users
 - **Verifier**: Verify insurance, move to Ready for Billing
 - **Biller**: Bill verified patients, mark Billed/Done/Dropped
 - **Assigner**: Create tasks, assign staff, set priorities

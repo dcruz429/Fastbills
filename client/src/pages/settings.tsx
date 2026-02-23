@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -283,6 +284,8 @@ function InsuranceSettings() {
 
 function UserSettings() {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+  const isManager = currentUser?.role === "manager";
   const [newUser, setNewUser] = useState({ username: "", password: "", firstName: "", lastName: "", role: "verifier" });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState({ firstName: "", lastName: "", role: "", password: "" });
@@ -390,6 +393,7 @@ function UserSettings() {
               <SelectItem value="verifier">Verifier</SelectItem>
               <SelectItem value="biller">Biller</SelectItem>
               <SelectItem value="assigner">Assigner</SelectItem>
+              <SelectItem value="manager">Manager</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
           </Select>
@@ -442,6 +446,7 @@ function UserSettings() {
                         <SelectItem value="verifier">Verifier</SelectItem>
                         <SelectItem value="biller">Biller</SelectItem>
                         <SelectItem value="assigner">Assigner</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
@@ -491,32 +496,34 @@ function UserSettings() {
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => { const parts = u.fullName.split(" "); const firstName = parts[0] || ""; const lastName = parts.slice(1).join(" ") || ""; setEditingId(u.id); setEditData({ firstName, lastName, role: u.role, password: "" }); }}
-                    data-testid={`button-edit-user-${u.id}`}
-                  >
-                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={u.active ? "secondary" : "default"}
-                    onClick={() => toggleMutation.mutate({ id: u.id, active: !u.active })}
-                    data-testid={`button-toggle-user-${u.id}`}
-                  >
-                    {u.active ? "Deactivate" : "Activate"}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => deleteMutation.mutate(u.id)}
-                    data-testid={`button-delete-user-${u.id}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                  </Button>
-                </div>
+                {!isManager && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => { const parts = u.fullName.split(" "); const firstName = parts[0] || ""; const lastName = parts.slice(1).join(" ") || ""; setEditingId(u.id); setEditData({ firstName, lastName, role: u.role, password: "" }); }}
+                      data-testid={`button-edit-user-${u.id}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={u.active ? "secondary" : "default"}
+                      onClick={() => toggleMutation.mutate({ id: u.id, active: !u.active })}
+                      data-testid={`button-toggle-user-${u.id}`}
+                    >
+                      {u.active ? "Deactivate" : "Activate"}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteMutation.mutate(u.id)}
+                      data-testid={`button-delete-user-${u.id}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

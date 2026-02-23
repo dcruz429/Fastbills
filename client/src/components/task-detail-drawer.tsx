@@ -237,7 +237,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(user?.role === "admin" || user?.role === "assigner") ? (
+                    {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner") ? (
                       <>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
                         <SelectItem value="assigned">Assigned</SelectItem>
@@ -277,7 +277,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                 <Select
                   value={editData.bucket || "for_verification"}
                   onValueChange={(v) => setEditData({ ...editData, bucket: v })}
-                  disabled={user?.role !== "admin"}
+                  disabled={user?.role !== "admin" && user?.role !== "manager"}
                 >
                   <SelectTrigger data-testid="select-task-bucket">
                     <SelectValue />
@@ -331,7 +331,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Assigned To</Label>
-                {user?.role === "admin" || user?.role === "assigner" ? (
+                {user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" ? (
                   <Select
                     value={editData.assignedUserId?.toString() || "none"}
                     onValueChange={(v) => setEditData({ ...editData, assignedUserId: v === "none" ? null : Number(v) })}
@@ -397,7 +397,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
 
-            {user?.role === "admin" && (
+            {(user?.role === "admin" || user?.role === "manager") && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button

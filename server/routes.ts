@@ -261,7 +261,7 @@ export async function registerRoutes(
   app.post("/api/tasks", requireAuth, async (req, res) => {
     try {
       const creator = await storage.getUser(req.session.userId!);
-      if (!creator || (creator.role !== "admin" && creator.role !== "assigner")) {
+      if (!creator || (creator.role !== "admin" && creator.role !== "manager" && creator.role !== "assigner")) {
         return res.status(403).json({ message: "Only admins and assigners can create tasks" });
       }
       const parsed = createTaskSchema.safeParse(req.body);
@@ -319,7 +319,7 @@ export async function registerRoutes(
 
       const updates = { ...req.body };
       const editor = await storage.getUser(req.session.userId!);
-      if (updates.assignedUserId !== undefined && editor && editor.role !== "admin" && editor.role !== "assigner") {
+      if (updates.assignedUserId !== undefined && editor && editor.role !== "admin" && editor.role !== "manager" && editor.role !== "assigner") {
         delete updates.assignedUserId;
       }
       if (updates.ieDate !== undefined) {
@@ -387,7 +387,7 @@ export async function registerRoutes(
 
       if (updates.bucket === "ready_for_billing" && existing.bucket !== "ready_for_billing") {
         const allUsers = await storage.getAllUsers();
-        const adminsAndAssigners = allUsers.filter(u => u.role === "admin" || u.role === "assigner");
+        const adminsAndAssigners = allUsers.filter(u => u.role === "admin" || u.role === "manager" || u.role === "assigner");
         for (const admin of adminsAndAssigners) {
           await storage.createNotification({
             userId: admin.id,
@@ -408,8 +408,8 @@ export async function registerRoutes(
   app.delete("/api/tasks/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
-        return res.status(403).json({ message: "Only admins can delete tasks" });
+      if (!user || (user.role !== "admin" && user.role !== "manager")) {
+        return res.status(403).json({ message: "Only admins and managers can delete tasks" });
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getTask(id);

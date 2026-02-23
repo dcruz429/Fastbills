@@ -42,11 +42,11 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "verifier", "biller", "assigner"] },
-  { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "verifier", "biller", "assigner"] },
-  { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "verifier", "biller", "assigner"] },
-  { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "biller", "assigner"] },
-  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "assigner"] },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
+  { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
+  { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
+  { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner"] },
+  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner"] },
 ];
 
 const adminItems = [
@@ -184,7 +184,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {(user?.role === "admin" || user?.role === "assigner") && (
+        {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner") && (
           <SidebarGroup>
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>
