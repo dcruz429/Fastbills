@@ -141,7 +141,22 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg p-0" data-testid="task-detail-drawer">
+      <SheetContent
+        className="w-full sm:max-w-lg p-0"
+        data-testid="task-detail-drawer"
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target?.closest("[role='listbox']") || target?.closest("[data-radix-popper-content-wrapper]")) {
+            e.preventDefault();
+          }
+        }}
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target?.closest("[role='listbox']") || target?.closest("[data-radix-popper-content-wrapper]")) {
+            e.preventDefault();
+          }
+        }}
+      >
         <SheetHeader className="p-4 pb-0">
           <div className="flex items-center gap-2 flex-wrap">
             <BucketBadge bucket={task.bucket} />
