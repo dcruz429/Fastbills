@@ -283,18 +283,19 @@ function InsuranceSettings() {
 
 function UserSettings() {
   const { toast } = useToast();
-  const [newUser, setNewUser] = useState({ username: "", password: "", fullName: "", role: "verifier" });
+  const [newUser, setNewUser] = useState({ username: "", password: "", firstName: "", lastName: "", role: "verifier" });
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editData, setEditData] = useState({ fullName: "", role: "", password: "" });
+  const [editData, setEditData] = useState({ firstName: "", lastName: "", role: "", password: "" });
   const { data: users, isLoading } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
   const addMutation = useMutation({
     mutationFn: async (data: any) => {
-      await apiRequest("POST", "/api/users", data);
+      const { firstName, lastName, ...rest } = data;
+      await apiRequest("POST", "/api/users", { ...rest, fullName: `${firstName} ${lastName}`.trim() });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      setNewUser({ username: "", password: "", fullName: "", role: "verifier" });
+      setNewUser({ username: "", password: "", firstName: "", lastName: "", role: "verifier" });
       toast({ title: "User created" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -302,7 +303,7 @@ function UserSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const payload: any = { fullName: data.fullName, role: data.role };
+      const payload: any = { fullName: `${data.firstName} ${data.lastName}`.trim(), role: data.role };
       if (data.password) payload.password = data.password;
       await apiRequest("PATCH", `/api/users/${id}`, payload);
     },
@@ -340,12 +341,21 @@ function UserSettings() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">Full Name</Label>
+          <Label className="text-xs">First Name</Label>
           <Input
-            value={newUser.fullName}
-            onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
-            placeholder="Full name"
-            data-testid="input-new-user-fullname"
+            value={newUser.firstName}
+            onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
+            placeholder="First name"
+            data-testid="input-new-user-firstname"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Last Name</Label>
+          <Input
+            value={newUser.lastName}
+            onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
+            placeholder="Last name"
+            data-testid="input-new-user-lastname"
           />
         </div>
         <div className="space-y-1.5">
@@ -387,11 +397,11 @@ function UserSettings() {
       </div>
       <Button
         onClick={() => {
-          if (newUser.username.trim() && newUser.password.trim() && newUser.fullName.trim()) {
+          if (newUser.username.trim() && newUser.password.trim() && newUser.firstName.trim() && newUser.lastName.trim()) {
             addMutation.mutate(newUser);
           }
         }}
-        disabled={addMutation.isPending || !newUser.username.trim() || !newUser.password.trim() || !newUser.fullName.trim()}
+        disabled={addMutation.isPending || !newUser.username.trim() || !newUser.password.trim() || !newUser.firstName.trim() || !newUser.lastName.trim()}
         data-testid="button-add-user"
       >
         <Plus className="h-4 w-4 mr-1" />
@@ -405,12 +415,21 @@ function UserSettings() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Full Name</Label>
+                    <Label className="text-xs">First Name</Label>
                     <Input
-                      value={editData.fullName}
-                      onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
+                      value={editData.firstName}
+                      onChange={(e) => setEditData({ ...editData, firstName: e.target.value })}
                       className="h-8 text-sm"
-                      data-testid={`input-edit-user-fullname-${u.id}`}
+                      data-testid={`input-edit-user-firstname-${u.id}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Last Name</Label>
+                    <Input
+                      value={editData.lastName}
+                      onChange={(e) => setEditData({ ...editData, lastName: e.target.value })}
+                      className="h-8 text-sm"
+                      data-testid={`input-edit-user-lastname-${u.id}`}
                     />
                   </div>
                   <div className="space-y-1">
@@ -442,8 +461,8 @@ function UserSettings() {
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    onClick={() => editData.fullName.trim() && updateMutation.mutate({ id: u.id, data: editData })}
-                    disabled={!editData.fullName.trim() || updateMutation.isPending}
+                    onClick={() => editData.firstName.trim() && editData.lastName.trim() && updateMutation.mutate({ id: u.id, data: editData })}
+                    disabled={!editData.firstName.trim() || !editData.lastName.trim() || updateMutation.isPending}
                     data-testid={`button-save-user-${u.id}`}
                   >
                     <Check className="h-3.5 w-3.5 mr-1" />
@@ -476,7 +495,7 @@ function UserSettings() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => { setEditingId(u.id); setEditData({ fullName: u.fullName, role: u.role, password: "" }); }}
+                    onClick={() => { const parts = u.fullName.split(" "); const firstName = parts[0] || ""; const lastName = parts.slice(1).join(" ") || ""; setEditingId(u.id); setEditData({ firstName, lastName, role: u.role, password: "" }); }}
                     data-testid={`button-edit-user-${u.id}`}
                   >
                     <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
