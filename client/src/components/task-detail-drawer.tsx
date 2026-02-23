@@ -131,6 +131,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
     if (editData.ieDate !== originalIeDate) {
       updates.ieDate = editData.ieDate || null;
     }
+    if (editData.rtp !== (task?.rtp || false)) updates.rtp = editData.rtp;
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates);
@@ -164,6 +165,11 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
             <BucketBadge bucket={task.bucket} />
             <StatusBadge status={task.status} />
             <PriorityBadge priority={task.priority} />
+            {task.status === "dropped" && task.rtp && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400" data-testid="badge-rtp-drawer">
+                RTP
+              </span>
+            )}
             {isOverdue && (
               <span className="text-xs font-semibold text-red-600 dark:text-red-400 animate-pulse">OVERDUE</span>
             )}
