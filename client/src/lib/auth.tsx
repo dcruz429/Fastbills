@@ -1,7 +1,9 @@
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getQueryFn } from "./queryClient";
 import type { User, LoginData } from "@shared/schema";
+
+const AFK_TIMEOUT = 5 * 60 * 1000;
 
 type AuthContextType = {
   user: User | null;
@@ -36,6 +38,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
     },
   });
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const doLogout = useCallback(async () => {
+    if (user) {
+      await logoutMutation.mutateAsync();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const resetTimer = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        doLogout();
+      }, AFK_TIMEOUT);
+    };
+
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"];
+    events.forEach((e) => window.addEventListener(e, resetTimer));
+    resetTimer();
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      events.forEach((e) => window.removeEventListener(e, resetTimer));
+    };
+  }, [user, doLogout]);
 
   return (
     <AuthContext.Provider
