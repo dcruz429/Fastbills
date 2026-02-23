@@ -283,7 +283,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                       data-testid="checkbox-rtp"
                     />
                     <Label htmlFor="rtp-checkbox" className="text-xs font-medium cursor-pointer">
-                      RTP (Ready to Process)
+                      RTP (Return to Partner)
                     </Label>
                   </div>
                 )}
