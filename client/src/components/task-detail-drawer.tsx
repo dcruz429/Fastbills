@@ -73,6 +73,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
         ieDate: task.ieDate ? formatEST(new Date(task.ieDate), "yyyy-MM-dd") : "",
         notes: task.notes || "",
         rtp: task.rtp || false,
+        resolutionDate: task.resolutionDate ? formatEST(new Date(task.resolutionDate), "yyyy-MM-dd") : "",
       });
     }
   }, [task]);
@@ -132,6 +133,10 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
       updates.ieDate = editData.ieDate || null;
     }
     if (editData.rtp !== (task?.rtp || false)) updates.rtp = editData.rtp;
+    const originalResolutionDate = task?.resolutionDate ? formatEST(new Date(task.resolutionDate), "yyyy-MM-dd") : "";
+    if (editData.resolutionDate !== originalResolutionDate) {
+      updates.resolutionDate = editData.resolutionDate ? new Date(editData.resolutionDate + "T12:00:00") : null;
+    }
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates);
@@ -399,15 +404,26 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Due Date <span className="text-xs">(IE + 30 days)</span></Label>
-              <Input
-                type="date"
-                value={editData.dueDate || ""}
-                readOnly
-                className="bg-muted cursor-not-allowed"
-                data-testid="input-task-due-date"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Due Date <span className="text-xs">(IE + 30)</span></Label>
+                <Input
+                  type="date"
+                  value={editData.dueDate || ""}
+                  readOnly
+                  className="bg-muted cursor-not-allowed"
+                  data-testid="input-task-due-date"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Resolution Date</Label>
+                <Input
+                  type="date"
+                  value={editData.resolutionDate || ""}
+                  onChange={(e) => setEditData({ ...editData, resolutionDate: e.target.value })}
+                  data-testid="input-task-resolution-date"
+                />
+              </div>
             </div>
 
             <Button

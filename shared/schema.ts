@@ -43,6 +43,7 @@ export const tasks = pgTable("tasks", {
   assignedUserId: integer("assigned_user_id").references(() => users.id),
   notes: text("notes"),
   rtp: boolean("rtp").notNull().default(false),
+  resolutionDate: timestamp("resolution_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
