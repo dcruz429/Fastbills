@@ -288,7 +288,7 @@ function UserSettings() {
   const isManager = currentUser?.role === "manager";
   const [newUser, setNewUser] = useState({ username: "", password: "", firstName: "", lastName: "", role: "verifier" });
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editData, setEditData] = useState({ firstName: "", lastName: "", role: "", password: "" });
+  const [editData, setEditData] = useState({ username: "", firstName: "", lastName: "", role: "", password: "" });
   const { data: users, isLoading } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
   const addMutation = useMutation({
@@ -418,6 +418,15 @@ function UserSettings() {
             {editingId === u.id ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">Username</Label>
+                    <Input
+                      value={editData.username}
+                      onChange={(e) => setEditData({ ...editData, username: e.target.value })}
+                      className="h-8 text-sm"
+                      data-testid={`input-edit-user-username-${u.id}`}
+                    />
+                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs">First Name</Label>
                     <Input
@@ -466,8 +475,8 @@ function UserSettings() {
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    onClick={() => editData.firstName.trim() && editData.lastName.trim() && updateMutation.mutate({ id: u.id, data: editData })}
-                    disabled={!editData.firstName.trim() || !editData.lastName.trim() || updateMutation.isPending}
+                    onClick={() => editData.username.trim() && editData.firstName.trim() && editData.lastName.trim() && updateMutation.mutate({ id: u.id, data: editData })}
+                    disabled={!editData.username.trim() || !editData.firstName.trim() || !editData.lastName.trim() || updateMutation.isPending}
                     data-testid={`button-save-user-${u.id}`}
                   >
                     <Check className="h-3.5 w-3.5 mr-1" />
@@ -501,7 +510,7 @@ function UserSettings() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => { const parts = u.fullName.split(" "); const firstName = parts[0] || ""; const lastName = parts.slice(1).join(" ") || ""; setEditingId(u.id); setEditData({ firstName, lastName, role: u.role, password: "" }); }}
+                      onClick={() => { const parts = u.fullName.split(" "); const firstName = parts[0] || ""; const lastName = parts.slice(1).join(" ") || ""; setEditingId(u.id); setEditData({ username: u.username, firstName, lastName, role: u.role, password: "" }); }}
                       data-testid={`button-edit-user-${u.id}`}
                     >
                       <Pencil className="h-3.5 w-3.5 text-muted-foreground" />

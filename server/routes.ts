@@ -138,6 +138,12 @@ export async function registerRoutes(
     try {
       const id = parseInt(req.params.id);
       const updateData = { ...req.body };
+      if (updateData.username) {
+        const existing = await storage.getUserByUsername(updateData.username);
+        if (existing && existing.id !== id) {
+          return res.status(400).json({ message: "Username already exists" });
+        }
+      }
       if (updateData.password) {
         updateData.password = await hashPassword(updateData.password);
       }
