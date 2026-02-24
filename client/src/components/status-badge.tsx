@@ -11,10 +11,10 @@ const statusColors: Record<string, string> = {
 };
 
 const priorityColors: Record<string, string> = {
-  low: "bg-blue-500 text-white dark:bg-blue-600",
-  medium: "bg-orange-500 text-white dark:bg-orange-600",
-  high: "bg-red-500 text-white dark:bg-red-600",
-  critical: "bg-red-700 text-white dark:bg-red-800",
+  low: "bg-green-500 text-white dark:bg-green-600",
+  medium: "bg-yellow-400 text-yellow-900 dark:bg-yellow-500 dark:text-yellow-950",
+  high: "bg-orange-500 text-white dark:bg-orange-600",
+  critical: "bg-red-600 text-white dark:bg-red-700",
 };
 
 const statusLabels: Record<string, string> = {
