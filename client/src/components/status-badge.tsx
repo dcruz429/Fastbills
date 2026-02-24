@@ -7,6 +7,7 @@ const statusColors: Record<string, string> = {
   working_on_it: "bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-amber-950",
   billed: "bg-green-800 text-white dark:bg-green-700",
   done: "bg-green-500 text-white dark:bg-green-600",
+  verified: "bg-emerald-500 text-white dark:bg-emerald-600",
   dropped: "bg-gray-700 text-white dark:bg-gray-800",
 };
 
@@ -21,6 +22,7 @@ const statusLabels: Record<string, string> = {
   working_on_it: "Working on it",
   billed: "Billed",
   done: "Done",
+  verified: "Verified",
   dropped: "Dropped",
   assigned: "Assigned",
   unassigned: "Unassigned",

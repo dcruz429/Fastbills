@@ -347,7 +347,7 @@ export async function registerRoutes(
         updates.rtp = false;
       }
 
-      if (updates.status === "done" && existing.bucket === "for_verification") {
+      if ((updates.status === "done" || updates.status === "verified") && existing.bucket === "for_verification") {
         updates.bucket = "ready_for_billing";
         updates.status = "unassigned";
         updates.assignedUserId = null;

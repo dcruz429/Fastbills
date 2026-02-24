@@ -24,12 +24,12 @@ A workflow management system for tracking patient tasks through insurance verifi
 
 ## Task Workflow
 1. **For Verification**: Task created and assigned to a verifier. Verifier works on it.
-2. **Verifier marks Done** → Task auto-moves to "Ready for Billing", status becomes "Unassigned", assignment cleared. All admins/assigners get notified to assign a biller.
+2. **Verifier marks Verified** → Task auto-moves to "Ready for Billing", status becomes "Unassigned", assignment cleared. All admins/assigners get notified to assign a biller.
 3. **Admin/Assigner assigns a biller** → Status becomes "Assigned".
 4. **Biller marks Billed** → Task auto-moves to "Done" bucket.
 
 Status options are role-restricted:
-- Verifier: Assigned, Working on it, Done
+- Verifier: Assigned, Working on it, Verified, Dropped
 - Biller: Assigned, Working on it, Billed
 - Admin/Assigner: All statuses
 
