@@ -4,6 +4,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { Redirect } from "wouter";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   BarChart,
@@ -77,12 +79,17 @@ function formatDateLabel(key: string, range: TimeRange): string {
 }
 
 export default function ProductivityPage() {
+  const { user } = useAuth();
   const now = new Date();
   const [timeRange, setTimeRange] = useState<TimeRange>("day");
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("this_month");
   const [customYear, setCustomYear] = useState(now.getFullYear());
   const [customMonth, setCustomMonth] = useState(now.getMonth());
+
+  if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+    return <Redirect to="/" />;
+  }
 
   const { data: activities, isLoading: activitiesLoading } = useQuery<ActivityRecord[]>({
     queryKey: ["/api/productivity"],
