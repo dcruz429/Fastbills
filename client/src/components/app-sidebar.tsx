@@ -8,6 +8,7 @@ import {
   LogOut,
   Flame,
   KeyRound,
+  TrendingUp,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
@@ -46,6 +47,7 @@ const navItems = [
   { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
   { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
   { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner"] },
+  { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner"] },
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner"] },
 ];
 

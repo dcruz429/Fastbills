@@ -47,6 +47,7 @@ export interface IStorage {
   deleteTask(id: number): Promise<void>;
 
   getTaskActivity(taskId: number): Promise<TaskActivity[]>;
+  getAllTaskActivity(): Promise<TaskActivity[]>;
   createTaskActivity(data: InsertTaskActivity): Promise<TaskActivity>;
 
   getNotification(id: number): Promise<Notification | undefined>;
@@ -202,6 +203,25 @@ export class DatabaseStorage implements IStorage {
       .from(taskActivity)
       .leftJoin(users, eq(taskActivity.userId, users.id))
       .where(eq(taskActivity.taskId, taskId))
+      .orderBy(desc(taskActivity.timestamp));
+    return rows;
+  }
+
+  async getAllTaskActivity(): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: taskActivity.id,
+        taskId: taskActivity.taskId,
+        userId: taskActivity.userId,
+        action: taskActivity.action,
+        field: taskActivity.field,
+        oldValue: taskActivity.oldValue,
+        newValue: taskActivity.newValue,
+        timestamp: taskActivity.timestamp,
+        userName: users.fullName,
+      })
+      .from(taskActivity)
+      .leftJoin(users, eq(taskActivity.userId, users.id))
       .orderBy(desc(taskActivity.timestamp));
     return rows;
   }

@@ -240,6 +240,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/productivity", requireAuth, async (req, res) => {
+    try {
+      const activities = await storage.getAllTaskActivity();
+      const completionActions = activities.filter(a =>
+        a.field === "status" && (a.newValue === "verified" || a.newValue === "billed")
+      );
+      res.json(completionActions);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/tasks", requireAuth, async (req, res) => {
     const user = await storage.getUser(req.session.userId!);
     if (user && (user.role === "verifier" || user.role === "biller")) {
