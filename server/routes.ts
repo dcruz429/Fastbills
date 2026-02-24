@@ -359,7 +359,16 @@ export async function registerRoutes(
         updates.rtp = false;
       }
 
-      if (updates.status === "verified" && existing.bucket === "for_verification") {
+      const wasVerified = updates.status === "verified" && existing.bucket === "for_verification";
+      if (wasVerified) {
+        await storage.createTaskActivity({
+          taskId: id,
+          userId: req.session.userId!,
+          action: "Updated status",
+          field: "status",
+          oldValue: String(existing.status),
+          newValue: "verified",
+        });
         updates.bucket = "ready_for_billing";
         updates.status = "unassigned";
         updates.assignedUserId = null;
