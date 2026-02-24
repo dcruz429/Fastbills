@@ -84,14 +84,15 @@ export default function ProductivityPage() {
     return true;
   });
 
-  const userMap = new Map<number, { name: string; verified: number; billed: number }>();
+  const userMap = new Map<number, { name: string; verified: number; billed: number; dropped: number }>();
   for (const a of filtered) {
     if (!userMap.has(a.userId)) {
-      userMap.set(a.userId, { name: a.userName || "Unknown", verified: 0, billed: 0 });
+      userMap.set(a.userId, { name: a.userName || "Unknown", verified: 0, billed: 0, dropped: 0 });
     }
     const entry = userMap.get(a.userId)!;
     if (a.newValue === "verified") entry.verified++;
     if (a.newValue === "billed") entry.billed++;
+    if (a.newValue === "dropped") entry.dropped++;
   }
 
   const userSummary = Array.from(userMap.entries())
@@ -100,17 +101,19 @@ export default function ProductivityPage() {
       name: data.name,
       verified: data.verified,
       billed: data.billed,
+      dropped: data.dropped,
       total: data.verified + data.billed,
     }))
     .sort((a, b) => b.total - a.total);
 
-  const timeMap = new Map<string, { verified: number; billed: number }>();
+  const timeMap = new Map<string, { verified: number; billed: number; dropped: number }>();
   for (const a of filtered) {
     const key = getDateKey(new Date(a.timestamp), timeRange);
-    if (!timeMap.has(key)) timeMap.set(key, { verified: 0, billed: 0 });
+    if (!timeMap.has(key)) timeMap.set(key, { verified: 0, billed: 0, dropped: 0 });
     const entry = timeMap.get(key)!;
     if (a.newValue === "verified") entry.verified++;
     if (a.newValue === "billed") entry.billed++;
+    if (a.newValue === "dropped") entry.dropped++;
   }
 
   const timeData = Array.from(timeMap.entries())
@@ -119,12 +122,14 @@ export default function ProductivityPage() {
       label: formatDateLabel(key, timeRange),
       verified: data.verified,
       billed: data.billed,
+      dropped: data.dropped,
       total: data.verified + data.billed,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const totalVerified = filtered.filter(a => a.newValue === "verified").length;
   const totalBilled = filtered.filter(a => a.newValue === "billed").length;
+  const totalDropped = filtered.filter(a => a.newValue === "dropped").length;
 
   return (
     <div className="p-6 space-y-6">
@@ -155,7 +160,7 @@ export default function ProductivityPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-sm text-muted-foreground">Total Completed</p>
@@ -172,6 +177,12 @@ export default function ProductivityPage() {
           <CardContent className="p-4 text-center">
             <p className="text-sm text-muted-foreground">Billed</p>
             <p className="text-3xl font-bold mt-1 text-green-800" data-testid="text-total-billed">{totalBilled}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">Dropped</p>
+            <p className="text-3xl font-bold mt-1 text-gray-600" data-testid="text-total-dropped">{totalDropped}</p>
           </CardContent>
         </Card>
       </div>
@@ -192,6 +203,7 @@ export default function ProductivityPage() {
                 <Tooltip />
                 <Bar dataKey="verified" name="Verified" fill="hsl(160 70% 40%)" stackId="stack" />
                 <Bar dataKey="billed" name="Billed" fill="hsl(140 50% 25%)" stackId="stack" />
+                <Bar dataKey="dropped" name="Dropped" fill="hsl(0 0% 40%)" stackId="stack" />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -207,17 +219,19 @@ export default function ProductivityPage() {
             <p className="text-muted-foreground text-sm py-8 text-center">No completion data yet</p>
           ) : (
             <div className="space-y-2">
-              <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
+              <div className="grid grid-cols-5 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
                 <span>Employee</span>
                 <span className="text-center">Verified</span>
                 <span className="text-center">Billed</span>
+                <span className="text-center">Dropped</span>
                 <span className="text-center">Total</span>
               </div>
               {userSummary.map((u) => (
-                <div key={u.userId} className="grid grid-cols-4 gap-2 items-center py-1.5" data-testid={`row-productivity-${u.userId}`}>
+                <div key={u.userId} className="grid grid-cols-5 gap-2 items-center py-1.5" data-testid={`row-productivity-${u.userId}`}>
                   <span className="text-sm font-medium truncate">{u.name}</span>
                   <span className="text-sm text-center text-emerald-600 font-semibold">{u.verified}</span>
                   <span className="text-sm text-center text-green-800 font-semibold">{u.billed}</span>
+                  <span className="text-sm text-center text-gray-600 font-semibold">{u.dropped}</span>
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-sm font-bold">{u.total}</span>
                     <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">

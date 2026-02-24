@@ -244,7 +244,7 @@ export async function registerRoutes(
     try {
       const activities = await storage.getAllTaskActivity();
       const completionActions = activities.filter(a =>
-        a.field === "status" && (a.newValue === "verified" || a.newValue === "billed")
+        a.field === "status" && (a.newValue === "verified" || a.newValue === "billed" || a.newValue === "dropped")
       );
       res.json(completionActions);
     } catch (e: any) {
