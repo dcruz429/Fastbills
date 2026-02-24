@@ -347,7 +347,7 @@ export async function registerRoutes(
         updates.rtp = false;
       }
 
-      if ((updates.status === "done" || updates.status === "verified") && existing.bucket === "for_verification") {
+      if (updates.status === "verified" && existing.bucket === "for_verification") {
         updates.bucket = "ready_for_billing";
         updates.status = "unassigned";
         updates.assignedUserId = null;
@@ -370,8 +370,8 @@ export async function registerRoutes(
       }
 
       if (updates.bucket === "done" && existing.bucket !== "done" && updates.status !== "billed") {
-        if (!updates.status || (updates.status !== "done" && updates.status !== "billed" && updates.status !== "dropped")) {
-          updates.status = "done";
+        if (!updates.status || (updates.status !== "billed" && updates.status !== "dropped")) {
+          updates.status = "billed";
         }
       }
 

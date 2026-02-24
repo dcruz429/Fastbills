@@ -257,7 +257,6 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                         <SelectItem value="working_on_it">Working on it</SelectItem>
                         <SelectItem value="verified">Verified</SelectItem>
                         <SelectItem value="billed">Billed</SelectItem>
-                        <SelectItem value="done">Done</SelectItem>
                         <SelectItem value="dropped">Dropped</SelectItem>
                       </>
                     ) : user?.role === "verifier" ? (
@@ -280,7 +279,6 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                         <SelectItem value="working_on_it">Working on it</SelectItem>
                         <SelectItem value="verified">Verified</SelectItem>
                         <SelectItem value="billed">Billed</SelectItem>
-                        <SelectItem value="done">Done</SelectItem>
                         <SelectItem value="dropped">Dropped</SelectItem>
                       </>
                     )}
