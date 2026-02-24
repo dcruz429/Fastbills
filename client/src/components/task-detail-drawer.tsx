@@ -135,7 +135,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
     if (editData.rtp !== (task?.rtp || false)) updates.rtp = editData.rtp;
     const originalResolutionDate = task?.resolutionDate ? formatEST(new Date(task.resolutionDate), "yyyy-MM-dd") : "";
     if (editData.resolutionDate !== originalResolutionDate) {
-      updates.resolutionDate = editData.resolutionDate ? new Date(editData.resolutionDate + "T12:00:00") : null;
+      updates.resolutionDate = editData.resolutionDate || null;
     }
 
     if (Object.keys(updates).length > 0) {
