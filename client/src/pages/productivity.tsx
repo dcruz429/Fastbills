@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -27,6 +29,20 @@ type ActivityRecord = {
 };
 
 type TimeRange = "day" | "week" | "month";
+type PeriodPreset = "this_month" | "last_month" | "last_3_months" | "custom" | "all_time";
+
+function getMonthStart(year: number, month: number): Date {
+  return new Date(year, month, 1);
+}
+
+function getMonthEnd(year: number, month: number): Date {
+  return new Date(year, month + 1, 0, 23, 59, 59, 999);
+}
+
+function formatMonthYear(year: number, month: number): string {
+  const d = new Date(year, month);
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
 
 function getDateKey(date: Date, range: TimeRange): string {
   const y = date.getFullYear();
@@ -61,8 +77,12 @@ function formatDateLabel(key: string, range: TimeRange): string {
 }
 
 export default function ProductivityPage() {
+  const now = new Date();
   const [timeRange, setTimeRange] = useState<TimeRange>("day");
   const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("this_month");
+  const [customYear, setCustomYear] = useState(now.getFullYear());
+  const [customMonth, setCustomMonth] = useState(now.getMonth());
 
   const { data: activities, isLoading: activitiesLoading } = useQuery<ActivityRecord[]>({
     queryKey: ["/api/productivity"],
@@ -79,10 +99,46 @@ export default function ProductivityPage() {
     );
   }
 
+  let dateStart: Date | null = null;
+  let dateEnd: Date | null = null;
+
+  if (periodPreset === "this_month") {
+    dateStart = getMonthStart(now.getFullYear(), now.getMonth());
+    dateEnd = getMonthEnd(now.getFullYear(), now.getMonth());
+  } else if (periodPreset === "last_month") {
+    const lm = new Date(now.getFullYear(), now.getMonth() - 1);
+    dateStart = getMonthStart(lm.getFullYear(), lm.getMonth());
+    dateEnd = getMonthEnd(lm.getFullYear(), lm.getMonth());
+  } else if (periodPreset === "last_3_months") {
+    const start = new Date(now.getFullYear(), now.getMonth() - 2);
+    dateStart = getMonthStart(start.getFullYear(), start.getMonth());
+    dateEnd = getMonthEnd(now.getFullYear(), now.getMonth());
+  } else if (periodPreset === "custom") {
+    dateStart = getMonthStart(customYear, customMonth);
+    dateEnd = getMonthEnd(customYear, customMonth);
+  }
+
+  const periodLabel = periodPreset === "this_month" ? "This Month"
+    : periodPreset === "last_month" ? "Last Month"
+    : periodPreset === "last_3_months" ? "Last 3 Months"
+    : periodPreset === "custom" ? formatMonthYear(customYear, customMonth)
+    : "All Time";
+
   const filtered = (activities || []).filter(a => {
     if (selectedUser !== "all" && String(a.userId) !== selectedUser) return false;
+    if (dateStart && dateEnd) {
+      const ts = new Date(a.timestamp);
+      if (ts < dateStart || ts > dateEnd) return false;
+    }
     return true;
   });
+
+  function navigateMonth(direction: number) {
+    const d = new Date(customYear, customMonth + direction);
+    setCustomYear(d.getFullYear());
+    setCustomMonth(d.getMonth());
+    setPeriodPreset("custom");
+  }
 
   const userMap = new Map<number, { name: string; verified: number; billed: number; dropped: number }>();
   for (const a of filtered) {
@@ -135,7 +191,7 @@ export default function ProductivityPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold" data-testid="text-productivity-title">Productivity</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Select value={selectedUser} onValueChange={setSelectedUser}>
             <SelectTrigger className="w-[180px]" data-testid="select-productivity-user">
               <SelectValue placeholder="All Users" />
@@ -158,6 +214,34 @@ export default function ProductivityPage() {
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex gap-1">
+          {(["this_month", "last_month", "last_3_months", "all_time"] as PeriodPreset[]).map(p => (
+            <Button
+              key={p}
+              size="sm"
+              variant={periodPreset === p ? "default" : "outline"}
+              onClick={() => setPeriodPreset(p)}
+              data-testid={`button-period-${p}`}
+            >
+              {p === "this_month" ? "This Month" : p === "last_month" ? "Last Month" : p === "last_3_months" ? "Last 3 Months" : "All Time"}
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 ml-2 border rounded-md px-1">
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateMonth(-1)} data-testid="button-prev-month">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium min-w-[120px] text-center" data-testid="text-current-period">
+            {formatMonthYear(customYear, customMonth)}
+          </span>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateMonth(1)} data-testid="button-next-month">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <span className="text-sm text-muted-foreground ml-2">Showing: {periodLabel}</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
