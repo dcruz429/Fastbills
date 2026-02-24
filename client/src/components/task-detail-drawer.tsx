@@ -290,7 +290,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                       id="rtp-checkbox"
                       checked={editData.rtp || false}
                       onCheckedChange={(checked) => setEditData({ ...editData, rtp: !!checked })}
-                      disabled={user?.role !== "verifier" && user?.role !== "admin" && user?.role !== "manager"}
+                      disabled={user?.role !== "verifier" && user?.role !== "admin" && user?.role !== "manager" && user?.role !== "assigner"}
                       data-testid="checkbox-rtp"
                     />
                     <Label htmlFor="rtp-checkbox" className="text-xs font-medium cursor-pointer">
