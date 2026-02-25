@@ -19,8 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, X, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Search, History } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -69,6 +70,13 @@ export default function DenialsPage() {
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [historyDenialId, setHistoryDenialId] = useState<number | null>(null);
+
+  const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
+    queryKey: ["/api/denials", historyDenialId, "activity"],
+    queryFn: () => fetch(`/api/denials/${historyDenialId}/activity`, { credentials: "include" }).then(r => r.json()),
+    enabled: historyDenialId !== null,
+  });
 
   const { data: denials, isLoading } = useQuery<Denial[]>({
     queryKey: ["/api/denials"],
@@ -272,6 +280,9 @@ export default function DenialsPage() {
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHistoryDenialId(d.id)} data-testid={`button-history-denial-${d.id}`}>
+                          <History className="h-3.5 w-3.5" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(d)} data-testid={`button-edit-denial-${d.id}`}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -446,6 +457,63 @@ export default function DenialsPage() {
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={historyDenialId !== null} onOpenChange={() => setHistoryDenialId(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Audit Trail
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] pr-4">
+            {activityLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : !activityData || activityData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No activity recorded yet</p>
+            ) : (
+              <div className="space-y-3">
+                {activityData.map((a: any) => (
+                  <div key={a.id} className="border rounded-lg p-3 space-y-1" data-testid={`activity-denial-${a.id}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{a.action}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(a.timestamp).toLocaleString("en-US", {
+                          month: "short", day: "numeric", year: "numeric",
+                          hour: "numeric", minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      by {a.userName || "System"}
+                    </div>
+                    {a.field && (
+                      <div className="text-xs mt-1 space-y-0.5">
+                        {a.oldValue && (
+                          <div className="flex gap-1">
+                            <span className="text-muted-foreground">From:</span>
+                            <span className="line-through text-muted-foreground">{a.oldValue}</span>
+                          </div>
+                        )}
+                        {a.newValue && (
+                          <div className="flex gap-1">
+                            <span className="text-muted-foreground">To:</span>
+                            <span className="font-medium">{a.newValue}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

@@ -517,6 +517,18 @@ export async function registerRoutes(
     res.json(await storage.getAllDenials());
   });
 
+  const denialFieldLabels: Record<string, string> = {
+    denialFileName: "File Name", dateInput: "Date Input", intake: "Intake", doa: "DOA",
+    clinic: "Clinic", patientName: "Patient Name", insurance: "Insurance",
+    dateOfLetter: "Date of Letter", typeOfDenial: "Type of Denial", effectiveDate: "Effective Date",
+    dosFrom: "DOS From", dosTo: "DOS To", numberOfDays: "# of Days", amount: "Amount",
+    comments: "Comments", filedTo: "Filed To", arbStatus: "ARB Status", trialDate: "Trial Date",
+    arbPaymentStatus: "ARB Payment Status", amountReceived: "Amount Received",
+    checkedBy: "Checked By", comment: "Comment",
+  };
+
+  const denialTrackFields = Object.keys(denialFieldLabels);
+
   app.post("/api/denials", requireAuth, async (req, res) => {
     try {
       const data: any = { ...req.body };
@@ -532,6 +544,16 @@ export async function registerRoutes(
         data.numberOfDays = parseInt(data.numberOfDays) || null;
       }
       const denial = await storage.createDenial(data);
+
+      await storage.createDenialActivity({
+        denialId: denial.id,
+        userId: req.session.userId!,
+        action: "Denial created",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
+
       res.json(denial);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -553,11 +575,34 @@ export async function registerRoutes(
       if (data.numberOfDays !== undefined) {
         data.numberOfDays = data.numberOfDays ? parseInt(data.numberOfDays) : null;
       }
+
+      for (const field of denialTrackFields) {
+        if (data[field] !== undefined) {
+          const oldVal = String((existing as any)[field] ?? "");
+          const newVal = String(data[field] ?? "");
+          if (oldVal !== newVal) {
+            await storage.createDenialActivity({
+              denialId: id,
+              userId: req.session.userId!,
+              action: `Updated ${denialFieldLabels[field] || field}`,
+              field,
+              oldValue: oldVal || null,
+              newValue: newVal || null,
+            });
+          }
+        }
+      }
+
       const denial = await storage.updateDenial(id, data);
       res.json(denial);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
+  });
+
+  app.get("/api/denials/:id/activity", requireAuth, async (req, res) => {
+    const denialId = parseInt(req.params.id);
+    res.json(await storage.getDenialActivity(denialId));
   });
 
   app.delete("/api/denials/:id", requireAuth, async (req, res) => {

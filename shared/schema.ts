@@ -94,6 +94,17 @@ export const denials = pgTable("denials", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const denialActivity = pgTable("denial_activity", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  denialId: integer("denial_id").notNull().references(() => denials.id),
+  userId: integer("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  field: text("field"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
 export const DENIAL_TYPE_OPTIONS = [
   "Policy Canceled",
   "Pending IME",
@@ -137,6 +148,7 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, creat
 export const insertTaskActivitySchema = createInsertSchema(taskActivity).omit({ id: true, timestamp: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertDenialSchema = createInsertSchema(denials).omit({ id: true, createdAt: true });
+export const insertDenialActivitySchema = createInsertSchema(denialActivity).omit({ id: true, timestamp: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -152,6 +164,8 @@ export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertDenial = z.infer<typeof insertDenialSchema>;
 export type Denial = typeof denials.$inferSelect;
+export type InsertDenialActivity = z.infer<typeof insertDenialActivitySchema>;
+export type DenialActivity = typeof denialActivity.$inferSelect;
 
 export type TaskWithRelations = Task & {
   uploader?: User | null;

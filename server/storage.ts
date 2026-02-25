@@ -8,6 +8,7 @@ import {
   taskActivity,
   notifications,
   denials,
+  denialActivity,
   type User,
   type InsertUser,
   type Task,
@@ -23,6 +24,8 @@ import {
   type TaskWithRelations,
   type Denial,
   type InsertDenial,
+  type DenialActivity,
+  type InsertDenialActivity,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -64,6 +67,9 @@ export interface IStorage {
   createDenial(data: InsertDenial): Promise<Denial>;
   updateDenial(id: number, data: Partial<Denial>): Promise<Denial | undefined>;
   deleteDenial(id: number): Promise<void>;
+
+  getDenialActivity(denialId: number): Promise<any[]>;
+  createDenialActivity(data: InsertDenialActivity): Promise<DenialActivity>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -289,7 +295,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDenial(id: number): Promise<void> {
+    await db.delete(denialActivity).where(eq(denialActivity.denialId, id));
     await db.delete(denials).where(eq(denials.id, id));
+  }
+
+  async getDenialActivity(denialId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: denialActivity.id,
+        denialId: denialActivity.denialId,
+        userId: denialActivity.userId,
+        action: denialActivity.action,
+        field: denialActivity.field,
+        oldValue: denialActivity.oldValue,
+        newValue: denialActivity.newValue,
+        timestamp: denialActivity.timestamp,
+        userName: users.fullName,
+      })
+      .from(denialActivity)
+      .leftJoin(users, eq(denialActivity.userId, users.id))
+      .where(eq(denialActivity.denialId, denialId))
+      .orderBy(desc(denialActivity.timestamp));
+    return rows;
+  }
+
+  async createDenialActivity(data: InsertDenialActivity): Promise<DenialActivity> {
+    const [activity] = await db.insert(denialActivity).values(data).returning();
+    return activity;
   }
 }
 
