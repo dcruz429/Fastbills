@@ -543,10 +543,13 @@ function UserSettings() {
 }
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const showUsers = user?.role === "admin" || user?.role === "manager";
+
   return (
     <div className="p-4 space-y-5 overflow-y-auto h-full">
       <h1 className="text-xl font-bold tracking-tight" data-testid="text-settings-title">
-        Admin Settings
+        {showUsers ? "Admin Settings" : "Settings"}
       </h1>
 
       <Tabs defaultValue="clinics">
@@ -559,10 +562,12 @@ export default function SettingsPage() {
             <ShieldCheck className="h-4 w-4 mr-1" />
             Insurances
           </TabsTrigger>
-          <TabsTrigger value="users" data-testid="tab-users">
-            <Users className="h-4 w-4 mr-1" />
-            Users
-          </TabsTrigger>
+          {showUsers && (
+            <TabsTrigger value="users" data-testid="tab-users">
+              <Users className="h-4 w-4 mr-1" />
+              Users
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="clinics" className="mt-4">
@@ -587,16 +592,18 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="users" className="mt-4">
-          <Card>
-            <CardHeader className="pb-3 px-4 pt-4">
-              <h3 className="text-sm font-semibold">Manage Users</h3>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <UserSettings />
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {showUsers && (
+          <TabsContent value="users" className="mt-4">
+            <Card>
+              <CardHeader className="pb-3 px-4 pt-4">
+                <h3 className="text-sm font-semibold">Manage Users</h3>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <UserSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
