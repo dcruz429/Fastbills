@@ -16,6 +16,7 @@ import NotificationsPage from "@/pages/notifications";
 import SettingsPage from "@/pages/settings";
 import ReportsPage from "@/pages/reports";
 import ProductivityPage from "@/pages/productivity";
+import DenialsPage from "@/pages/denials";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/settings" component={SettingsPage} />
       <Route path="/reports" component={ReportsPage} />
       <Route path="/productivity" component={ProductivityPage} />
+      <Route path="/denials" component={DenialsPage} />
       <Route component={NotFound} />
     </Switch>
   );

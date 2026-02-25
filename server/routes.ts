@@ -513,5 +513,65 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  app.get("/api/denials", requireAuth, async (_req, res) => {
+    res.json(await storage.getAllDenials());
+  });
+
+  app.post("/api/denials", requireAuth, async (req, res) => {
+    try {
+      const data: any = { ...req.body };
+      const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"];
+      for (const f of dateFields) {
+        if (data[f]) {
+          data[f] = new Date(data[f]);
+        } else {
+          data[f] = null;
+        }
+      }
+      if (data.numberOfDays !== undefined && data.numberOfDays !== null) {
+        data.numberOfDays = parseInt(data.numberOfDays) || null;
+      }
+      const denial = await storage.createDenial(data);
+      res.json(denial);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/denials/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await storage.getDenial(id);
+      if (!existing) return res.status(404).json({ message: "Denial not found" });
+      const data: any = { ...req.body };
+      const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"];
+      for (const f of dateFields) {
+        if (data[f] !== undefined) {
+          data[f] = data[f] ? new Date(data[f]) : null;
+        }
+      }
+      if (data.numberOfDays !== undefined) {
+        data.numberOfDays = data.numberOfDays ? parseInt(data.numberOfDays) : null;
+      }
+      const denial = await storage.updateDenial(id, data);
+      res.json(denial);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/denials/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || (user.role !== "admin" && user.role !== "manager")) {
+        return res.status(403).json({ message: "Only admins and managers can delete denials" });
+      }
+      await storage.deleteDenial(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   return httpServer;
 }

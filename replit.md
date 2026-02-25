@@ -21,6 +21,8 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Reports**: CSV export with filters
 - **Audit Trail**: All task changes recorded with user, timestamp, old/new values
 - **Overdue Detection**: Visual highlighting, escalation levels (1/3/5 days)
+- **Denials**: Track insurance denials with full spreadsheet-style table, dropdown selects for Type of Denial, Filed To, ARB Status, ARB Payment Status
+- **Productivity**: Date-filtered productivity metrics (This Month, Last Month, Last 3 Months, custom month)
 
 ## Task Workflow
 1. **For Verification**: Task created and assigned to a verifier. Verifier works on it.
@@ -63,6 +65,8 @@ client/src/
     notifications.tsx  - Notifications page
     settings.tsx       - Admin settings
     reports.tsx        - Export/reports page
+    denials.tsx        - Insurance denials tracker
+    productivity.tsx   - Productivity metrics page
 
 server/
   index.ts             - Express server setup
@@ -76,5 +80,6 @@ shared/
 ```
 
 ## Database Tables
-- users, tasks, task_activity, clinics, insurances, notifications
+- users, tasks, task_activity, clinics, insurances, notifications, denials
 - Enums: role, bucket, status, priority
+- Denials columns: denialFileName, dateInput, intake, doa, clinic, patientName, insurance, dateOfLetter, typeOfDenial, effectiveDate, dosFrom, dosTo, numberOfDays, amount, comments, filedTo, arbStatus, trialDate, arbPaymentStatus, amountReceived, checkedBy, comment

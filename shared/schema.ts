@@ -67,12 +67,76 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const denials = pgTable("denials", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  denialFileName: text("denial_file_name"),
+  dateInput: timestamp("date_input").defaultNow(),
+  intake: text("intake"),
+  doa: timestamp("doa"),
+  clinic: text("clinic"),
+  patientName: text("patient_name").notNull(),
+  insurance: text("insurance"),
+  dateOfLetter: timestamp("date_of_letter"),
+  typeOfDenial: text("type_of_denial"),
+  effectiveDate: timestamp("effective_date"),
+  dosFrom: timestamp("dos_from"),
+  dosTo: timestamp("dos_to"),
+  numberOfDays: integer("number_of_days"),
+  amount: text("amount"),
+  comments: text("comments"),
+  filedTo: text("filed_to"),
+  arbStatus: text("arb_status"),
+  trialDate: timestamp("trial_date"),
+  arbPaymentStatus: text("arb_payment_status"),
+  amountReceived: text("amount_received"),
+  checkedBy: text("checked_by"),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const DENIAL_TYPE_OPTIONS = [
+  "Policy Canceled",
+  "Pending IME",
+  "EUO Provider NC",
+  "IME Non Compliant",
+  "Pending EUO Patient",
+  "Pending Investigation",
+];
+
+export const FILED_TO_OPTIONS = [
+  "Moroff",
+  "AAA",
+  "Court",
+  "Internal",
+];
+
+export const ARB_STATUS_OPTIONS = [
+  "Pending",
+  "Scheduled",
+  "Heard",
+  "Adjourned",
+  "Settled",
+  "Won",
+  "Lost",
+  "Withdrawn",
+];
+
+export const ARB_PAYMENT_STATUS_OPTIONS = [
+  "Pending",
+  "Partial Payment",
+  "Full Payment",
+  "Denied",
+  "Appeal Filed",
+  "Collected",
+];
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertClinicSchema = createInsertSchema(clinics).omit({ id: true });
 export const insertInsuranceSchema = createInsertSchema(insurances).omit({ id: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, inputDate: true });
 export const insertTaskActivitySchema = createInsertSchema(taskActivity).omit({ id: true, timestamp: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export const insertDenialSchema = createInsertSchema(denials).omit({ id: true, createdAt: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -86,6 +150,8 @@ export type InsertTaskActivity = z.infer<typeof insertTaskActivitySchema>;
 export type TaskActivity = typeof taskActivity.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+export type InsertDenial = z.infer<typeof insertDenialSchema>;
+export type Denial = typeof denials.$inferSelect;
 
 export type TaskWithRelations = Task & {
   uploader?: User | null;

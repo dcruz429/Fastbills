@@ -7,6 +7,7 @@ import {
   insurances,
   taskActivity,
   notifications,
+  denials,
   type User,
   type InsertUser,
   type Task,
@@ -20,6 +21,8 @@ import {
   type Notification,
   type InsertNotification,
   type TaskWithRelations,
+  type Denial,
+  type InsertDenial,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -55,6 +58,12 @@ export interface IStorage {
   createNotification(data: InsertNotification): Promise<Notification>;
   markNotificationRead(id: number): Promise<void>;
   markAllNotificationsRead(userId: number): Promise<void>;
+
+  getAllDenials(): Promise<Denial[]>;
+  getDenial(id: number): Promise<Denial | undefined>;
+  createDenial(data: InsertDenial): Promise<Denial>;
+  updateDenial(id: number, data: Partial<Denial>): Promise<Denial | undefined>;
+  deleteDenial(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -258,6 +267,29 @@ export class DatabaseStorage implements IStorage {
       .update(notifications)
       .set({ read: true })
       .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+  }
+
+  async getAllDenials(): Promise<Denial[]> {
+    return db.select().from(denials).orderBy(desc(denials.createdAt));
+  }
+
+  async getDenial(id: number): Promise<Denial | undefined> {
+    const [denial] = await db.select().from(denials).where(eq(denials.id, id));
+    return denial;
+  }
+
+  async createDenial(data: InsertDenial): Promise<Denial> {
+    const [denial] = await db.insert(denials).values(data).returning();
+    return denial;
+  }
+
+  async updateDenial(id: number, data: Partial<Denial>): Promise<Denial | undefined> {
+    const [denial] = await db.update(denials).set(data).where(eq(denials.id, id)).returning();
+    return denial;
+  }
+
+  async deleteDenial(id: number): Promise<void> {
+    await db.delete(denials).where(eq(denials.id, id));
   }
 }
 
