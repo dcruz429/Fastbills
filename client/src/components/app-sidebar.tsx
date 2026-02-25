@@ -50,7 +50,7 @@ const navItems = [
   { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner"] },
   { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner"] },
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner"] },
-  { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager", "assigner"] },
+  { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager"] },
 ];
 
 const adminItems = [

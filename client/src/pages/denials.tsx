@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Denial } from "@shared/schema";
 import {
@@ -71,6 +72,10 @@ export default function DenialsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [historyDenialId, setHistoryDenialId] = useState<number | null>(null);
+
+  if (!user || !["admin", "manager"].includes(user.role)) {
+    return <Redirect to="/" />;
+  }
 
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
     queryKey: ["/api/denials", historyDenialId, "activity"],
