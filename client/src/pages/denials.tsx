@@ -431,10 +431,6 @@ export default function DenialsPage() {
               <Label>Comments</Label>
               <Textarea value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} rows={2} data-testid="input-denial-comments" />
             </div>
-            <div className="space-y-1.5 md:col-span-3">
-              <Label>Comment</Label>
-              <Textarea value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} rows={2} data-testid="input-denial-comment" />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel-denial">Cancel</Button>
