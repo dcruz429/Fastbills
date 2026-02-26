@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import type { Denial } from "@shared/schema";
+import type { Denial, User, Clinic } from "@shared/schema";
 import {
   DENIAL_TYPE_OPTIONS,
   FILED_TO_OPTIONS,
@@ -86,6 +86,11 @@ export default function DenialsPage() {
   const { data: denials, isLoading } = useQuery<Denial[]>({
     queryKey: ["/api/denials"],
   });
+
+  const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
+  const activeUsers = (allUsers || []).filter(u => u.isActive !== false);
+  const activeClinics = (allClinics || []).filter(c => c.isActive !== false);
 
   const createMutation = useMutation({
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/denials", data),
@@ -230,7 +235,7 @@ export default function DenialsPage() {
                   <TableHead className="min-w-[100px]">Effective Date</TableHead>
                   <TableHead className="min-w-[90px]">DOS From</TableHead>
                   <TableHead className="min-w-[90px]">DOS To</TableHead>
-                  <TableHead className="min-w-[60px]"># Days</TableHead>
+                  <TableHead className="min-w-[60px]"># Visits</TableHead>
                   <TableHead className="min-w-[80px]">Amount</TableHead>
                   <TableHead className="min-w-[120px]">Comments</TableHead>
                   <TableHead className="min-w-[80px]">Filed To</TableHead>
@@ -322,7 +327,17 @@ export default function DenialsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Intake</Label>
-              <Input value={form.intake} onChange={e => setForm(f => ({ ...f, intake: e.target.value }))} data-testid="input-denial-intake" />
+              <Select value={form.intake || "__clear__"} onValueChange={v => setForm(f => ({ ...f, intake: v === "__clear__" ? "" : v }))}>
+                <SelectTrigger data-testid="select-denial-intake">
+                  <SelectValue placeholder="Select user..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__clear__">-- None --</SelectItem>
+                  {activeUsers.map(u => (
+                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>DOA</Label>
@@ -330,7 +345,17 @@ export default function DenialsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Clinic</Label>
-              <Input value={form.clinic} onChange={e => setForm(f => ({ ...f, clinic: e.target.value }))} data-testid="input-denial-clinic" />
+              <Select value={form.clinic || "__clear__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__clear__" ? "" : v }))}>
+                <SelectTrigger data-testid="select-denial-clinic">
+                  <SelectValue placeholder="Select clinic..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__clear__">-- None --</SelectItem>
+                  {activeClinics.map(c => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Patient Name *</Label>
@@ -371,7 +396,7 @@ export default function DenialsPage() {
               <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-denial-dos-to" />
             </div>
             <div className="space-y-1.5">
-              <Label># of Days</Label>
+              <Label># of Visits</Label>
               <Input type="number" value={form.numberOfDays} onChange={e => setForm(f => ({ ...f, numberOfDays: e.target.value }))} data-testid="input-denial-days" />
             </div>
             <div className="space-y-1.5">

@@ -82,4 +82,4 @@ shared/
 ## Database Tables
 - users, tasks, task_activity, clinics, insurances, notifications, denials
 - Enums: role, bucket, status, priority
-- Denials columns: denialFileName, dateInput, intake, doa, clinic, patientName, insurance, dateOfLetter, typeOfDenial, effectiveDate, dosFrom, dosTo, numberOfDays, amount, comments, filedTo, arbStatus, trialDate, arbPaymentStatus, amountReceived, checkedBy, comment
+- Denials columns: denialFileName, dateInput, intake (dropdown: active users), doa, clinic (dropdown: active clinics), patientName, insurance, dateOfLetter, typeOfDenial, effectiveDate, dosFrom, dosTo, numberOfDays (labeled "# of Visits"), amount, comments, filedTo, arbStatus, trialDate, arbPaymentStatus, amountReceived, checkedBy, comment
