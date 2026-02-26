@@ -31,7 +31,7 @@ type ActivityRecord = {
 };
 
 type TimeRange = "day" | "week" | "month";
-type PeriodPreset = "this_month" | "last_month" | "last_3_months" | "custom" | "all_time";
+type PeriodPreset = "last_7_days" | "this_month" | "last_month" | "last_3_months" | "custom" | "all_time";
 
 function getMonthStart(year: number, month: number): Date {
   return new Date(year, month, 1);
@@ -109,7 +109,12 @@ export default function ProductivityPage() {
   let dateStart: Date | null = null;
   let dateEnd: Date | null = null;
 
-  if (periodPreset === "this_month") {
+  if (periodPreset === "last_7_days") {
+    dateEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    dateStart = new Date(dateEnd);
+    dateStart.setDate(dateStart.getDate() - 6);
+    dateStart.setHours(0, 0, 0, 0);
+  } else if (periodPreset === "this_month") {
     dateStart = getMonthStart(now.getFullYear(), now.getMonth());
     dateEnd = getMonthEnd(now.getFullYear(), now.getMonth());
   } else if (periodPreset === "last_month") {
@@ -125,7 +130,8 @@ export default function ProductivityPage() {
     dateEnd = getMonthEnd(customYear, customMonth);
   }
 
-  const periodLabel = periodPreset === "this_month" ? "This Month"
+  const periodLabel = periodPreset === "last_7_days" ? "Last 7 Days"
+    : periodPreset === "this_month" ? "This Month"
     : periodPreset === "last_month" ? "Last Month"
     : periodPreset === "last_3_months" ? "Last 3 Months"
     : periodPreset === "custom" ? formatMonthYear(customYear, customMonth)
@@ -179,15 +185,43 @@ export default function ProductivityPage() {
     if (a.newValue === "dropped") entry.dropped++;
   }
 
-  const timeData = Array.from(timeMap.entries())
-    .map(([key, data]) => ({
-      date: key,
-      label: formatDateLabel(key, timeRange),
-      verified: data.verified,
-      billed: data.billed,
-      dropped: data.dropped,
-      total: data.verified + data.billed,
-    }))
+  const allTimeKeys: string[] = [];
+  if (dateStart && dateEnd) {
+    if (timeRange === "day") {
+      const cursor = new Date(dateStart);
+      while (cursor <= dateEnd) {
+        allTimeKeys.push(getDateKey(cursor, "day"));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    } else if (timeRange === "week") {
+      const cursor = new Date(dateStart);
+      cursor.setDate(cursor.getDate() - cursor.getDay());
+      while (cursor <= dateEnd) {
+        allTimeKeys.push(getDateKey(cursor, "week"));
+        cursor.setDate(cursor.getDate() + 7);
+      }
+    } else {
+      const cursor = new Date(dateStart);
+      while (cursor <= dateEnd) {
+        allTimeKeys.push(getDateKey(cursor, "month"));
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    }
+  }
+
+  const keysToUse = allTimeKeys.length > 0 ? allTimeKeys : Array.from(timeMap.keys());
+  const timeData = keysToUse
+    .map(key => {
+      const data = timeMap.get(key) || { verified: 0, billed: 0, dropped: 0 };
+      return {
+        date: key,
+        label: formatDateLabel(key, timeRange),
+        verified: data.verified,
+        billed: data.billed,
+        dropped: data.dropped,
+        total: data.verified + data.billed,
+      };
+    })
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const totalVerified = filtered.filter(a => a.newValue === "verified").length;
@@ -225,15 +259,18 @@ export default function ProductivityPage() {
 
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex gap-1">
-          {(["this_month", "last_month", "last_3_months", "all_time"] as PeriodPreset[]).map(p => (
+          {(["last_7_days", "this_month", "last_month", "last_3_months", "all_time"] as PeriodPreset[]).map(p => (
             <Button
               key={p}
               size="sm"
               variant={periodPreset === p ? "default" : "outline"}
-              onClick={() => setPeriodPreset(p)}
+              onClick={() => {
+                setPeriodPreset(p);
+                if (p === "last_7_days") setTimeRange("day");
+              }}
               data-testid={`button-period-${p}`}
             >
-              {p === "this_month" ? "This Month" : p === "last_month" ? "Last Month" : p === "last_3_months" ? "Last 3 Months" : "All Time"}
+              {p === "last_7_days" ? "Last 7 Days" : p === "this_month" ? "This Month" : p === "last_month" ? "Last Month" : p === "last_3_months" ? "Last 3 Months" : "All Time"}
             </Button>
           ))}
         </div>
