@@ -302,12 +302,12 @@ export default function BoardPage() {
                               <tr className="border-b text-xs text-muted-foreground">
                                 <th className="text-left py-2 px-3 font-medium">Patient Name</th>
                                 <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Clinic</th>
-                                <th className="text-left py-2 px-3 font-medium hidden lg:table-cell">Insurance</th>
-                                <th className="text-left py-2 px-3 font-medium hidden lg:table-cell">IE Date</th>
-                                <th className="text-left py-2 px-3 font-medium">Due Date</th>
-                                <th className="text-left py-2 px-3 font-medium">Priority</th>
-                                <th className="text-left py-2 px-3 font-medium">Status</th>
-                                <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Assigned</th>
+                                <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">Insurance</th>
+                                <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">IE Date</th>
+                                <th className="text-left py-2 px-2 font-medium">Due Date</th>
+                                <th className="text-left py-2 px-2 font-medium">Priority</th>
+                                <th className="text-left py-2 px-2 font-medium">Status</th>
+                                <th className="text-left py-2 px-3 font-medium hidden md:table-cell min-w-[140px]">Assigned</th>
                                 <th className="text-left py-2 px-3 font-medium w-8"></th>
                               </tr>
                             </thead>
@@ -348,13 +348,13 @@ export default function BoardPage() {
                                     <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
                                       {task.clinic?.name || "-"}
                                     </td>
-                                    <td className="py-2.5 px-3 text-muted-foreground hidden lg:table-cell">
+                                    <td className="py-2.5 px-2 text-muted-foreground hidden lg:table-cell">
                                       {task.insurance?.name || "-"}
                                     </td>
-                                    <td className="py-2.5 px-3 text-muted-foreground hidden lg:table-cell">
+                                    <td className="py-2.5 px-2 text-muted-foreground hidden lg:table-cell">
                                       {task.ieDate ? formatEST(new Date(task.ieDate), "MM/dd") : "-"}
                                     </td>
-                                    <td className="py-2.5 px-3">
+                                    <td className="py-2.5 px-2">
                                       <span
                                         className={cn(
                                           "text-xs",
@@ -368,10 +368,10 @@ export default function BoardPage() {
                                           : "-"}
                                       </span>
                                     </td>
-                                    <td className="py-2.5 px-3">
+                                    <td className="py-2.5 px-2">
                                       <PriorityBadge priority={task.priority} />
                                     </td>
-                                    <td className="py-2.5 px-3">
+                                    <td className="py-2.5 px-2">
                                       <div className="flex items-center gap-1">
                                         <StatusBadge status={task.status} />
                                         {task.status === "dropped" && task.rtp && (
@@ -382,7 +382,7 @@ export default function BoardPage() {
                                       </div>
                                     </td>
                                     <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
-                                      <span className="truncate max-w-[100px] inline-block">
+                                      <span className="truncate max-w-[160px] inline-block">
                                         {task.assignedUser?.fullName || "-"}
                                       </span>
                                     </td>
