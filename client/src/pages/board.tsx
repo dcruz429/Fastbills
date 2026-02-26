@@ -68,6 +68,7 @@ export default function BoardPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterClinic, setFilterClinic] = useState("all");
+  const [filterAssignedTo, setFilterAssignedTo] = useState("all");
   const [filterBucket, setFilterBucket] = useState("all");
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [filterEscalated, setFilterEscalated] = useState(false);
@@ -101,6 +102,7 @@ export default function BoardPage() {
   });
 
   const { data: clinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
+  const { data: users } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
   const now = new Date();
   const filteredTasks = (tasks || []).filter((t) => {
@@ -118,6 +120,13 @@ export default function BoardPage() {
     if (filterStatus !== "all" && t.status !== filterStatus) return false;
     if (filterPriority !== "all" && t.priority !== filterPriority) return false;
     if (filterClinic !== "all" && t.clinicId?.toString() !== filterClinic) return false;
+    if (filterAssignedTo !== "all") {
+      if (filterAssignedTo === "unassigned") {
+        if (t.assignedUserId) return false;
+      } else {
+        if (t.assignedUserId?.toString() !== filterAssignedTo) return false;
+      }
+    }
     if (filterBucket !== "all" && t.bucket !== filterBucket) return false;
     if (filterOverdue) {
       if (!t.dueDate || new Date(t.dueDate) >= now || t.bucket === "done") return false;
@@ -196,7 +205,19 @@ export default function BoardPage() {
             ))}
           </SelectContent>
         </Select>
-        {(filterBucket !== "all" || filterOverdue || filterEscalated) && (
+        <Select value={filterAssignedTo} onValueChange={setFilterAssignedTo}>
+          <SelectTrigger className="w-[150px]" data-testid="select-filter-assigned-to">
+            <SelectValue placeholder="Assigned To" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Assigned</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {users?.filter(u => u.isActive !== false).map((u) => (
+              <SelectItem key={u.id} value={u.id.toString()}>{u.fullName}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(filterBucket !== "all" || filterOverdue || filterEscalated || filterAssignedTo !== "all" || filterStatus !== "all" || filterPriority !== "all" || filterClinic !== "all") && (
           <Button
             variant="ghost"
             size="sm"
@@ -207,6 +228,7 @@ export default function BoardPage() {
               setFilterStatus("all");
               setFilterPriority("all");
               setFilterClinic("all");
+              setFilterAssignedTo("all");
               window.history.replaceState({}, "", "/");
             }}
             className="text-xs"
