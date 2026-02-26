@@ -306,7 +306,7 @@ function UserSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const payload: any = { fullName: `${data.firstName} ${data.lastName}`.trim(), role: data.role };
+      const payload: any = { fullName: `${data.firstName} ${data.lastName}`.trim(), role: data.role, username: data.username };
       if (data.password) payload.password = data.password;
       await apiRequest("PATCH", `/api/users/${id}`, payload);
     },
