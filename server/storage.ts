@@ -147,6 +147,13 @@ export class DatabaseStorage implements IStorage {
     const clinicMap = new Map(allClinics.map((c) => [c.id, c]));
     const insuranceMap = new Map(allInsurances.map((i) => [i.id, i]));
 
+    for (const t of allTasks) {
+      if (t.status === "dropped" && t.bucket !== "done") {
+        await db.update(tasks).set({ bucket: "done" }).where(eq(tasks.id, t.id));
+        t.bucket = "done";
+      }
+    }
+
     const now = new Date();
     return allTasks.map((t) => {
       const isOverdue = t.dueDate && new Date(t.dueDate) < now && t.bucket !== "done";
