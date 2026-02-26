@@ -220,11 +220,11 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="px-4 pb-4">
             {employeeData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={Math.max(250, employeeData.length * 45)}>
                 <BarChart data={employeeData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
                   <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={120} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fontWeight: 600 }} tickLine={false} axisLine={false} width={180} />
                   <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6 }} />
                   <Bar dataKey="value" fill="hsl(160 70% 40%)" radius={[0, 4, 4, 0]} />
                 </BarChart>
