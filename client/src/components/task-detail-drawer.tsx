@@ -477,7 +477,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
               </h3>
               {task.notes && (
                 <div className="space-y-2 max-h-48 overflow-y-auto" data-testid="notes-display">
-                  {task.notes.split("\n\n").filter(Boolean).reverse().map((block, idx) => {
+                  {task.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse().map((block, idx) => {
                     const headerMatch = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
                     if (headerMatch) {
                       return (
@@ -489,13 +489,13 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                             <Clock className="h-3 w-3" />
                             <span>{formatEST(new Date(headerMatch[2]), "MMM d, h:mm a")}</span>
                           </div>
-                          <p className="text-foreground whitespace-pre-wrap">{headerMatch[3]}</p>
+                          <p className="text-foreground whitespace-pre-wrap">{headerMatch[3].trim()}</p>
                         </div>
                       );
                     }
                     return (
                       <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50" data-testid={`note-item-${idx}`}>
-                        <p className="text-foreground whitespace-pre-wrap">{block}</p>
+                        <p className="text-foreground whitespace-pre-wrap">{block.trim()}</p>
                       </div>
                     );
                   })}
