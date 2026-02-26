@@ -151,12 +151,12 @@ export default function BoardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between gap-3 p-4 pb-2 flex-wrap">
-        <h1 className="text-xl font-bold tracking-tight" data-testid="text-board-title">Task Board</h1>
+      <div className="flex items-center justify-between gap-3 p-6 pb-2 flex-wrap">
+        <h1 className="text-2xl font-bold tracking-tight" data-testid="text-board-title">Task Board</h1>
         {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner") && <CreateTaskDialog />}
       </div>
 
-      <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
+      <div className="flex items-center gap-2 px-6 pb-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -247,7 +247,7 @@ export default function BoardPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4 animate-fade-in">
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -265,7 +265,7 @@ export default function BoardPage() {
                 open={isOpen}
                 onOpenChange={() => toggleBucket(bucket)}
               >
-                <Card className={cn("border", config.border)}>
+                <Card className={cn("border shadow-sm", config.border)}>
                   <CollapsibleTrigger asChild>
                     <CardHeader
                       className={cn(
@@ -291,8 +291,9 @@ export default function BoardPage() {
                   <CollapsibleContent>
                     <CardContent className="p-0">
                       {bucketTasks.length === 0 ? (
-                        <div className="py-8 text-center text-sm text-muted-foreground">
-                          No tasks in this section
+                        <div className="py-10 text-center">
+                          <p className="text-sm text-muted-foreground">No tasks in this section</p>
+                          <p className="text-xs text-muted-foreground/60 mt-1">Tasks will appear here as they move through the workflow</p>
                         </div>
                       ) : (
                         <div className="overflow-x-auto">
@@ -320,10 +321,10 @@ export default function BoardPage() {
                                   <tr
                                     key={task.id}
                                     className={cn(
-                                      "border-b last:border-0 cursor-pointer transition-colors",
+                                      "border-b last:border-0 cursor-pointer transition-colors duration-150",
                                       isOverdue
-                                        ? "bg-red-50 dark:bg-red-950/20"
-                                        : "hover:bg-muted/30"
+                                        ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30"
+                                        : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10"
                                     )}
                                     onClick={() => {
                                       setSelectedTask(task);

@@ -43,15 +43,18 @@ type StatCardProps = {
 function StatCard({ label, value, icon: Icon, color, bgColor, testId, onClick }: StatCardProps) {
   return (
     <Card
-      className={onClick ? "cursor-pointer hover:ring-2 hover:ring-primary/30 transition-shadow" : ""}
+      className={cn(
+        "transition-all duration-200 shadow-sm hover:shadow-md",
+        onClick && "cursor-pointer hover:-translate-y-0.5"
+      )}
       onClick={onClick}
     >
       <CardContent className="flex items-center gap-3 p-4">
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg shrink-0", bgColor)}>
+        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", bgColor)}>
           <Icon className={cn("h-5 w-5", color)} />
         </div>
         <div>
-          <p className="text-2xl font-bold" data-testid={testId}>{value}</p>
+          <p className="text-2xl font-bold tracking-tight" data-testid={testId}>{value}</p>
           <p className="text-xs text-muted-foreground">{label}</p>
         </div>
       </CardContent>
@@ -133,12 +136,17 @@ export default function DashboardPage() {
     .sort((a, b) => b.value - a.value);
 
   return (
-    <div className="p-4 space-y-5 overflow-y-auto h-full">
-      <h1 className="text-xl font-bold tracking-tight" data-testid="text-dashboard-title">
-        {isStaffView ? "My Dashboard" : "Supervisor Dashboard"}
-      </h1>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight" data-testid="text-dashboard-title">
+          {isStaffView ? "My Dashboard" : "Supervisor Dashboard"}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Welcome back, {currentUser?.fullName?.split(" ")[0] || "User"}
+        </p>
+      </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Tasks" value={totalTasks} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-total" onClick={() => navigate("/")} />
         <StatCard label="For Verification" value={verificationCount} icon={ShieldCheck} color="text-amber-600 dark:text-amber-400" bgColor="bg-amber-100 dark:bg-amber-900/20" testId="stat-verification" onClick={() => navigate("/?bucket=for_verification")} />
         <StatCard label="Ready for Billing" value={billingCount} icon={FileCheck} color="text-blue-600 dark:text-blue-400" bgColor="bg-blue-100 dark:bg-blue-900/20" testId="stat-billing" onClick={() => navigate("/?bucket=ready_for_billing")} />
@@ -150,8 +158,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2 px-4 pt-4">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2 px-5 pt-5">
             <h3 className="text-sm font-semibold">Tasks by Clinic</h3>
           </CardHeader>
           <CardContent className="px-4 pb-4">
@@ -173,8 +181,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2 px-4 pt-4">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2 px-5 pt-5">
             <h3 className="text-sm font-semibold">Tasks by Insurance</h3>
           </CardHeader>
           <CardContent className="px-4 pb-4">
@@ -206,8 +214,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2 px-4 pt-4">
+        <Card className="lg:col-span-2 shadow-sm">
+          <CardHeader className="pb-2 px-5 pt-5">
             <h3 className="text-sm font-semibold">Tasks by Employee</h3>
           </CardHeader>
           <CardContent className="px-4 pb-4">

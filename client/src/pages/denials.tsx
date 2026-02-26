@@ -204,7 +204,7 @@ export default function DenialsPage() {
   }
 
   return (
-    <div className="p-4 space-y-4 overflow-y-auto h-full">
+    <div className="p-6 space-y-5 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold" data-testid="text-denials-title">Denials</h1>
         <div className="flex items-center gap-2">

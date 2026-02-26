@@ -69,10 +69,10 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="p-4 space-y-5 overflow-y-auto h-full">
+    <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2" data-testid="text-reports-title">
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" data-testid="text-reports-title">
             <BarChart3 className="h-5 w-5" />
             Reports
           </h1>

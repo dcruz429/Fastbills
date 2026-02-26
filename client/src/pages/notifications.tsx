@@ -44,10 +44,10 @@ export default function NotificationsPage() {
   const unreadCount = items.filter((n) => !n.read).length;
 
   return (
-    <div className="p-4 space-y-5 overflow-y-auto h-full">
+    <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2" data-testid="text-notifications-title">
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" data-testid="text-notifications-title">
             <Bell className="h-5 w-5" />
             Notifications
           </h1>

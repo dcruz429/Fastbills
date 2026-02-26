@@ -229,9 +229,9 @@ export default function ProductivityPage() {
   const totalDropped = filtered.filter(a => a.newValue === "dropped").length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold" data-testid="text-productivity-title">Productivity</h1>
+        <h1 className="text-2xl font-bold tracking-tight" data-testid="text-productivity-title">Productivity</h1>
         <div className="flex items-center gap-3 flex-wrap">
           <Select value={selectedUser} onValueChange={setSelectedUser}>
             <SelectTrigger className="w-[180px]" data-testid="select-productivity-user">

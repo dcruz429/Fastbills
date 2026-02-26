@@ -52,9 +52,9 @@ export default function WorkloadPage() {
     .sort((a, b) => b.total - a.total);
 
   return (
-    <div className="p-4 space-y-5 overflow-y-auto h-full">
+    <div className="p-6 space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-xl font-bold tracking-tight" data-testid="text-workload-title">
+        <h1 className="text-2xl font-bold tracking-tight" data-testid="text-workload-title">
           {isStaffView ? "My Workload" : "Employee Workload"}
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -109,8 +109,8 @@ export default function WorkloadPage() {
                     <tr
                       key={stat.user.id}
                       className={cn(
-                        "border-b last:border-0 transition-colors",
-                        stat.overdue > 0 ? "bg-red-50/50 dark:bg-red-950/10" : ""
+                        "border-b last:border-0 transition-colors duration-150 hover:bg-primary/5 dark:hover:bg-primary/10",
+                        stat.overdue > 0 ? "bg-red-50/50 dark:bg-red-950/10" : "even:bg-muted/20"
                       )}
                       data-testid={`workload-row-${stat.user.id}`}
                     >

@@ -547,8 +547,8 @@ export default function SettingsPage() {
   const showUsers = user?.role === "admin" || user?.role === "manager";
 
   return (
-    <div className="p-4 space-y-5 overflow-y-auto h-full">
-      <h1 className="text-xl font-bold tracking-tight" data-testid="text-settings-title">
+    <div className="p-6 space-y-6 animate-fade-in">
+      <h1 className="text-2xl font-bold tracking-tight" data-testid="text-settings-title">
         {showUsers ? "Admin Settings" : "Settings"}
       </h1>
 

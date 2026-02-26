@@ -65,7 +65,7 @@ function AuthenticatedApp() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex items-center gap-2 p-2 border-b shrink-0">
+          <header className="flex items-center gap-2 p-2 border-b shrink-0 bg-background/80 backdrop-blur-sm">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
           </header>
           <main className="flex-1 overflow-auto">

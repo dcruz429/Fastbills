@@ -145,9 +145,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-4 pb-2">
         <div className="flex items-center gap-2">
-          <img src={logoImg} alt="FastBills" className="h-8 object-contain" data-testid="img-sidebar-logo" />
+          <img src={logoImg} alt="FastBills" className="h-9 object-contain" data-testid="img-sidebar-logo" />
         </div>
       </SidebarHeader>
 
@@ -211,9 +211,9 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-3">
-        <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
+      <SidebarFooter className="p-3 border-t border-sidebar-border">
+        <div className="flex items-center gap-2.5 px-2 py-1.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-sm">
             {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
           </div>
           <div className="flex flex-col flex-1 min-w-0">

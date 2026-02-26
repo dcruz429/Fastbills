@@ -35,9 +35,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-2">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <div className="w-full max-w-md space-y-6 animate-fade-in">
+        <div className="text-center space-y-3">
           <div className="flex justify-center">
             <img src={logoImg} alt="FastBills" className="h-16 object-contain" data-testid="img-login-logo" />
           </div>
@@ -46,7 +46,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <Card>
+        <Card className="shadow-lg border-border/60">
           <CardHeader className="pb-4">
             <h2 className="text-lg font-semibold text-center">Sign In</h2>
           </CardHeader>

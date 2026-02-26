@@ -44,9 +44,9 @@ export default function BillingQueuePage() {
   }
 
   return (
-    <div className="p-4 space-y-5 overflow-y-auto h-full">
+    <div className="p-6 space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-xl font-bold tracking-tight flex items-center gap-2" data-testid="text-billing-queue-title">
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" data-testid="text-billing-queue-title">
           <Flame className="h-5 w-5 text-orange-500" />
           Billing Queue
         </h1>
@@ -87,9 +87,9 @@ export default function BillingQueuePage() {
                       <tr
                         key={task.id}
                         className={cn(
-                          "border-b last:border-0 cursor-pointer transition-colors",
+                          "border-b last:border-0 cursor-pointer transition-colors duration-150",
                           idx === 0 ? "bg-primary/5" : "",
-                          isOverdue ? "bg-red-50 dark:bg-red-950/20" : "hover:bg-muted/30"
+                          isOverdue ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30" : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10"
                         )}
                         onClick={() => {
                           setSelectedTask(task);
