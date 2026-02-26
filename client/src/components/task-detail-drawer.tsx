@@ -477,7 +477,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
               </h3>
               {task.notes && (
                 <div className="space-y-2 max-h-48 overflow-y-auto" data-testid="notes-display">
-                  {task.notes.split("\n\n").filter(Boolean).map((block, idx) => {
+                  {task.notes.split("\n\n").filter(Boolean).reverse().map((block, idx) => {
                     const headerMatch = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
                     if (headerMatch) {
                       return (
