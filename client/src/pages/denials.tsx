@@ -44,7 +44,8 @@ const emptyForm = {
   intake: "",
   doa: "",
   clinic: "",
-  patientName: "",
+  patientLastName: "",
+  patientFirstName: "",
   insurance: "",
   dateOfLetter: "",
   typeOfDenial: "",
@@ -139,7 +140,8 @@ export default function DenialsPage() {
       intake: denial.intake || "",
       doa: toInputDate(denial.doa),
       clinic: denial.clinic || "",
-      patientName: denial.patientName || "",
+      patientLastName: denial.patientName?.includes(",") ? denial.patientName.split(",")[0].trim() : denial.patientName || "",
+      patientFirstName: denial.patientName?.includes(",") ? denial.patientName.split(",").slice(1).join(",").trim() : "",
       insurance: denial.insurance || "",
       dateOfLetter: toInputDate(denial.dateOfLetter),
       typeOfDenial: denial.typeOfDenial || "",
@@ -161,14 +163,19 @@ export default function DenialsPage() {
   }
 
   function handleSubmit() {
-    if (!form.patientName.trim()) {
-      toast({ title: "Patient name is required", variant: "destructive" });
+    if (!form.patientLastName.trim()) {
+      toast({ title: "Patient last name is required", variant: "destructive" });
       return;
     }
+    const patientName = form.patientFirstName.trim()
+      ? `${form.patientLastName.trim()}, ${form.patientFirstName.trim()}`
+      : form.patientLastName.trim();
+    const { patientLastName, patientFirstName, ...rest } = form;
+    const submitData = { ...rest, patientName };
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: form });
+      updateMutation.mutate({ id: editingId, data: submitData as any });
     } else {
-      createMutation.mutate(form);
+      createMutation.mutate(submitData as any);
     }
   }
 
@@ -358,8 +365,12 @@ export default function DenialsPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Patient Name *</Label>
-              <Input value={form.patientName} onChange={e => setForm(f => ({ ...f, patientName: e.target.value }))} data-testid="input-denial-patient-name" />
+              <Label>Patient Last Name *</Label>
+              <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-denial-patient-last-name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Patient First Name</Label>
+              <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-denial-patient-first-name" />
             </div>
             <div className="space-y-1.5">
               <Label>Insurance</Label>
