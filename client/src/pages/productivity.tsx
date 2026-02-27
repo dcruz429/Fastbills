@@ -357,9 +357,9 @@ export default function ProductivityPage() {
               {userSummary.map((u) => (
                 <div key={u.userId} className="grid grid-cols-5 gap-2 items-center py-1.5" data-testid={`row-productivity-${u.userId}`}>
                   <span className="text-sm font-medium truncate">{u.name}</span>
-                  <span className="text-sm text-center text-emerald-600 font-semibold">{u.verified}</span>
-                  <span className="text-sm text-center text-green-800 font-semibold">{u.billed}</span>
-                  <span className="text-sm text-center text-gray-600 font-semibold">{u.dropped}</span>
+                  <span className="text-sm text-center text-emerald-600 font-semibold">{u.verified || "-"}</span>
+                  <span className="text-sm text-center text-green-800 font-semibold">{u.billed || "-"}</span>
+                  <span className="text-sm text-center text-gray-600 font-semibold">{u.dropped || "-"}</span>
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-sm font-bold">{u.total}</span>
                     <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
