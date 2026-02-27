@@ -114,7 +114,7 @@ export default function BoardPage() {
   const [filterBucket, setFilterBucket] = useState("all");
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [filterEscalated, setFilterEscalated] = useState(false);
-  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortField, setSortField] = useState<SortField | null>("patientName");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
