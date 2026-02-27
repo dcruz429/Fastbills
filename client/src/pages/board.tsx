@@ -25,16 +25,58 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   MessageSquare,
   ShieldCheck,
   Clock,
   FileCheck,
   CheckCircle2,
   AlertTriangle,
+  ArrowUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import type { TaskWithRelations, Clinic, Insurance, User } from "@shared/schema";
+
+type SortField = "patientName" | "clinic" | "insurance" | "ieDate" | "dueDate" | "priority" | "status" | "assigned";
+type SortDir = "asc" | "desc";
+
+const priorityOrder: Record<string, number> = { low: 0, medium: 1, high: 2, critical: 3 };
+const statusOrder: Record<string, number> = { unassigned: 0, assigned: 1, working_on_it: 2, verified: 3, billed: 4, dropped: 5 };
+
+function sortTasks(tasks: TaskWithRelations[], field: SortField, dir: SortDir): TaskWithRelations[] {
+  const sorted = [...tasks].sort((a, b) => {
+    let cmp = 0;
+    switch (field) {
+      case "patientName":
+        cmp = (a.patientName || "").localeCompare(b.patientName || "");
+        break;
+      case "clinic":
+        cmp = (a.clinic?.name || "").localeCompare(b.clinic?.name || "");
+        break;
+      case "insurance":
+        cmp = (a.insurance?.name || "").localeCompare(b.insurance?.name || "");
+        break;
+      case "ieDate":
+        cmp = (a.ieDate ? new Date(a.ieDate).getTime() : 0) - (b.ieDate ? new Date(b.ieDate).getTime() : 0);
+        break;
+      case "dueDate":
+        cmp = (a.dueDate ? new Date(a.dueDate).getTime() : 0) - (b.dueDate ? new Date(b.dueDate).getTime() : 0);
+        break;
+      case "priority":
+        cmp = (priorityOrder[a.priority] ?? 0) - (priorityOrder[b.priority] ?? 0);
+        break;
+      case "status":
+        cmp = (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0);
+        break;
+      case "assigned":
+        cmp = (a.assignedUser?.fullName || "").localeCompare(b.assignedUser?.fullName || "");
+        break;
+    }
+    return dir === "asc" ? cmp : -cmp;
+  });
+  return sorted;
+}
 
 const bucketConfig = {
   for_verification: {
@@ -72,6 +114,8 @@ export default function BoardPage() {
   const [filterBucket, setFilterBucket] = useState("all");
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [filterEscalated, setFilterEscalated] = useState(false);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openBuckets, setOpenBuckets] = useState<Record<string, boolean>>({
@@ -139,10 +183,23 @@ export default function BoardPage() {
     return true;
   });
 
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      if (sortDir === "asc") setSortDir("desc");
+      else { setSortField(null); setSortDir("asc"); }
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  }
+
+  const applySorting = (tasks: TaskWithRelations[]) =>
+    sortField ? sortTasks(tasks, sortField, sortDir) : tasks;
+
   const tasksByBucket = {
-    for_verification: filteredTasks.filter((t) => t.bucket === "for_verification"),
-    ready_for_billing: filteredTasks.filter((t) => t.bucket === "ready_for_billing"),
-    done: filteredTasks.filter((t) => t.bucket === "done"),
+    for_verification: applySorting(filteredTasks.filter((t) => t.bucket === "for_verification")),
+    ready_for_billing: applySorting(filteredTasks.filter((t) => t.bucket === "ready_for_billing")),
+    done: applySorting(filteredTasks.filter((t) => t.bucket === "done")),
   };
 
   const toggleBucket = (bucket: string) => {
@@ -300,14 +357,32 @@ export default function BoardPage() {
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b text-xs text-muted-foreground">
-                                <th className="text-left py-2 px-3 font-medium">Patient Name</th>
-                                <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Clinic</th>
-                                <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">Insurance</th>
-                                <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">IE Date</th>
-                                <th className="text-left py-2 px-2 font-medium">Due Date</th>
-                                <th className="text-left py-2 px-2 font-medium">Priority</th>
-                                <th className="text-left py-2 px-2 font-medium">Status</th>
-                                <th className="text-left py-2 px-3 font-medium hidden md:table-cell min-w-[140px]">Assigned</th>
+                                {([
+                                  { field: "patientName" as SortField, label: "Patient Name", cls: "px-3", hide: "" },
+                                  { field: "clinic" as SortField, label: "Clinic", cls: "px-3", hide: "hidden md:table-cell" },
+                                  { field: "insurance" as SortField, label: "Insurance", cls: "px-2", hide: "hidden lg:table-cell" },
+                                  { field: "ieDate" as SortField, label: "IE Date", cls: "px-2", hide: "hidden lg:table-cell" },
+                                  { field: "dueDate" as SortField, label: "Due Date", cls: "px-2", hide: "" },
+                                  { field: "priority" as SortField, label: "Priority", cls: "px-2", hide: "" },
+                                  { field: "status" as SortField, label: "Status", cls: "px-2", hide: "" },
+                                  { field: "assigned" as SortField, label: "Assigned", cls: "px-3 min-w-[140px]", hide: "hidden md:table-cell" },
+                                ]).map(col => (
+                                  <th
+                                    key={col.field}
+                                    className={cn("text-left py-2 font-medium cursor-pointer select-none hover:text-foreground transition-colors", col.cls, col.hide)}
+                                    onClick={() => handleSort(col.field)}
+                                    data-testid={`sort-${col.field}`}
+                                  >
+                                    <div className="flex items-center gap-1">
+                                      {col.label}
+                                      {sortField === col.field ? (
+                                        sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowUpDown className="h-3 w-3 opacity-30" />
+                                      )}
+                                    </div>
+                                  </th>
+                                ))}
                                 <th className="text-left py-2 px-3 font-medium w-8"></th>
                               </tr>
                             </thead>
