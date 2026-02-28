@@ -168,6 +168,17 @@ export const ticketComments = pgTable("ticket_comments", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const ticketActivity = pgTable("ticket_activity", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  ticketId: integer("ticket_id").notNull().references(() => tickets.id),
+  userId: integer("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  field: text("field"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertClinicSchema = createInsertSchema(clinics).omit({ id: true });
 export const insertInsuranceSchema = createInsertSchema(insurances).omit({ id: true });
@@ -178,6 +189,7 @@ export const insertDenialSchema = createInsertSchema(denials).omit({ id: true, c
 export const insertDenialActivitySchema = createInsertSchema(denialActivity).omit({ id: true, timestamp: true });
 export const insertTicketSchema = createInsertSchema(tickets).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
 export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true });
+export const insertTicketActivitySchema = createInsertSchema(ticketActivity).omit({ id: true, timestamp: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -199,6 +211,12 @@ export type InsertTicket = z.infer<typeof insertTicketSchema>;
 export type Ticket = typeof tickets.$inferSelect;
 export type InsertTicketComment = z.infer<typeof insertTicketCommentSchema>;
 export type TicketComment = typeof ticketComments.$inferSelect;
+export type InsertTicketActivity = z.infer<typeof insertTicketActivitySchema>;
+export type TicketActivity = typeof ticketActivity.$inferSelect;
+
+export type TicketActivityWithUser = TicketActivity & {
+  user?: User | null;
+};
 
 export type TicketWithRelations = Ticket & {
   createdBy?: User | null;

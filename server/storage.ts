@@ -11,6 +11,7 @@ import {
   denialActivity,
   tickets,
   ticketComments,
+  ticketActivity,
   type User,
   type InsertUser,
   type Task,
@@ -34,6 +35,8 @@ import {
   type InsertTicketComment,
   type TicketWithRelations,
   type TicketCommentWithUser,
+  type InsertTicketActivity,
+  type TicketActivityWithUser,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -86,6 +89,8 @@ export interface IStorage {
   deleteTicket(id: number): Promise<void>;
   getTicketComments(ticketId: number): Promise<TicketCommentWithUser[]>;
   createTicketComment(data: InsertTicketComment): Promise<TicketComment>;
+  getTicketActivity(ticketId: number): Promise<TicketActivityWithUser[]>;
+  createTicketActivity(data: InsertTicketActivity): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -385,6 +390,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTicket(id: number): Promise<void> {
+    await db.delete(ticketActivity).where(eq(ticketActivity.ticketId, id));
     await db.delete(ticketComments).where(eq(ticketComments.ticketId, id));
     await db.delete(tickets).where(eq(tickets.id, id));
   }
@@ -406,6 +412,34 @@ export class DatabaseStorage implements IStorage {
   async createTicketComment(data: InsertTicketComment): Promise<TicketComment> {
     const [comment] = await db.insert(ticketComments).values(data).returning();
     return comment;
+  }
+
+  async getTicketActivity(ticketId: number): Promise<TicketActivityWithUser[]> {
+    const rows = await db
+      .select({
+        id: ticketActivity.id,
+        ticketId: ticketActivity.ticketId,
+        userId: ticketActivity.userId,
+        action: ticketActivity.action,
+        field: ticketActivity.field,
+        oldValue: ticketActivity.oldValue,
+        newValue: ticketActivity.newValue,
+        timestamp: ticketActivity.timestamp,
+        userName: users.fullName,
+      })
+      .from(ticketActivity)
+      .leftJoin(users, eq(ticketActivity.userId, users.id))
+      .where(eq(ticketActivity.ticketId, ticketId))
+      .orderBy(desc(ticketActivity.timestamp));
+    return rows.map((r) => ({
+      ...r,
+      user: r.userName ? { fullName: r.userName } as any : null,
+    }));
+  }
+
+  async createTicketActivity(data: InsertTicketActivity): Promise<any> {
+    const [activity] = await db.insert(ticketActivity).values(data).returning();
+    return activity;
   }
 }
 

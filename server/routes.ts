@@ -677,6 +677,14 @@ export async function registerRoutes(
         createdById: req.session.userId!,
         attachments: attachments.length > 0 ? attachments : null,
       });
+      await storage.createTicketActivity({
+        ticketId: ticket.id,
+        userId: req.session.userId!,
+        action: "Created ticket",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
       res.json(ticket);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -705,6 +713,23 @@ export async function registerRoutes(
       }
       if (data.priority && !validPriorities.includes(data.priority)) {
         return res.status(400).json({ message: "Invalid priority" });
+      }
+      const existing = await storage.getTicket(parseInt(req.params.id));
+      if (!existing) return res.status(404).json({ message: "Ticket not found" });
+      const fieldLabels: Record<string, string> = { status: "Status", title: "Title", description: "Description", category: "Category", priority: "Priority" };
+      for (const key of Object.keys(data)) {
+        const oldVal = String((existing as any)[key] ?? "");
+        const newVal = String(data[key] ?? "");
+        if (oldVal !== newVal) {
+          await storage.createTicketActivity({
+            ticketId: existing.id,
+            userId: req.session.userId!,
+            action: `Updated ${fieldLabels[key] || key}`,
+            field: key,
+            oldValue: oldVal || null,
+            newValue: newVal || null,
+          });
+        }
       }
       const ticket = await storage.updateTicket(parseInt(req.params.id), data);
       res.json(ticket);
@@ -755,7 +780,27 @@ export async function registerRoutes(
         content: req.body.content.trim(),
         attachments: attachments.length > 0 ? attachments : null,
       });
+      await storage.createTicketActivity({
+        ticketId: parseInt(req.params.id),
+        userId: req.session.userId!,
+        action: "Added comment",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
       res.json(comment);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/tickets/:id/activity", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can access ticket activity" });
+      }
+      res.json(await storage.getTicketActivity(parseInt(req.params.id)));
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

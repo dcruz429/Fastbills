@@ -37,12 +37,14 @@ import {
   ChevronUp,
   ArrowUpDown,
   Search,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatEST } from "@/lib/date-utils";
 import type {
   TicketWithRelations,
   TicketCommentWithUser,
+  TicketActivityWithUser,
 } from "@shared/schema";
 import {
   TICKET_CATEGORY_LABELS,
@@ -231,6 +233,10 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
     queryKey: ["/api/tickets", ticket.id, "comments"],
   });
 
+  const { data: activity, isLoading: activityLoading } = useQuery<TicketActivityWithUser[]>({
+    queryKey: ["/api/tickets", ticket.id, "activity"],
+  });
+
   const statusMutation = useMutation({
     mutationFn: async (status: string) => {
       const res = await apiRequest("PATCH", `/api/tickets/${ticket.id}`, { status });
@@ -238,6 +244,7 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
     },
     onSuccess: (updated: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticket.id, "activity"] });
       Object.assign(ticket, updated);
       toast({ title: "Status updated" });
     },
@@ -254,6 +261,7 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticket.id, "comments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticket.id, "activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
       setComment("");
       setCommentFiles([]);
@@ -392,6 +400,38 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">No comments yet</p>
+            )}
+          </div>
+
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3">
+              <History className="h-4 w-4" /> Activity Log
+            </h3>
+            {activityLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ) : activity && activity.length > 0 ? (
+              <div className="space-y-1.5">
+                {activity.map((a) => (
+                  <div key={a.id} className="flex items-start gap-2 text-xs py-1.5" data-testid={`activity-${a.id}`}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 mt-1.5 shrink-0" />
+                    <div className="flex-1">
+                      <span className="font-medium">{a.user?.fullName || "System"}</span>
+                      <span className="text-muted-foreground"> {a.action}</span>
+                      {a.field && a.oldValue && a.newValue && (
+                        <span className="text-muted-foreground">
+                          {" "}from <span className="line-through">{a.oldValue}</span> to <span className="font-medium text-foreground">{a.newValue}</span>
+                        </span>
+                      )}
+                      <span className="text-muted-foreground/60 ml-2">{formatEST(new Date(a.timestamp), "MM/dd h:mm a")}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">No activity yet</p>
             )}
           </div>
         </div>
