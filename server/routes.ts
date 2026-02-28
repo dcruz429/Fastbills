@@ -1,10 +1,28 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
+
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const name = `${Date.now()}-${randomBytes(4).toString("hex")}${ext}`;
+      cb(null, name);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 const scryptAsync = promisify(scrypt);
 
@@ -613,6 +631,131 @@ export async function registerRoutes(
       }
       await storage.deleteDenial(parseInt(req.params.id));
       res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.use("/uploads", requireAuth, async (req, res, next) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    const filePath = path.join(uploadsDir, path.basename(req.path));
+    res.sendFile(filePath);
+  });
+
+  app.get("/api/tickets", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can access tickets" });
+      }
+      res.json(await storage.getAllTickets());
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/tickets", requireAuth, upload.array("files", 10), async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can create tickets" });
+      }
+      if (!req.body.title || !req.body.title.trim()) {
+        return res.status(400).json({ message: "Title is required" });
+      }
+      const files = (req.files as Express.Multer.File[]) || [];
+      const attachments = files.map((f) => `/uploads/${f.filename}|${f.originalname}`);
+      const ticket = await storage.createTicket({
+        title: req.body.title.trim(),
+        description: req.body.description || "",
+        category: req.body.category || "other",
+        priority: req.body.priority || "medium",
+        status: "open",
+        createdById: req.session.userId!,
+        attachments: attachments.length > 0 ? attachments : null,
+      });
+      res.json(ticket);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/tickets/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can update tickets" });
+      }
+      const allowedFields = ["status", "title", "description", "category", "priority"];
+      const validStatuses = ["open", "working_on_it", "done", "closed"];
+      const validCategories = ["bug", "feature_request", "ui_change", "question", "other"];
+      const validPriorities = ["low", "medium", "high", "urgent"];
+      const data: Record<string, any> = {};
+      for (const key of allowedFields) {
+        if (req.body[key] !== undefined) data[key] = req.body[key];
+      }
+      if (data.status && !validStatuses.includes(data.status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      if (data.category && !validCategories.includes(data.category)) {
+        return res.status(400).json({ message: "Invalid category" });
+      }
+      if (data.priority && !validPriorities.includes(data.priority)) {
+        return res.status(400).json({ message: "Invalid priority" });
+      }
+      const ticket = await storage.updateTicket(parseInt(req.params.id), data);
+      res.json(ticket);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/tickets/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can delete tickets" });
+      }
+      await storage.deleteTicket(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/tickets/:id/comments", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can access ticket comments" });
+      }
+      res.json(await storage.getTicketComments(parseInt(req.params.id)));
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/tickets/:id/comments", requireAuth, upload.array("files", 5), async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can comment on tickets" });
+      }
+      if (!req.body.content || !req.body.content.trim()) {
+        return res.status(400).json({ message: "Comment content is required" });
+      }
+      const files = (req.files as Express.Multer.File[]) || [];
+      const attachments = files.map((f) => `/uploads/${f.filename}|${f.originalname}`);
+      const comment = await storage.createTicketComment({
+        ticketId: parseInt(req.params.id),
+        userId: req.session.userId!,
+        content: req.body.content.trim(),
+        attachments: attachments.length > 0 ? attachments : null,
+      });
+      res.json(comment);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

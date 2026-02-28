@@ -17,6 +17,7 @@ import SettingsPage from "@/pages/settings";
 import ReportsPage from "@/pages/reports";
 import ProductivityPage from "@/pages/productivity";
 import DenialsPage from "@/pages/denials";
+import TicketsPage from "@/pages/tickets";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Router() {
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/reports" component={ReportsPage} />
       <Route path="/productivity" component={ProductivityPage} />
       <Route path="/denials" component={DenialsPage} />
+      <Route path="/tickets" component={TicketsPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -141,6 +141,33 @@ export const ARB_PAYMENT_STATUS_OPTIONS = [
   "Collected",
 ];
 
+export const ticketStatusEnum = pgEnum("ticket_status", ["open", "working_on_it", "done", "closed"]);
+export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high", "urgent"]);
+export const ticketCategoryEnum = pgEnum("ticket_category", ["bug", "feature_request", "ui_change", "question", "other"]);
+
+export const tickets = pgTable("tickets", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  category: ticketCategoryEnum("category").notNull().default("other"),
+  priority: ticketPriorityEnum("priority").notNull().default("medium"),
+  status: ticketStatusEnum("status").notNull().default("open"),
+  createdById: integer("created_by_id").notNull().references(() => users.id),
+  attachments: text("attachments").array(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const ticketComments = pgTable("ticket_comments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  ticketId: integer("ticket_id").notNull().references(() => tickets.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  attachments: text("attachments").array(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertClinicSchema = createInsertSchema(clinics).omit({ id: true });
 export const insertInsuranceSchema = createInsertSchema(insurances).omit({ id: true });
@@ -149,6 +176,8 @@ export const insertTaskActivitySchema = createInsertSchema(taskActivity).omit({ 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertDenialSchema = createInsertSchema(denials).omit({ id: true, createdAt: true });
 export const insertDenialActivitySchema = createInsertSchema(denialActivity).omit({ id: true, timestamp: true });
+export const insertTicketSchema = createInsertSchema(tickets).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
+export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -166,6 +195,41 @@ export type InsertDenial = z.infer<typeof insertDenialSchema>;
 export type Denial = typeof denials.$inferSelect;
 export type InsertDenialActivity = z.infer<typeof insertDenialActivitySchema>;
 export type DenialActivity = typeof denialActivity.$inferSelect;
+export type InsertTicket = z.infer<typeof insertTicketSchema>;
+export type Ticket = typeof tickets.$inferSelect;
+export type InsertTicketComment = z.infer<typeof insertTicketCommentSchema>;
+export type TicketComment = typeof ticketComments.$inferSelect;
+
+export type TicketWithRelations = Ticket & {
+  createdBy?: User | null;
+  commentCount?: number;
+};
+
+export type TicketCommentWithUser = TicketComment & {
+  user?: User | null;
+};
+
+export const TICKET_CATEGORY_LABELS: Record<string, string> = {
+  bug: "Bug",
+  feature_request: "Feature Request",
+  ui_change: "UI Change",
+  question: "Question",
+  other: "Other",
+};
+
+export const TICKET_STATUS_LABELS: Record<string, string> = {
+  open: "Open",
+  working_on_it: "Working on it",
+  done: "Done",
+  closed: "Closed",
+};
+
+export const TICKET_PRIORITY_LABELS: Record<string, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  urgent: "Urgent",
+};
 
 export type TaskWithRelations = Task & {
   uploader?: User | null;

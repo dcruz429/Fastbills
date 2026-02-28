@@ -10,6 +10,7 @@ import {
   KeyRound,
   TrendingUp,
   FileX,
+  Lightbulb,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
@@ -51,6 +52,7 @@ const navItems = [
   { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner"] },
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner"] },
   { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager"] },
+  { title: "Suggestion Box", url: "/tickets", icon: Lightbulb, roles: ["admin"] },
 ];
 
 const adminItems = [

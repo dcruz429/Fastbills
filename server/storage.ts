@@ -9,6 +9,8 @@ import {
   notifications,
   denials,
   denialActivity,
+  tickets,
+  ticketComments,
   type User,
   type InsertUser,
   type Task,
@@ -26,6 +28,12 @@ import {
   type InsertDenial,
   type DenialActivity,
   type InsertDenialActivity,
+  type Ticket,
+  type InsertTicket,
+  type TicketComment,
+  type InsertTicketComment,
+  type TicketWithRelations,
+  type TicketCommentWithUser,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -70,6 +78,14 @@ export interface IStorage {
 
   getDenialActivity(denialId: number): Promise<any[]>;
   createDenialActivity(data: InsertDenialActivity): Promise<DenialActivity>;
+
+  getAllTickets(): Promise<TicketWithRelations[]>;
+  getTicket(id: number): Promise<Ticket | undefined>;
+  createTicket(data: InsertTicket): Promise<Ticket>;
+  updateTicket(id: number, data: Partial<Ticket>): Promise<Ticket | undefined>;
+  deleteTicket(id: number): Promise<void>;
+  getTicketComments(ticketId: number): Promise<TicketCommentWithUser[]>;
+  createTicketComment(data: InsertTicketComment): Promise<TicketComment>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -331,6 +347,65 @@ export class DatabaseStorage implements IStorage {
   async createDenialActivity(data: InsertDenialActivity): Promise<DenialActivity> {
     const [activity] = await db.insert(denialActivity).values(data).returning();
     return activity;
+  }
+
+  async getAllTickets(): Promise<TicketWithRelations[]> {
+    const allTickets = await db.select().from(tickets).orderBy(desc(tickets.createdAt));
+    const allUsers = await db.select().from(users);
+    const allComments = await db.select().from(ticketComments);
+    const userMap = new Map(allUsers.map((u) => [u.id, u]));
+    const commentCounts = new Map<number, number>();
+    for (const c of allComments) {
+      commentCounts.set(c.ticketId, (commentCounts.get(c.ticketId) || 0) + 1);
+    }
+    return allTickets.map((t) => ({
+      ...t,
+      createdBy: userMap.get(t.createdById) || null,
+      commentCount: commentCounts.get(t.id) || 0,
+    }));
+  }
+
+  async getTicket(id: number): Promise<Ticket | undefined> {
+    const [ticket] = await db.select().from(tickets).where(eq(tickets.id, id));
+    return ticket;
+  }
+
+  async createTicket(data: InsertTicket): Promise<Ticket> {
+    const [ticket] = await db.insert(tickets).values(data).returning();
+    return ticket;
+  }
+
+  async updateTicket(id: number, data: Partial<Ticket>): Promise<Ticket | undefined> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    if (data.status === "done" || data.status === "closed") {
+      updateData.completedAt = new Date();
+    }
+    const [ticket] = await db.update(tickets).set(updateData).where(eq(tickets.id, id)).returning();
+    return ticket;
+  }
+
+  async deleteTicket(id: number): Promise<void> {
+    await db.delete(ticketComments).where(eq(ticketComments.ticketId, id));
+    await db.delete(tickets).where(eq(tickets.id, id));
+  }
+
+  async getTicketComments(ticketId: number): Promise<TicketCommentWithUser[]> {
+    const comments = await db
+      .select()
+      .from(ticketComments)
+      .where(eq(ticketComments.ticketId, ticketId))
+      .orderBy(ticketComments.createdAt);
+    const allUsers = await db.select().from(users);
+    const userMap = new Map(allUsers.map((u) => [u.id, u]));
+    return comments.map((c) => ({
+      ...c,
+      user: userMap.get(c.userId) || null,
+    }));
+  }
+
+  async createTicketComment(data: InsertTicketComment): Promise<TicketComment> {
+    const [comment] = await db.insert(ticketComments).values(data).returning();
+    return comment;
   }
 }
 
