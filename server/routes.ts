@@ -3,26 +3,34 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
-
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+import { db } from "./db";
+import { fileUploads } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      const name = `${Date.now()}-${randomBytes(4).toString("hex")}${ext}`;
-      cb(null, name);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
+
+async function saveUploadedFiles(files: Express.Multer.File[]): Promise<string[]> {
+  const attachments: string[] = [];
+  for (const f of files) {
+    const base64 = f.buffer.toString("base64");
+    const [row] = await db.insert(fileUploads).values({
+      filename: `${Date.now()}-${randomBytes(4).toString("hex")}${path.extname(f.originalname)}`,
+      originalName: f.originalname,
+      mimeType: f.mimetype,
+      data: base64,
+      size: f.size,
+    }).returning();
+    attachments.push(`/api/files/${row.id}|${f.originalname}`);
+  }
+  return attachments;
+}
 
 const scryptAsync = promisify(scrypt);
 
@@ -636,13 +644,23 @@ export async function registerRoutes(
     }
   });
 
-  app.use("/uploads", requireAuth, async (req, res, next) => {
-    const user = await storage.getUser(req.session.userId!);
-    if (!user || user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied" });
+  app.get("/api/files/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const fileId = parseInt(req.params.id);
+      const [file] = await db.select().from(fileUploads).where(eq(fileUploads.id, fileId));
+      if (!file) return res.status(404).json({ message: "File not found" });
+      const buffer = Buffer.from(file.data, "base64");
+      res.setHeader("Content-Type", file.mimeType);
+      res.setHeader("Content-Disposition", `inline; filename="${file.originalName}"`);
+      res.setHeader("Content-Length", buffer.length);
+      res.send(buffer);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
     }
-    const filePath = path.join(uploadsDir, path.basename(req.path));
-    res.sendFile(filePath);
   });
 
   app.get("/api/tickets", requireAuth, async (req, res) => {
@@ -667,7 +685,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Title is required" });
       }
       const files = (req.files as Express.Multer.File[]) || [];
-      const attachments = files.map((f) => `/uploads/${f.filename}|${f.originalname}`);
+      const attachments = await saveUploadedFiles(files);
       const ticket = await storage.createTicket({
         title: req.body.title.trim(),
         description: req.body.description || "",
@@ -773,7 +791,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Comment content is required" });
       }
       const files = (req.files as Express.Multer.File[]) || [];
-      const attachments = files.map((f) => `/uploads/${f.filename}|${f.originalname}`);
+      const attachments = await saveUploadedFiles(files);
       const comment = await storage.createTicketComment({
         ticketId: parseInt(req.params.id),
         userId: req.session.userId!,
