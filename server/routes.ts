@@ -756,6 +756,34 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/tickets/:id/files", requireAuth, upload.array("files", 10), async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can upload files" });
+      }
+      const ticketId = parseInt(req.params.id);
+      const existing = await storage.getTicket(ticketId);
+      if (!existing) return res.status(404).json({ message: "Ticket not found" });
+      const files = (req.files as Express.Multer.File[]) || [];
+      if (files.length === 0) return res.status(400).json({ message: "No files provided" });
+      const newAttachments = await saveUploadedFiles(files);
+      const allAttachments = [...(existing.attachments || []), ...newAttachments];
+      const ticket = await storage.updateTicket(ticketId, { attachments: allAttachments });
+      await storage.createTicketActivity({
+        ticketId,
+        userId: req.session.userId!,
+        action: `Uploaded ${files.length} file(s)`,
+        field: null,
+        oldValue: null,
+        newValue: files.map(f => f.originalname).join(", "),
+      });
+      res.json(ticket);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.delete("/api/tickets/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

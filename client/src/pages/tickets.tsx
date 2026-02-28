@@ -280,6 +280,23 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
     },
   });
 
+  const uploadFilesMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const formData = new FormData();
+      files.forEach((f) => formData.append("files", f));
+      const res = await fetch(`/api/tickets/${ticket.id}/files`, { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) throw new Error("Failed to upload files");
+      return res.json();
+    },
+    onSuccess: (updated: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticket.id, "activity"] });
+      Object.assign(ticket, updated);
+      toast({ title: "Files uploaded" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -338,10 +355,35 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
             )}
           </div>
 
-          {ticket.attachments && ticket.attachments.length > 0 && (
-            <div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-medium text-muted-foreground">Attachments</label>
-              <div className="mt-1 space-y-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => document.getElementById("detail-file-input")?.click()}
+                disabled={uploadFilesMutation.isPending}
+                data-testid="button-add-files-existing"
+              >
+                <Paperclip className="h-3.5 w-3.5 mr-1" />
+                {uploadFilesMutation.isPending ? "Uploading..." : "Add Files"}
+              </Button>
+              <input
+                id="detail-file-input"
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    uploadFilesMutation.mutate(Array.from(e.target.files));
+                  }
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            {ticket.attachments && ticket.attachments.length > 0 ? (
+              <div className="space-y-1">
                 {ticket.attachments.map((att, i) => {
                   const { url, name } = parseAttachment(att);
                   return (
@@ -360,8 +402,10 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
                   );
                 })}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-muted-foreground">No attachments</p>
+            )}
+          </div>
 
           <div className="border-t pt-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3">
