@@ -784,6 +784,38 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/tickets/:id/files/:fileIndex", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can delete attachments" });
+      }
+      const ticketId = parseInt(req.params.id);
+      const fileIndex = parseInt(req.params.fileIndex);
+      const existing = await storage.getTicket(ticketId);
+      if (!existing) return res.status(404).json({ message: "Ticket not found" });
+      const attachments = existing.attachments || [];
+      if (fileIndex < 0 || fileIndex >= attachments.length) {
+        return res.status(400).json({ message: "Invalid file index" });
+      }
+      const removed = attachments[fileIndex];
+      const { name } = (() => { const parts = removed.split("|"); return { name: parts[1] || parts[0] }; })();
+      const updated = attachments.filter((_, i) => i !== fileIndex);
+      const ticket = await storage.updateTicket(ticketId, { attachments: updated.length > 0 ? updated : null });
+      await storage.createTicketActivity({
+        ticketId,
+        userId: req.session.userId!,
+        action: "Removed attachment",
+        field: null,
+        oldValue: name,
+        newValue: null,
+      });
+      res.json(ticket);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.delete("/api/tickets/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

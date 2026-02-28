@@ -297,6 +297,20 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const deleteFileMutation = useMutation({
+    mutationFn: async (fileIndex: number) => {
+      const res = await apiRequest("DELETE", `/api/tickets/${ticket.id}/files/${fileIndex}`);
+      return res.json();
+    },
+    onSuccess: (updated: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticket.id, "activity"] });
+      Object.assign(ticket, updated);
+      toast({ title: "Attachment removed" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -387,18 +401,27 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
                 {ticket.attachments.map((att, i) => {
                   const { url, name } = parseAttachment(att);
                   return (
-                    <a
-                      key={i}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm bg-muted/50 rounded px-2 py-1.5 hover:bg-muted transition-colors"
-                      data-testid={`link-ticket-attachment-${i}`}
-                    >
-                      {getFileIcon(name)}
-                      <span className="truncate flex-1">{name}</span>
-                      <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                    </a>
+                    <div key={i} className="flex items-center gap-2 text-sm bg-muted/50 rounded px-2 py-1.5 hover:bg-muted transition-colors group">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 flex-1 min-w-0"
+                        data-testid={`link-ticket-attachment-${i}`}
+                      >
+                        {getFileIcon(name)}
+                        <span className="truncate flex-1">{name}</span>
+                        <Download className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      </a>
+                      <button
+                        onClick={() => deleteFileMutation.mutate(i)}
+                        disabled={deleteFileMutation.isPending}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
+                        data-testid={`button-delete-attachment-${i}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
