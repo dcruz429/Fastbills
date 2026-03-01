@@ -56,6 +56,7 @@ export default function MessageBoardPage() {
   const activeUsers = (allUsers || []).filter(u => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
 
   const isAdmin = user?.role === "admin" || user?.role === "manager";
+  const canDelete = user?.role === "admin";
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -179,7 +180,7 @@ export default function MessageBoardPage() {
                         <Eye className="h-3.5 w-3.5 mr-1" />
                         {a.readCount}/{a.totalRecipients} read
                       </Button>
-                      {isAdmin && (
+                      {canDelete && (
                         <Button
                           variant="ghost"
                           size="icon"

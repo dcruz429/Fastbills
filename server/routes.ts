@@ -989,8 +989,8 @@ export async function registerRoutes(
   app.delete("/api/announcements/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins and managers can delete announcements" });
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can delete announcements" });
       }
       await storage.deleteAnnouncement(parseInt(req.params.id));
       res.json({ ok: true });
