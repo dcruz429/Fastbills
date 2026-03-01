@@ -832,6 +832,53 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/collections/import-csv", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can import collections" });
+      }
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ message: "No rows provided" });
+      }
+      const dateFields = ["inputDate", "dosFrom", "dosTo"];
+      const results: { success: number; errors: string[] } = { success: 0, errors: [] };
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const data: any = { ...rows[i] };
+          if (!data.patientName || !data.patientName.trim()) {
+            results.errors.push(`Row ${i + 1}: Patient Name is required`);
+            continue;
+          }
+          for (const f of dateFields) {
+            if (data[f]) { data[f] = new Date(data[f]); } else { data[f] = null; }
+          }
+          if (data.numberOfVisits !== undefined && data.numberOfVisits !== null && data.numberOfVisits !== "") {
+            data.numberOfVisits = parseInt(data.numberOfVisits) || null;
+          } else {
+            data.numberOfVisits = null;
+          }
+          const collection = await storage.createCollection(data);
+          await storage.createCollectionActivity({
+            collectionId: collection.id,
+            userId: req.session.userId!,
+            action: "Collection created (CSV import)",
+            field: null,
+            oldValue: null,
+            newValue: null,
+          });
+          results.success++;
+        } catch (e: any) {
+          results.errors.push(`Row ${i + 1}: ${e.message}`);
+        }
+      }
+      res.json(results);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.patch("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

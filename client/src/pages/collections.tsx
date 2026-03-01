@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -108,6 +108,9 @@ export default function CollectionsPage() {
   const [historyId, setHistoryId] = useState<number | null>(null);
   const [sortCol, setSortCol] = useState<string>("");
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("");
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
+  const [csvFileName, setCsvFileName] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -177,6 +180,101 @@ export default function CollectionsPage() {
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
+
+  const importMutation = useMutation({
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/collections/import-csv", { rows }),
+    onSuccess: async (res) => {
+      const result = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      setCsvDialogOpen(false);
+      setCsvPreview([]);
+      setCsvFileName("");
+      toast({
+        title: `Import complete`,
+        description: `${result.success} collections created${result.errors.length > 0 ? `, ${result.errors.length} errors` : ""}`,
+        variant: result.errors.length > 0 ? "destructive" : "default",
+      });
+    },
+    onError: (e: any) => toast({ title: "Import failed", description: e.message, variant: "destructive" }),
+  });
+
+  const CSV_COLUMN_MAP: Record<string, string> = {
+    "patient name": "patientName",
+    "patient": "patientName",
+    "input date": "inputDate",
+    "date input": "inputDate",
+    "clinic": "clinic",
+    "division": "division",
+    "insurance": "insurance",
+    "dos from": "dosFrom",
+    "dos to": "dosTo",
+    "# of visits": "numberOfVisits",
+    "number of visits": "numberOfVisits",
+    "visits": "numberOfVisits",
+    "amount": "amount",
+    "issue type": "issueType",
+    "type of denial": "typeOfDenial",
+    "denial type": "typeOfDenial",
+    "action": "action",
+    "outcome": "outcome",
+    "priority": "priority",
+    "assigned to": "assignedTo",
+    "status": "status",
+  };
+
+  function parseCsvText(text: string): Record<string, string>[] {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const parseRow = (line: string): string[] => {
+      const result: string[] = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+    const headers = parseRow(lines[0]);
+    const mappedHeaders = headers.map(h => {
+      const lower = h.toLowerCase().replace(/[_\-]/g, " ").trim();
+      return CSV_COLUMN_MAP[lower] || lower.replace(/\s+(.)/g, (_, c) => c.toUpperCase());
+    });
+    const rows: Record<string, string>[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseRow(lines[i]);
+      if (values.every(v => !v)) continue;
+      const row: Record<string, string> = {};
+      mappedHeaders.forEach((key, idx) => {
+        if (values[idx]) row[key] = values[idx];
+      });
+      if (row.patientName) rows.push(row);
+    }
+    return rows;
+  }
+
+  function handleCsvFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = parseCsvText(text);
+      setCsvPreview(rows);
+      setCsvFileName(file.name);
+      if (rows.length === 0) {
+        toast({ title: "No valid rows found", description: "Make sure your CSV has a header row with a 'Patient Name' column", variant: "destructive" });
+      }
+    };
+    reader.readAsText(file);
+  }
 
   const handleEdit = (c: Collection) => {
     setEditingId(c.id);
@@ -300,9 +398,14 @@ export default function CollectionsPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" data-testid="text-collections-title">Collections</h1>
-        <Button onClick={() => { setEditingId(null); setForm({ ...emptyForm }); setDialogOpen(true); }} data-testid="button-create-collection">
-          <Plus className="h-4 w-4 mr-1" /> New Collection
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setCsvDialogOpen(true); setCsvPreview([]); setCsvFileName(""); }} data-testid="button-import-csv">
+            <Upload className="h-4 w-4 mr-1" /> Import CSV
+          </Button>
+          <Button onClick={() => { setEditingId(null); setForm({ ...emptyForm }); setDialogOpen(true); }} data-testid="button-create-collection">
+            <Plus className="h-4 w-4 mr-1" /> New Collection
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
@@ -606,6 +709,101 @@ export default function CollectionsPage() {
               <p className="text-sm text-muted-foreground text-center py-4">No activity recorded</p>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle data-testid="text-csv-import-title">Import Collections from CSV</DialogTitle>
+          </DialogHeader>
+          {csvPreview.length === 0 ? (
+            <div className="space-y-4">
+              <div
+                className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+                onClick={() => document.getElementById("csv-file-input")?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files[0];
+                  if (file && file.name.endsWith(".csv")) handleCsvFile(file);
+                }}
+                data-testid="csv-drop-zone"
+              >
+                <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-sm font-medium">Click to select or drag & drop a CSV file</p>
+                <p className="text-xs text-muted-foreground mt-1">Accepted format: .csv</p>
+              </div>
+              <input
+                id="csv-file-input"
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleCsvFile(file);
+                  e.target.value = "";
+                }}
+                data-testid="input-csv-file"
+              />
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p className="font-medium">Expected CSV columns:</p>
+                <p>Patient Name, Input Date, Clinic, Division, Insurance, DOS From, DOS To, # of Visits, Amount, Issue Type, Type of Denial, Action, Outcome, Assigned To, Status</p>
+                <p>The first row must be column headers. "Patient Name" is required.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm"><span className="font-medium">{csvFileName}</span> — {csvPreview.length} row{csvPreview.length !== 1 ? "s" : ""} found</p>
+                <Button variant="ghost" size="sm" onClick={() => { setCsvPreview([]); setCsvFileName(""); }} data-testid="button-csv-clear">
+                  <X className="h-4 w-4 mr-1" /> Clear
+                </Button>
+              </div>
+              <div className="border rounded-md overflow-x-auto max-h-[300px] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-muted">
+                    <tr>
+                      <th className="text-left py-1.5 px-2 font-medium">#</th>
+                      <th className="text-left py-1.5 px-2 font-medium">Patient Name</th>
+                      <th className="text-left py-1.5 px-2 font-medium">Clinic</th>
+                      <th className="text-left py-1.5 px-2 font-medium">Insurance</th>
+                      <th className="text-left py-1.5 px-2 font-medium">Input Date</th>
+                      <th className="text-left py-1.5 px-2 font-medium">Amount</th>
+                      <th className="text-left py-1.5 px-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvPreview.slice(0, 50).map((row, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="py-1 px-2 text-muted-foreground">{i + 1}</td>
+                        <td className="py-1 px-2">{row.patientName || "—"}</td>
+                        <td className="py-1 px-2">{row.clinic || "—"}</td>
+                        <td className="py-1 px-2">{row.insurance || "—"}</td>
+                        <td className="py-1 px-2">{row.inputDate || "—"}</td>
+                        <td className="py-1 px-2">{row.amount || "—"}</td>
+                        <td className="py-1 px-2">{row.status || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {csvPreview.length > 50 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">Showing first 50 of {csvPreview.length} rows</p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCsvDialogOpen(false)} data-testid="button-csv-cancel">Cancel</Button>
+            <Button
+              disabled={csvPreview.length === 0 || importMutation.isPending}
+              onClick={() => importMutation.mutate(csvPreview)}
+              data-testid="button-csv-import"
+            >
+              {importMutation.isPending ? "Importing..." : `Import ${csvPreview.length} Collection${csvPreview.length !== 1 ? "s" : ""}`}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
