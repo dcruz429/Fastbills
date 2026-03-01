@@ -301,6 +301,54 @@ export const ticketActivity = pgTable("ticket_activity", {
   timestamp: timestamp("timestamp").notNull().defaultNow(),
 });
 
+export const announcements = pgTable("announcements", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  authorId: integer("author_id").notNull().references(() => users.id),
+  targetType: text("target_type").notNull(),
+  targetRoles: text("target_roles").array(),
+  targetUserIds: integer("target_user_ids").array(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const announcementAcks = pgTable("announcement_acks", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  announcementId: integer("announcement_id").notNull().references(() => announcements.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  readAt: timestamp("read_at").notNull().defaultNow(),
+});
+
+export const directMessages = pgTable("direct_messages", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  recipientId: integer("recipient_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
+export const insertDirectMessageSchema = createInsertSchema(directMessages).omit({ id: true, createdAt: true, readAt: true });
+
+export type Announcement = typeof announcements.$inferSelect;
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type AnnouncementAck = typeof announcementAcks.$inferSelect;
+export type DirectMessage = typeof directMessages.$inferSelect;
+export type InsertDirectMessage = z.infer<typeof insertDirectMessageSchema>;
+
+export type AnnouncementWithRelations = Announcement & {
+  author?: User | null;
+  acks?: (AnnouncementAck & { user?: User | null })[];
+  totalRecipients?: number;
+  readCount?: number;
+};
+
+export type DirectMessageWithUser = DirectMessage & {
+  sender?: User | null;
+  recipient?: User | null;
+};
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertClinicSchema = createInsertSchema(clinics).omit({ id: true });
 export const insertInsuranceSchema = createInsertSchema(insurances).omit({ id: true });

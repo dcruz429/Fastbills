@@ -19,6 +19,8 @@ import ProductivityPage from "@/pages/productivity";
 import DenialsPage from "@/pages/denials";
 import TicketsPage from "@/pages/tickets";
 import CollectionsPage from "@/pages/collections";
+import MessageBoardPage from "@/pages/message-board";
+import MessagesPage from "@/pages/messages";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Router() {
@@ -35,6 +37,8 @@ function Router() {
       <Route path="/denials" component={DenialsPage} />
       <Route path="/tickets" component={TicketsPage} />
       <Route path="/collections" component={CollectionsPage} />
+      <Route path="/message-board" component={MessageBoardPage} />
+      <Route path="/messages" component={MessagesPage} />
       <Route component={NotFound} />
     </Switch>
   );

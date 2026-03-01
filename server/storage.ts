@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -43,6 +43,16 @@ import {
   type InsertCollection,
   type CollectionActivity,
   type InsertCollectionActivity,
+  announcements,
+  announcementAcks,
+  directMessages,
+  type Announcement,
+  type InsertAnnouncement,
+  type AnnouncementAck,
+  type DirectMessage,
+  type InsertDirectMessage,
+  type AnnouncementWithRelations,
+  type DirectMessageWithUser,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -105,6 +115,18 @@ export interface IStorage {
   createTicketComment(data: InsertTicketComment): Promise<TicketComment>;
   getTicketActivity(ticketId: number): Promise<TicketActivityWithUser[]>;
   createTicketActivity(data: InsertTicketActivity): Promise<any>;
+
+  getAllAnnouncements(): Promise<AnnouncementWithRelations[]>;
+  createAnnouncement(data: InsertAnnouncement): Promise<Announcement>;
+  deleteAnnouncement(id: number): Promise<void>;
+  acknowledgeAnnouncement(announcementId: number, userId: number): Promise<void>;
+  getAnnouncementAcks(announcementId: number): Promise<(AnnouncementAck & { user?: User | null })[]>;
+
+  getDirectMessages(userId: number, otherUserId: number): Promise<DirectMessageWithUser[]>;
+  getConversations(userId: number): Promise<any[]>;
+  createDirectMessage(data: InsertDirectMessage): Promise<DirectMessage>;
+  markMessagesRead(userId: number, otherUserId: number): Promise<void>;
+  getUnreadMessageCount(userId: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -503,6 +525,120 @@ export class DatabaseStorage implements IStorage {
   async createTicketActivity(data: InsertTicketActivity): Promise<any> {
     const [activity] = await db.insert(ticketActivity).values(data).returning();
     return activity;
+  }
+
+  async getAllAnnouncements(): Promise<AnnouncementWithRelations[]> {
+    const allAnnouncements = await db.select().from(announcements).orderBy(desc(announcements.createdAt));
+    const allUsers = await db.select().from(users);
+    const allAcks = await db.select().from(announcementAcks);
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    return allAnnouncements.map(a => {
+      const acks = allAcks.filter(ak => ak.announcementId === a.id).map(ak => ({
+        ...ak,
+        user: userMap.get(ak.userId) || null,
+      }));
+      let totalRecipients = 0;
+      if (a.targetType === "all") {
+        totalRecipients = allUsers.filter(u => u.active !== false).length;
+      } else if (a.targetType === "role" && a.targetRoles) {
+        totalRecipients = allUsers.filter(u => u.active !== false && a.targetRoles!.includes(u.role)).length;
+      } else if (a.targetType === "users" && a.targetUserIds) {
+        totalRecipients = a.targetUserIds.length;
+      }
+      return {
+        ...a,
+        author: userMap.get(a.authorId) || null,
+        acks,
+        totalRecipients,
+        readCount: acks.length,
+      };
+    });
+  }
+
+  async createAnnouncement(data: InsertAnnouncement): Promise<Announcement> {
+    const [a] = await db.insert(announcements).values(data).returning();
+    return a;
+  }
+
+  async deleteAnnouncement(id: number): Promise<void> {
+    await db.delete(announcementAcks).where(eq(announcementAcks.announcementId, id));
+    await db.delete(announcements).where(eq(announcements.id, id));
+  }
+
+  async acknowledgeAnnouncement(announcementId: number, userId: number): Promise<void> {
+    const existing = await db.select().from(announcementAcks)
+      .where(and(eq(announcementAcks.announcementId, announcementId), eq(announcementAcks.userId, userId)));
+    if (existing.length === 0) {
+      await db.insert(announcementAcks).values({ announcementId, userId });
+    }
+  }
+
+  async getAnnouncementAcks(announcementId: number): Promise<(AnnouncementAck & { user?: User | null })[]> {
+    const acks = await db.select().from(announcementAcks).where(eq(announcementAcks.announcementId, announcementId));
+    const allUsers = await db.select().from(users);
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    return acks.map(a => ({ ...a, user: userMap.get(a.userId) || null }));
+  }
+
+  async getDirectMessages(userId: number, otherUserId: number): Promise<DirectMessageWithUser[]> {
+    const allUsers = await db.select().from(users);
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    const msgs = await db.select().from(directMessages)
+      .where(
+        sql`(${directMessages.senderId} = ${userId} AND ${directMessages.recipientId} = ${otherUserId})
+        OR (${directMessages.senderId} = ${otherUserId} AND ${directMessages.recipientId} = ${userId})`
+      )
+      .orderBy(directMessages.createdAt);
+    return msgs.map(m => ({
+      ...m,
+      sender: userMap.get(m.senderId) || null,
+      recipient: userMap.get(m.recipientId) || null,
+    }));
+  }
+
+  async getConversations(userId: number): Promise<any[]> {
+    const allUsers = await db.select().from(users);
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    const msgs = await db.select().from(directMessages)
+      .where(sql`${directMessages.senderId} = ${userId} OR ${directMessages.recipientId} = ${userId}`)
+      .orderBy(desc(directMessages.createdAt));
+    const convMap = new Map<number, { otherUser: User; lastMessage: DirectMessage; unreadCount: number }>();
+    for (const m of msgs) {
+      const otherId = m.senderId === userId ? m.recipientId : m.senderId;
+      if (!convMap.has(otherId)) {
+        const unread = msgs.filter(msg => msg.senderId === otherId && msg.recipientId === userId && !msg.readAt).length;
+        convMap.set(otherId, {
+          otherUser: userMap.get(otherId) as User,
+          lastMessage: m,
+          unreadCount: unread,
+        });
+      }
+    }
+    return Array.from(convMap.values());
+  }
+
+  async createDirectMessage(data: InsertDirectMessage): Promise<DirectMessage> {
+    const [msg] = await db.insert(directMessages).values(data).returning();
+    return msg;
+  }
+
+  async markMessagesRead(userId: number, otherUserId: number): Promise<void> {
+    await db.update(directMessages)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(directMessages.senderId, otherUserId),
+          eq(directMessages.recipientId, userId),
+          sql`${directMessages.readAt} IS NULL`
+        )
+      );
+  }
+
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(directMessages)
+      .where(and(eq(directMessages.recipientId, userId), sql`${directMessages.readAt} IS NULL`));
+    return Number(result[0]?.count || 0);
   }
 }
 

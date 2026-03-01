@@ -744,6 +744,151 @@ export async function registerRoutes(
     }
   });
 
+  // Announcements / Message Board
+  app.get("/api/announcements", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const all = await storage.getAllAnnouncements();
+      const visible = all.filter(a => {
+        if (a.targetType === "all") return true;
+        if (a.targetType === "role" && a.targetRoles) return a.targetRoles.includes(user.role);
+        if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id) || a.authorId === user.id;
+        return false;
+      });
+      if (user.role === "admin" || user.role === "manager") {
+        res.json(all);
+      } else {
+        res.json(visible);
+      }
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/announcements", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can create announcements" });
+      }
+      const { title, body, targetType, targetRoles, targetUserIds } = req.body;
+      if (!title || !body || !targetType) {
+        return res.status(400).json({ message: "Title, body, and target type are required" });
+      }
+      const announcement = await storage.createAnnouncement({
+        title,
+        body,
+        authorId: user.id,
+        targetType,
+        targetRoles: targetRoles || null,
+        targetUserIds: targetUserIds || null,
+      });
+      res.json(announcement);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/announcements/:id/ack", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const all = await storage.getAllAnnouncements();
+      const a = all.find(ann => ann.id === parseInt(req.params.id));
+      if (!a) return res.status(404).json({ message: "Announcement not found" });
+      const isRecipient = a.targetType === "all" ||
+        (a.targetType === "role" && a.targetRoles?.includes(user.role)) ||
+        (a.targetType === "users" && a.targetUserIds?.includes(user.id));
+      if (!isRecipient) return res.status(403).json({ message: "Not a recipient of this announcement" });
+      await storage.acknowledgeAnnouncement(a.id, user.id);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/announcements/:id/acks", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      if (!["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can view read receipts" });
+      }
+      const acks = await storage.getAnnouncementAcks(parseInt(req.params.id));
+      res.json(acks);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/announcements/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can delete announcements" });
+      }
+      await storage.deleteAnnouncement(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Direct Messages
+  app.get("/api/messages/conversations", requireAuth, async (req, res) => {
+    try {
+      const conversations = await storage.getConversations(req.session.userId!);
+      res.json(conversations);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/messages/unread-count", requireAuth, async (req, res) => {
+    try {
+      const count = await storage.getUnreadMessageCount(req.session.userId!);
+      res.json({ count });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/messages/:userId", requireAuth, async (req, res) => {
+    try {
+      const messages = await storage.getDirectMessages(req.session.userId!, parseInt(req.params.userId));
+      res.json(messages);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/messages", requireAuth, async (req, res) => {
+    try {
+      const { recipientId, content } = req.body;
+      if (!recipientId || !content?.trim()) {
+        return res.status(400).json({ message: "Recipient and content are required" });
+      }
+      const message = await storage.createDirectMessage({
+        senderId: req.session.userId!,
+        recipientId: parseInt(recipientId),
+        content: content.trim(),
+      });
+      res.json(message);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/messages/:userId/read", requireAuth, async (req, res) => {
+    try {
+      await storage.markMessagesRead(req.session.userId!, parseInt(req.params.userId));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/files/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

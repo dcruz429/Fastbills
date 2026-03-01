@@ -24,6 +24,8 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Denials**: Track insurance denials with full spreadsheet-style table, dropdown selects for Type of Denial, Filed To, ARB Status, ARB Payment Status
 - **Productivity**: Date-filtered productivity metrics (This Month, Last Month, Last 3 Months, custom month)
 - **Suggestion Box**: Ticket system for owner→developer communication with file uploads, comments, status tracking (Open → Working on it → Done → Closed), categories (Bug, Feature Request, UI Change, Question, Other), priority levels
+- **Message Board**: Announcements with targeted delivery (all staff, by role, specific users), read receipts/acknowledgment tracking, admin/manager can post and delete
+- **Direct Messages**: Real-time 1:1 messaging between users with read receipts, unread counts in sidebar, conversation list with last message preview
 
 ## Task Workflow
 1. **For Verification**: Task created and assigned to a verifier. Verifier works on it.
@@ -70,6 +72,8 @@ client/src/
     productivity.tsx   - Productivity metrics page
     tickets.tsx        - Suggestion box / ticket system
     collections.tsx    - Collections tracker page
+    message-board.tsx  - Announcements / message board
+    messages.tsx       - Direct messaging
 
 server/
   index.ts             - Express server setup
@@ -83,6 +87,6 @@ shared/
 ```
 
 ## Database Tables
-- users, tasks, task_activity, clinics, insurances, notifications, denials, collections, tickets, ticket_comments
+- users, tasks, task_activity, clinics, insurances, notifications, denials, collections, tickets, ticket_comments, announcements, announcement_acks, direct_messages
 - Enums: role, bucket, status, priority, ticket_status, ticket_priority, ticket_category
 - Denials columns: denialFileName, dateInput, intake (dropdown: active users), doa, clinic (dropdown: active clinics), patientName, insurance, dateOfLetter, typeOfDenial, effectiveDate, dosFrom, dosTo, numberOfDays (labeled "# of Visits"), amount, comments, filedTo, arbStatus, trialDate, arbPaymentStatus, amountReceived, checkedBy, comment

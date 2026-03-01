@@ -12,6 +12,8 @@ import {
   FileX,
   Lightbulb,
   Landmark,
+  Megaphone,
+  MessageCircle,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
@@ -54,6 +56,8 @@ const navItems = [
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner"] },
   { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
   { title: "Collections", url: "/collections", icon: Landmark, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
+  { title: "Message Board", url: "/message-board", icon: Megaphone, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
+  { title: "Messages", url: "/messages", icon: MessageCircle, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
   { title: "Suggestion Box", url: "/tickets", icon: Lightbulb, roles: ["admin"] },
 ];
 
@@ -145,7 +149,13 @@ export function AppSidebar() {
     queryKey: ["/api/notifications"],
   });
 
+  const { data: unreadMsgData } = useQuery<{ count: number }>({
+    queryKey: ["/api/messages/unread-count"],
+    refetchInterval: 15000,
+  });
+
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
+  const unreadMsgCount = unreadMsgData?.count || 0;
 
   return (
     <Sidebar>
@@ -169,6 +179,9 @@ export function AppSidebar() {
                   >
                     <item.icon className="h-4 w-4" />
                     <span>{item.title}</span>
+                    {item.title === "Messages" && unreadMsgCount > 0 && (
+                      <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full h-5 min-w-5 flex items-center justify-center px-1.5">{unreadMsgCount}</span>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
