@@ -353,6 +353,14 @@ export default function DenialsPage() {
               <Input type="date" value={form.doa} onChange={e => setForm(f => ({ ...f, doa: e.target.value }))} data-testid="input-denial-doa" />
             </div>
             <div className="space-y-1.5">
+              <Label>Patient First Name</Label>
+              <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-denial-patient-first-name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Patient Last Name *</Label>
+              <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-denial-patient-last-name" />
+            </div>
+            <div className="space-y-1.5">
               <Label>Clinic</Label>
               <Select value={form.clinic || "__clear__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__clear__" ? "" : v }))}>
                 <SelectTrigger data-testid="select-denial-clinic">
@@ -365,14 +373,6 @@ export default function DenialsPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Patient Last Name *</Label>
-              <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-denial-patient-last-name" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Patient First Name</Label>
-              <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-denial-patient-first-name" />
             </div>
             <div className="space-y-1.5">
               <Label>Insurance</Label>
