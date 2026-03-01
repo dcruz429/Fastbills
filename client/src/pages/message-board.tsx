@@ -263,7 +263,7 @@ export default function MessageBoardPage() {
             {targetType === "users" && (
               <div className="space-y-1.5">
                 <Label>Select Users</Label>
-                <ScrollArea className="max-h-40 border rounded p-2">
+                <div className="max-h-48 overflow-y-auto border rounded p-2">
                   <div className="space-y-1">
                     {activeUsers.map(u => (
                       <label key={u.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 px-2 py-1 rounded">
@@ -278,7 +278,7 @@ export default function MessageBoardPage() {
                       </label>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
               </div>
             )}
           </div>
