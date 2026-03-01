@@ -91,6 +91,7 @@ export const denials = pgTable("denials", {
   amountReceived: text("amount_received"),
   checkedBy: text("checked_by"),
   comment: text("comment"),
+  assignedTo: text("assigned_to"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -233,6 +234,7 @@ export const arbitrations = pgTable("arbitrations", {
   amountReceived: text("amount_received"),
   checkedBy: text("checked_by"),
   comment: text("comment"),
+  assignedTo: text("assigned_to"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

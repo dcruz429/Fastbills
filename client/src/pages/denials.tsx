@@ -50,6 +50,7 @@ const emptyForm = {
   amount: "",
   comments: "",
   comment: "",
+  assignedTo: "",
 };
 
 export default function DenialsPage() {
@@ -157,6 +158,7 @@ export default function DenialsPage() {
       amount: denial.amount || "",
       comments: denial.comments || "",
       comment: denial.comment || "",
+      assignedTo: denial.assignedTo || "",
     });
     setDialogOpen(true);
   }
@@ -201,7 +203,10 @@ export default function DenialsPage() {
     return <ArrowDown className="h-3 w-3 ml-1" />;
   }
 
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
+
   const filteredUnsorted = (denials || []).filter(d => {
+    if (!isAdminOrManager && d.assignedTo !== user?.fullName) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -209,7 +214,8 @@ export default function DenialsPage() {
       d.denialFileName?.toLowerCase().includes(q) ||
       d.clinic?.toLowerCase().includes(q) ||
       d.insurance?.toLowerCase().includes(q) ||
-      d.typeOfDenial?.toLowerCase().includes(q)
+      d.typeOfDenial?.toLowerCase().includes(q) ||
+      d.assignedTo?.toLowerCase().includes(q)
     );
   });
 
@@ -284,6 +290,7 @@ export default function DenialsPage() {
                     { key: "amount", label: "Amount", minW: "80px" },
                     { key: "comments", label: "Comments", minW: "120px" },
                     { key: "comment", label: "Comment", minW: "120px" },
+                    { key: "assignedTo", label: "Assigned To", minW: "110px" },
                   ].map(col => (
                     <TableHead
                       key={col.key}
@@ -304,7 +311,7 @@ export default function DenialsPage() {
               <TableBody>
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={17} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
                       No denials found
                     </TableCell>
                   </TableRow>
@@ -329,6 +336,7 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{d.amount || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comments || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHistoryDenialId(d.id)} data-testid={`button-history-denial-${d.id}`}>
@@ -459,9 +467,23 @@ export default function DenialsPage() {
               <Label>Amount</Label>
               <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-denial-amount" />
             </div>
-            <div className="space-y-1.5 md:col-span-3">
+            <div className="space-y-1.5 md:col-span-2">
               <Label>Comments</Label>
               <Textarea value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} rows={2} data-testid="input-denial-comments" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Assigned To</Label>
+              <Select value={form.assignedTo || "__clear__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__clear__" ? "" : v }))}>
+                <SelectTrigger data-testid="select-denial-assigned-to">
+                  <SelectValue placeholder="Select user..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__clear__">-- None --</SelectItem>
+                  {activeUsers.map(u => (
+                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

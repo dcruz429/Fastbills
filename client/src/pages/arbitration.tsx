@@ -56,6 +56,7 @@ const emptyForm = {
   amountReceived: "",
   checkedBy: "",
   comment: "",
+  assignedTo: "",
 };
 
 export default function ArbitrationPage() {
@@ -160,6 +161,7 @@ export default function ArbitrationPage() {
       amountReceived: arb.amountReceived || "",
       checkedBy: arb.checkedBy || "",
       comment: arb.comment || "",
+      assignedTo: arb.assignedTo || "",
     });
     setDialogOpen(true);
   }
@@ -204,7 +206,10 @@ export default function ArbitrationPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   }
 
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
+
   const filtered = (arbitrations || []).filter(d => {
+    if (!isAdminOrManager && d.assignedTo !== user?.fullName) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -213,7 +218,8 @@ export default function ArbitrationPage() {
       d.clinic?.toLowerCase().includes(q) ||
       d.insurance?.toLowerCase().includes(q) ||
       d.typeOfDenial?.toLowerCase().includes(q) ||
-      d.filedTo?.toLowerCase().includes(q)
+      d.filedTo?.toLowerCase().includes(q) ||
+      d.assignedTo?.toLowerCase().includes(q)
     );
   });
 
@@ -292,13 +298,14 @@ export default function ArbitrationPage() {
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("amountReceived")} data-testid="sort-amountReceived">Amt Received{renderSortIcon("amountReceived")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("checkedBy")} data-testid="sort-checkedBy">Checked By{renderSortIcon("checkedBy")}</TableHead>
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("comment")} data-testid="sort-comment">Comment{renderSortIcon("comment")}</TableHead>
+                  <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To{renderSortIcon("assignedTo")}</TableHead>
                   <TableHead className="min-w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sorted.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={23} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={24} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
@@ -335,6 +342,7 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">{d.amountReceived || "-"}</TableCell>
                     <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHistoryId(d.id)} data-testid={`button-history-arbitration-${d.id}`}>
@@ -519,9 +527,23 @@ export default function ArbitrationPage() {
               <Label>Checked By</Label>
               <Input value={form.checkedBy} onChange={e => setForm(f => ({ ...f, checkedBy: e.target.value }))} data-testid="input-arb-checked-by" />
             </div>
-            <div className="space-y-1.5 md:col-span-3">
+            <div className="space-y-1.5 md:col-span-2">
               <Label>Comments</Label>
               <Textarea value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} rows={2} data-testid="input-arb-comments" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Assigned To</Label>
+              <Select value={form.assignedTo || "__clear__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__clear__" ? "" : v }))}>
+                <SelectTrigger data-testid="select-arb-assigned-to">
+                  <SelectValue placeholder="Select user..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__clear__">-- None --</SelectItem>
+                  {activeUsers.map(u => (
+                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
