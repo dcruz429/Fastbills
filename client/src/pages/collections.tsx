@@ -11,7 +11,7 @@ import {
   COLLECTION_ISSUE_TYPE_OPTIONS,
   COLLECTION_ACTION_OPTIONS,
   COLLECTION_OUTCOME_OPTIONS,
-  COLLECTION_PRIORITY_OPTIONS,
+
   COLLECTION_STATUS_OPTIONS,
 } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,22 @@ function priorityColor(p: string) {
   return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
 }
 
+function computePriority(inputDate: string | Date | null | undefined): string {
+  if (!inputDate) return "";
+  const d = typeof inputDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(inputDate)
+    ? new Date(inputDate + "T00:00:00")
+    : new Date(inputDate);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  const days = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (days >= 30) return "Critical >30 Days";
+  if (days >= 21) return "High <30 Days";
+  if (days >= 11) return "Medium <20 Days";
+  return "Low <10 days";
+}
+
 function statusColor(s: string) {
   if (s === "Done") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
   if (s === "Working on it") return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
@@ -114,7 +130,8 @@ export default function CollectionsPage() {
     const patientName = patientFirstName.trim()
       ? `${patientLastName.trim()}, ${patientFirstName.trim()}`
       : patientLastName.trim();
-    return { ...rest, patientName };
+    const priority = computePriority(rest.inputDate);
+    return { ...rest, patientName, priority };
   };
 
   const createMutation = useMutation({
@@ -272,7 +289,7 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
                   <TableCell className="text-xs">{d.action || "-"}</TableCell>
                   <TableCell className="text-xs">{d.outcome ? <Badge variant="secondary" className="text-xs">{d.outcome}</Badge> : "-"}</TableCell>
-                  <TableCell className="text-xs">{d.priority ? <Badge className={`text-xs ${priorityColor(d.priority)}`}>{d.priority}</Badge> : "-"}</TableCell>
+                  <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <Badge className={`text-xs ${priorityColor(p)}`}>{p}</Badge> : "-"; })()}</TableCell>
                   <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                   <TableCell className="text-xs">{d.status ? <Badge className={`text-xs ${statusColor(d.status)}`}>{d.status}</Badge> : "-"}</TableCell>
                   <TableCell className="text-right">
@@ -414,16 +431,14 @@ export default function CollectionsPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Priority</Label>
-              <Select value={form.priority || "__none__"} onValueChange={v => setForm(f => ({ ...f, priority: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-priority"><SelectValue placeholder="Select..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {COLLECTION_PRIORITY_OPTIONS.map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Priority (auto)</Label>
+              <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-priority">
+                {form.inputDate ? (
+                  <Badge className={`text-xs ${priorityColor(computePriority(form.inputDate))}`}>{computePriority(form.inputDate)}</Badge>
+                ) : (
+                  <span className="text-muted-foreground">Set Input Date to compute</span>
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Assigned to</Label>
