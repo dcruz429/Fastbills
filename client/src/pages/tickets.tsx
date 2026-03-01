@@ -566,7 +566,7 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
   );
 }
 
-type SortField = "title" | "category" | "priority" | "status" | "createdAt";
+type SortField = "title" | "category" | "priority" | "status" | "createdAt" | "completedAt";
 type SortDir = "asc" | "desc";
 
 const priorityOrder: Record<string, number> = { low: 0, medium: 1, high: 2, urgent: 3 };
@@ -616,6 +616,7 @@ export default function TicketsPage() {
         case "priority": cmp = (priorityOrder[a.priority] ?? 0) - (priorityOrder[b.priority] ?? 0); break;
         case "status": cmp = (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0); break;
         case "createdAt": cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(); break;
+        case "completedAt": cmp = (a.completedAt ? new Date(a.completedAt).getTime() : 0) - (b.completedAt ? new Date(b.completedAt).getTime() : 0); break;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -727,6 +728,7 @@ export default function TicketsPage() {
                       { field: "priority" as SortField, label: "Priority", cls: "px-2" },
                       { field: "status" as SortField, label: "Status", cls: "px-2" },
                       { field: "createdAt" as SortField, label: "Created", cls: "px-2" },
+                      { field: "completedAt" as SortField, label: "Date Done", cls: "px-2" },
                     ]).map((col) => (
                       <th
                         key={col.field}
@@ -763,6 +765,7 @@ export default function TicketsPage() {
                       <td className="py-2.5 px-2"><PriorityBadgeTicket priority={t.priority} /></td>
                       <td className="py-2.5 px-2"><StatusBadgeTicket status={t.status} /></td>
                       <td className="py-2.5 px-2 text-muted-foreground">{formatEST(new Date(t.createdAt), "MM/dd/yyyy")}</td>
+                      <td className="py-2.5 px-2 text-muted-foreground">{t.completedAt ? formatEST(new Date(t.completedAt), "MM/dd/yyyy") : "—"}</td>
                       <td className="py-2.5 px-2 text-muted-foreground">
                         {(t.commentCount || 0) > 0 && (
                           <span className="flex items-center gap-1">
