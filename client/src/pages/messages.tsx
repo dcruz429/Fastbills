@@ -149,7 +149,10 @@ export default function MessagesPage() {
                       data-testid={`button-user-chat-${c.user.id}`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-medium truncate">{c.user.fullName}</span>
+                        <span className="font-medium truncate flex items-center gap-1.5">
+                          {c.unreadCount > 0 && <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />}
+                          {c.user.fullName}
+                        </span>
                         {c.unreadCount > 0 && (
                           <Badge variant="destructive" className="text-xs h-5 min-w-5 flex items-center justify-center">
                             {c.unreadCount}
