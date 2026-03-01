@@ -426,17 +426,20 @@ export default function DenialsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Filed To</Label>
-              <Select value={form.filedTo} onValueChange={v => setForm(f => ({ ...f, filedTo: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-denial-filed-to">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
+              <div className="relative" data-testid="combo-denial-filed-to">
+                <Input
+                  value={form.filedTo}
+                  onChange={e => setForm(f => ({ ...f, filedTo: e.target.value }))}
+                  placeholder="Type or select..."
+                  data-testid="input-denial-filed-to"
+                  list="filed-to-options"
+                />
+                <datalist id="filed-to-options">
                   {FILED_TO_OPTIONS.map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
+                    <option key={o} value={o} />
                   ))}
-                </SelectContent>
-              </Select>
+                </datalist>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>ARB Status</Label>
