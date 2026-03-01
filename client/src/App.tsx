@@ -19,6 +19,7 @@ import ProductivityPage from "@/pages/productivity";
 import DenialsPage from "@/pages/denials";
 import TicketsPage from "@/pages/tickets";
 import CollectionsPage from "@/pages/collections";
+import ArbitrationPage from "@/pages/arbitration";
 import MessageBoardPage from "@/pages/message-board";
 import MessagesPage from "@/pages/messages";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/reports" component={ReportsPage} />
       <Route path="/productivity" component={ProductivityPage} />
       <Route path="/denials" component={DenialsPage} />
+      <Route path="/arbitration" component={ArbitrationPage} />
       <Route path="/tickets" component={TicketsPage} />
       <Route path="/collections" component={CollectionsPage} />
       <Route path="/message-board" component={MessageBoardPage} />

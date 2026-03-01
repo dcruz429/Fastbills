@@ -644,6 +644,107 @@ export async function registerRoutes(
     }
   });
 
+  // Arbitration routes
+  app.get("/api/arbitrations", requireAuth, async (_req, res) => {
+    res.json(await storage.getAllArbitrations());
+  });
+
+  const arbFieldLabels: Record<string, string> = {
+    denialFileName: "File Name", dateInput: "Date Input", intake: "Intake", doa: "DOA",
+    clinic: "Clinic", patientName: "Patient Name", insurance: "Insurance",
+    dateOfLetter: "Date of Letter", typeOfDenial: "Type of Denial", effectiveDate: "Effective Date",
+    dosFrom: "DOS From", dosTo: "DOS To", numberOfDays: "# of Days", amount: "Amount",
+    comments: "Comments", filedTo: "Filed To", arbStatus: "ARB Status", trialDate: "Trial Date",
+    arbPaymentStatus: "ARB Payment Status", amountReceived: "Amount Received",
+    checkedBy: "Checked By", comment: "Comment",
+  };
+  const arbTrackFields = Object.keys(arbFieldLabels);
+
+  app.post("/api/arbitrations", requireAuth, async (req, res) => {
+    try {
+      const data: any = { ...req.body };
+      const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"];
+      for (const f of dateFields) {
+        if (data[f]) {
+          data[f] = new Date(data[f]);
+        } else {
+          data[f] = null;
+        }
+      }
+      if (data.numberOfDays !== undefined && data.numberOfDays !== null) {
+        data.numberOfDays = parseInt(data.numberOfDays) || null;
+      }
+      const arb = await storage.createArbitration(data);
+      await storage.createArbitrationActivity({
+        arbitrationId: arb.id,
+        userId: req.session.userId!,
+        action: "Arbitration created",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
+      res.json(arb);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/arbitrations/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await storage.getArbitration(id);
+      if (!existing) return res.status(404).json({ message: "Arbitration not found" });
+      const data: any = { ...req.body };
+      const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"];
+      for (const f of dateFields) {
+        if (data[f] !== undefined) {
+          data[f] = data[f] ? new Date(data[f]) : null;
+        }
+      }
+      if (data.numberOfDays !== undefined) {
+        data.numberOfDays = data.numberOfDays ? parseInt(data.numberOfDays) : null;
+      }
+      for (const field of arbTrackFields) {
+        if (data[field] !== undefined) {
+          const oldVal = String((existing as any)[field] ?? "");
+          const newVal = String(data[field] ?? "");
+          if (oldVal !== newVal) {
+            await storage.createArbitrationActivity({
+              arbitrationId: id,
+              userId: req.session.userId!,
+              action: `Updated ${arbFieldLabels[field] || field}`,
+              field,
+              oldValue: oldVal || null,
+              newValue: newVal || null,
+            });
+          }
+        }
+      }
+      const arb = await storage.updateArbitration(id, data);
+      res.json(arb);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/arbitrations/:id/activity", requireAuth, async (req, res) => {
+    const arbId = parseInt(req.params.id);
+    res.json(await storage.getArbitrationActivity(arbId));
+  });
+
+  app.delete("/api/arbitrations/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || (user.role !== "admin" && user.role !== "manager")) {
+        return res.status(403).json({ message: "Only admins and managers can delete arbitrations" });
+      }
+      await storage.deleteArbitration(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // Collections routes
   app.get("/api/collections", requireAuth, async (_req, res) => {
     res.json(await storage.getAllCollections());

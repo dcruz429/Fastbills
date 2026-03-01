@@ -209,6 +209,44 @@ export const ARB_PAYMENT_STATUS_OPTIONS = [
   "Collected",
 ];
 
+export const arbitrations = pgTable("arbitrations", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  denialFileName: text("denial_file_name"),
+  dateInput: timestamp("date_input").defaultNow(),
+  intake: text("intake"),
+  doa: timestamp("doa"),
+  clinic: text("clinic"),
+  patientName: text("patient_name").notNull(),
+  insurance: text("insurance"),
+  dateOfLetter: timestamp("date_of_letter"),
+  typeOfDenial: text("type_of_denial"),
+  effectiveDate: timestamp("effective_date"),
+  dosFrom: timestamp("dos_from"),
+  dosTo: timestamp("dos_to"),
+  numberOfDays: integer("number_of_days"),
+  amount: text("amount"),
+  comments: text("comments"),
+  filedTo: text("filed_to"),
+  arbStatus: text("arb_status"),
+  trialDate: timestamp("trial_date"),
+  arbPaymentStatus: text("arb_payment_status"),
+  amountReceived: text("amount_received"),
+  checkedBy: text("checked_by"),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const arbitrationActivity = pgTable("arbitration_activity", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  arbitrationId: integer("arbitration_id").notNull().references(() => arbitrations.id),
+  userId: integer("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  field: text("field"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
 export const collections = pgTable("collections", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   patientName: text("patient_name").notNull(),
@@ -357,6 +395,8 @@ export const insertTaskActivitySchema = createInsertSchema(taskActivity).omit({ 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertDenialSchema = createInsertSchema(denials).omit({ id: true, createdAt: true });
 export const insertDenialActivitySchema = createInsertSchema(denialActivity).omit({ id: true, timestamp: true });
+export const insertArbitrationSchema = createInsertSchema(arbitrations).omit({ id: true, createdAt: true });
+export const insertArbitrationActivitySchema = createInsertSchema(arbitrationActivity).omit({ id: true, timestamp: true });
 export const insertCollectionSchema = createInsertSchema(collections).omit({ id: true, createdAt: true });
 export const insertCollectionActivitySchema = createInsertSchema(collectionActivity).omit({ id: true, timestamp: true });
 export const insertTicketSchema = createInsertSchema(tickets).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
@@ -379,6 +419,10 @@ export type InsertDenial = z.infer<typeof insertDenialSchema>;
 export type Denial = typeof denials.$inferSelect;
 export type InsertDenialActivity = z.infer<typeof insertDenialActivitySchema>;
 export type DenialActivity = typeof denialActivity.$inferSelect;
+export type InsertArbitration = z.infer<typeof insertArbitrationSchema>;
+export type Arbitration = typeof arbitrations.$inferSelect;
+export type InsertArbitrationActivity = z.infer<typeof insertArbitrationActivitySchema>;
+export type ArbitrationActivity = typeof arbitrationActivity.$inferSelect;
 export type InsertCollection = z.infer<typeof insertCollectionSchema>;
 export type Collection = typeof collections.$inferSelect;
 export type InsertCollectionActivity = z.infer<typeof insertCollectionActivitySchema>;

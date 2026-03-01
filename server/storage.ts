@@ -37,6 +37,12 @@ import {
   type TicketCommentWithUser,
   type InsertTicketActivity,
   type TicketActivityWithUser,
+  arbitrations,
+  arbitrationActivity,
+  type Arbitration,
+  type InsertArbitration,
+  type ArbitrationActivity,
+  type InsertArbitrationActivity,
   collections,
   collectionActivity,
   type Collection,
@@ -97,6 +103,14 @@ export interface IStorage {
 
   getDenialActivity(denialId: number): Promise<any[]>;
   createDenialActivity(data: InsertDenialActivity): Promise<DenialActivity>;
+
+  getAllArbitrations(): Promise<Arbitration[]>;
+  getArbitration(id: number): Promise<Arbitration | undefined>;
+  createArbitration(data: InsertArbitration): Promise<Arbitration>;
+  updateArbitration(id: number, data: Partial<Arbitration>): Promise<Arbitration | undefined>;
+  deleteArbitration(id: number): Promise<void>;
+  getArbitrationActivity(arbitrationId: number): Promise<any[]>;
+  createArbitrationActivity(data: InsertArbitrationActivity): Promise<ArbitrationActivity>;
 
   getAllCollections(): Promise<Collection[]>;
   getCollection(id: number): Promise<Collection | undefined>;
@@ -387,6 +401,55 @@ export class DatabaseStorage implements IStorage {
 
   async createDenialActivity(data: InsertDenialActivity): Promise<DenialActivity> {
     const [activity] = await db.insert(denialActivity).values(data).returning();
+    return activity;
+  }
+
+  async getAllArbitrations(): Promise<Arbitration[]> {
+    return db.select().from(arbitrations).orderBy(desc(arbitrations.createdAt));
+  }
+
+  async getArbitration(id: number): Promise<Arbitration | undefined> {
+    const [a] = await db.select().from(arbitrations).where(eq(arbitrations.id, id));
+    return a;
+  }
+
+  async createArbitration(data: InsertArbitration): Promise<Arbitration> {
+    const [a] = await db.insert(arbitrations).values(data).returning();
+    return a;
+  }
+
+  async updateArbitration(id: number, data: Partial<Arbitration>): Promise<Arbitration | undefined> {
+    const [a] = await db.update(arbitrations).set(data).where(eq(arbitrations.id, id)).returning();
+    return a;
+  }
+
+  async deleteArbitration(id: number): Promise<void> {
+    await db.delete(arbitrationActivity).where(eq(arbitrationActivity.arbitrationId, id));
+    await db.delete(arbitrations).where(eq(arbitrations.id, id));
+  }
+
+  async getArbitrationActivity(arbitrationId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: arbitrationActivity.id,
+        arbitrationId: arbitrationActivity.arbitrationId,
+        userId: arbitrationActivity.userId,
+        action: arbitrationActivity.action,
+        field: arbitrationActivity.field,
+        oldValue: arbitrationActivity.oldValue,
+        newValue: arbitrationActivity.newValue,
+        timestamp: arbitrationActivity.timestamp,
+        userName: users.fullName,
+      })
+      .from(arbitrationActivity)
+      .leftJoin(users, eq(arbitrationActivity.userId, users.id))
+      .where(eq(arbitrationActivity.arbitrationId, arbitrationId))
+      .orderBy(desc(arbitrationActivity.timestamp));
+    return rows;
+  }
+
+  async createArbitrationActivity(data: InsertArbitrationActivity): Promise<ArbitrationActivity> {
+    const [activity] = await db.insert(arbitrationActivity).values(data).returning();
     return activity;
   }
 
