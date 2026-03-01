@@ -17,8 +17,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X } from "lucide-react";
-import type { Clinic, Insurance, User } from "@shared/schema";
+import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List } from "lucide-react";
+import type { Clinic, Insurance, User, DropdownOption } from "@shared/schema";
+import { DROPDOWN_CATEGORIES } from "@shared/schema";
 
 function ClinicSettings() {
   const { toast } = useToast();
@@ -542,6 +543,162 @@ function UserSettings() {
   );
 }
 
+function DropdownSettings() {
+  const { toast } = useToast();
+  const [selectedCategory, setSelectedCategory] = useState("denial_type");
+  const [newValue, setNewValue] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const { data: options, isLoading } = useQuery<DropdownOption[]>({
+    queryKey: ["/api/dropdown-options", selectedCategory],
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async (value: string) => {
+      await apiRequest("POST", "/api/dropdown-options", { category: selectedCategory, value });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dropdown-options", selectedCategory] });
+      setNewValue("");
+      toast({ title: "Option added" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, value }: { id: number; value: string }) => {
+      await apiRequest("PATCH", `/api/dropdown-options/${id}`, { value });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dropdown-options", selectedCategory] });
+      setEditingId(null);
+      toast({ title: "Option updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/dropdown-options/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dropdown-options", selectedCategory] });
+      toast({ title: "Option removed" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const categoryLabel = DROPDOWN_CATEGORIES.find((c) => c.key === selectedCategory)?.label ?? selectedCategory;
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Label className="text-xs">Category</Label>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger data-testid="select-dropdown-category">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DROPDOWN_CATEGORIES.map((cat) => (
+              <SelectItem key={cat.key} value={cat.key}>
+                {cat.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex gap-2">
+        <Input
+          placeholder={`New ${categoryLabel} option`}
+          value={newValue}
+          onChange={(e) => setNewValue(e.target.value)}
+          data-testid="input-new-dropdown-option"
+        />
+        <Button
+          onClick={() => newValue.trim() && addMutation.mutate(newValue.trim())}
+          disabled={!newValue.trim() || addMutation.isPending}
+          data-testid="button-add-dropdown-option"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Add
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-32" />
+      ) : (
+        <div className="space-y-1">
+          {options?.slice().sort((a, b) => a.value.localeCompare(b.value)).map((opt) => (
+            <div key={opt.id} className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30" data-testid={`dropdown-option-item-${opt.id}`}>
+              {editingId === opt.id ? (
+                <div className="flex items-center gap-2 flex-1 mr-2">
+                  <Input
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="h-7 text-sm"
+                    data-testid={`input-edit-dropdown-option-${opt.id}`}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && editValue.trim()) updateMutation.mutate({ id: opt.id, value: editValue.trim() });
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={() => editValue.trim() && updateMutation.mutate({ id: opt.id, value: editValue.trim() })}
+                    disabled={!editValue.trim() || updateMutation.isPending}
+                    data-testid={`button-save-dropdown-option-${opt.id}`}
+                  >
+                    <Check className="h-3.5 w-3.5 text-green-600" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={() => setEditingId(null)}
+                    data-testid={`button-cancel-dropdown-option-${opt.id}`}
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <span className="text-sm">{opt.value}</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => { setEditingId(opt.id); setEditValue(opt.value); }}
+                      data-testid={`button-edit-dropdown-option-${opt.id}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteMutation.mutate(opt.id)}
+                      data-testid={`button-delete-dropdown-option-${opt.id}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {options?.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4 text-center">No options added yet for this category</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const showUsers = user?.role === "admin" || user?.role === "manager";
@@ -562,6 +719,12 @@ export default function SettingsPage() {
             <ShieldCheck className="h-4 w-4 mr-1" />
             Insurances
           </TabsTrigger>
+          {showUsers && (
+            <TabsTrigger value="dropdowns" data-testid="tab-dropdowns">
+              <List className="h-4 w-4 mr-1" />
+              Dropdowns
+            </TabsTrigger>
+          )}
           {showUsers && (
             <TabsTrigger value="users" data-testid="tab-users">
               <Users className="h-4 w-4 mr-1" />
@@ -591,6 +754,19 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {showUsers && (
+          <TabsContent value="dropdowns" className="mt-4">
+            <Card>
+              <CardHeader className="pb-3 px-4 pt-4">
+                <h3 className="text-sm font-semibold">Manage Dropdown Options</h3>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <DropdownSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {showUsers && (
           <TabsContent value="users" className="mt-4">

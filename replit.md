@@ -17,7 +17,7 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Employee Workload**: Leaderboard showing task distribution per employee
 - **Billing Queue**: Auto-sorted by priority, IE date, due date
 - **Notifications**: In-app notification system
-- **Admin Settings**: Manage clinics, insurances, users
+- **Admin Settings**: Manage clinics, insurances, dropdown options, users
 - **Reports**: CSV export with filters
 - **Audit Trail**: All task changes recorded with user, timestamp, old/new values
 - **Overdue Detection**: Visual highlighting, escalation levels (1/3/5 days)
@@ -89,6 +89,6 @@ shared/
 ```
 
 ## Database Tables
-- users, tasks, task_activity, clinics, insurances, notifications, denials, arbitrations, collections, tickets, ticket_comments, announcements, announcement_acks, direct_messages
+- users, tasks, task_activity, clinics, insurances, notifications, denials, arbitrations, collections, tickets, ticket_comments, announcements, announcement_acks, direct_messages, dropdown_options
 - Enums: role, bucket, status, priority, ticket_status, ticket_priority, ticket_category
 - Denials columns: denialFileName, dateInput, intake (dropdown: active users), doa, clinic (dropdown: active clinics), patientName, insurance, dateOfLetter, typeOfDenial, effectiveDate, dosFrom, dosTo, numberOfDays (labeled "# of Visits"), amount, comments, filedTo, arbStatus, trialDate, arbPaymentStatus, amountReceived, checkedBy, comment

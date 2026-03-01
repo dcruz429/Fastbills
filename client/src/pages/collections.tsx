@@ -4,16 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import type { Collection, User, Clinic, Insurance } from "@shared/schema";
-import {
-  DENIAL_TYPE_OPTIONS,
-  COLLECTION_DIVISION_OPTIONS,
-  COLLECTION_ISSUE_TYPE_OPTIONS,
-  COLLECTION_ACTION_OPTIONS,
-  COLLECTION_OUTCOME_OPTIONS,
-
-  COLLECTION_STATUS_OPTIONS,
-} from "@shared/schema";
+import type { Collection, User, Clinic, Insurance, DropdownOption } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -135,6 +126,12 @@ export default function CollectionsPage() {
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
   const { data: allInsurances } = useQuery<Insurance[]>({ queryKey: ["/api/insurances"] });
+  const { data: denialTypeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_type"] });
+  const { data: divisionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_division"] });
+  const { data: issueTypeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_issue_type"] });
+  const { data: actionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_action"] });
+  const { data: outcomeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_outcome"] });
+  const { data: statusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_status"] });
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -426,7 +423,7 @@ export default function CollectionsPage() {
                 <SelectTrigger data-testid="select-collection-division"><SelectValue placeholder="Select division" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">-- None --</SelectItem>
-                  {COLLECTION_DIVISION_OPTIONS.map(o => (
+                  {(divisionOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>
@@ -466,7 +463,7 @@ export default function CollectionsPage() {
                 <SelectTrigger data-testid="select-collection-issue-type"><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">-- None --</SelectItem>
-                  {COLLECTION_ISSUE_TYPE_OPTIONS.map(o => (
+                  {(issueTypeOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>
@@ -478,7 +475,7 @@ export default function CollectionsPage() {
                 <SelectTrigger data-testid="select-collection-type-denial"><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">-- None --</SelectItem>
-                  {DENIAL_TYPE_OPTIONS.map(o => (
+                  {(denialTypeOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>
@@ -490,7 +487,7 @@ export default function CollectionsPage() {
                 <SelectTrigger data-testid="select-collection-action"><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">-- None --</SelectItem>
-                  {COLLECTION_ACTION_OPTIONS.map(o => (
+                  {(actionOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>
@@ -502,7 +499,7 @@ export default function CollectionsPage() {
                 <SelectTrigger data-testid="select-collection-outcome"><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">-- None --</SelectItem>
-                  {COLLECTION_OUTCOME_OPTIONS.map(o => (
+                  {(outcomeOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>
@@ -546,7 +543,7 @@ export default function CollectionsPage() {
                 <SelectTrigger data-testid="select-collection-status"><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">-- None --</SelectItem>
-                  {COLLECTION_STATUS_OPTIONS.map(o => (
+                  {(statusOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>

@@ -1,6 +1,10 @@
 import { storage } from "./storage";
 import { db } from "./db";
-import { users, insurances } from "@shared/schema";
+import { users, insurances, dropdownOptions,
+  DENIAL_TYPE_OPTIONS, FILED_TO_OPTIONS, ARB_STATUS_OPTIONS, ARB_PAYMENT_STATUS_OPTIONS,
+  COLLECTION_DIVISION_OPTIONS, COLLECTION_ISSUE_TYPE_OPTIONS, COLLECTION_ACTION_OPTIONS,
+  COLLECTION_OUTCOME_OPTIONS, COLLECTION_STATUS_OPTIONS,
+} from "@shared/schema";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { sql } from "drizzle-orm";
@@ -46,6 +50,7 @@ export async function seedInsurances() {
 
 export async function seed() {
   await seedInsurances();
+  await seedDropdownOptions();
 
   const existingUsers = await storage.getAllUsers();
   if (existingUsers.length > 0) return;
@@ -167,4 +172,30 @@ export async function seed() {
   });
 
   console.log("Seed complete! Login with admin/admin123");
+}
+
+export async function seedDropdownOptions() {
+  const existing = await db.select({ id: dropdownOptions.id }).from(dropdownOptions).limit(1);
+  if (existing.length > 0) return;
+
+  const categoryMap: Record<string, string[]> = {
+    denial_type: DENIAL_TYPE_OPTIONS,
+    filed_to: FILED_TO_OPTIONS,
+    arb_status: ARB_STATUS_OPTIONS,
+    arb_payment_status: ARB_PAYMENT_STATUS_OPTIONS,
+    collection_division: COLLECTION_DIVISION_OPTIONS,
+    collection_issue_type: COLLECTION_ISSUE_TYPE_OPTIONS,
+    collection_action: COLLECTION_ACTION_OPTIONS,
+    collection_outcome: COLLECTION_OUTCOME_OPTIONS,
+    collection_status: COLLECTION_STATUS_OPTIONS,
+  };
+
+  const rows: { category: string; value: string; sortOrder: number }[] = [];
+  for (const [category, values] of Object.entries(categoryMap)) {
+    values.forEach((value, i) => {
+      rows.push({ category, value, sortOrder: i });
+    });
+  }
+  await db.insert(dropdownOptions).values(rows);
+  console.log(`Seeded ${rows.length} dropdown options`);
 }

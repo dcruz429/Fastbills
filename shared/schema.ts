@@ -503,3 +503,26 @@ export const PRIORITY_LABELS: Record<string, string> = {
   medium: "Medium",
   critical: "Critical",
 };
+
+export const dropdownOptions = pgTable("dropdown_options", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  category: text("category").notNull(),
+  value: text("value").notNull(),
+  sortOrder: integer("sort_order").default(0),
+});
+
+export const insertDropdownOptionSchema = createInsertSchema(dropdownOptions).omit({ id: true });
+export type DropdownOption = typeof dropdownOptions.$inferSelect;
+export type InsertDropdownOption = z.infer<typeof insertDropdownOptionSchema>;
+
+export const DROPDOWN_CATEGORIES = [
+  { key: "denial_type", label: "Type of Denial" },
+  { key: "filed_to", label: "Filed To" },
+  { key: "arb_status", label: "ARB Status" },
+  { key: "arb_payment_status", label: "ARB Payment Status" },
+  { key: "collection_division", label: "Collection Division" },
+  { key: "collection_issue_type", label: "Collection Issue Type" },
+  { key: "collection_action", label: "Collection Action" },
+  { key: "collection_outcome", label: "Collection Outcome" },
+  { key: "collection_status", label: "Collection Status" },
+] as const;

@@ -4,13 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import type { Arbitration, User, Clinic, Insurance } from "@shared/schema";
-import {
-  DENIAL_TYPE_OPTIONS,
-  FILED_TO_OPTIONS,
-  ARB_STATUS_OPTIONS,
-  ARB_PAYMENT_STATUS_OPTIONS,
-} from "@shared/schema";
+import type { Arbitration, User, Clinic, Insurance, DropdownOption } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,6 +87,10 @@ export default function ArbitrationPage() {
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
   const { data: allInsurances } = useQuery<Insurance[]>({ queryKey: ["/api/insurances"] });
+  const { data: denialTypeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_type"] });
+  const { data: filedToOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "filed_to"] });
+  const { data: arbStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_status"] });
+  const { data: arbPaymentOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_payment_status"] });
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -438,7 +436,7 @@ export default function ArbitrationPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__clear__">-- None --</SelectItem>
-                  {DENIAL_TYPE_OPTIONS.map(o => (
+                  {(denialTypeOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>
@@ -475,7 +473,7 @@ export default function ArbitrationPage() {
                   list="arb-filed-to-options"
                 />
                 <datalist id="arb-filed-to-options">
-                  {FILED_TO_OPTIONS.map(o => (
+                  {(filedToOpts || []).map(o => o.value).map(o => (
                     <option key={o} value={o} />
                   ))}
                 </datalist>
@@ -489,7 +487,7 @@ export default function ArbitrationPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__clear__">-- None --</SelectItem>
-                  {ARB_STATUS_OPTIONS.map(o => (
+                  {(arbStatusOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>
@@ -507,7 +505,7 @@ export default function ArbitrationPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__clear__">-- None --</SelectItem>
-                  {ARB_PAYMENT_STATUS_OPTIONS.map(o => (
+                  {(arbPaymentOpts || []).map(o => o.value).map(o => (
                     <SelectItem key={o} value={o}>{o}</SelectItem>
                   ))}
                 </SelectContent>

@@ -59,6 +59,9 @@ import {
   type InsertDirectMessage,
   type AnnouncementWithRelations,
   type DirectMessageWithUser,
+  dropdownOptions,
+  type DropdownOption,
+  type InsertDropdownOption,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -141,6 +144,11 @@ export interface IStorage {
   createDirectMessage(data: InsertDirectMessage): Promise<DirectMessage>;
   markMessagesRead(userId: number, otherUserId: number): Promise<void>;
   getUnreadMessageCount(userId: number): Promise<number>;
+  getDropdownOptionsByCategory(category: string): Promise<DropdownOption[]>;
+  getAllDropdownOptions(): Promise<DropdownOption[]>;
+  createDropdownOption(data: InsertDropdownOption): Promise<DropdownOption>;
+  updateDropdownOption(id: number, data: Partial<InsertDropdownOption>): Promise<DropdownOption | undefined>;
+  deleteDropdownOption(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -702,6 +710,30 @@ export class DatabaseStorage implements IStorage {
       .from(directMessages)
       .where(and(eq(directMessages.recipientId, userId), sql`${directMessages.readAt} IS NULL`));
     return Number(result[0]?.count || 0);
+  }
+
+  async getDropdownOptionsByCategory(category: string): Promise<DropdownOption[]> {
+    return db.select().from(dropdownOptions)
+      .where(eq(dropdownOptions.category, category))
+      .orderBy(dropdownOptions.value);
+  }
+
+  async getAllDropdownOptions(): Promise<DropdownOption[]> {
+    return db.select().from(dropdownOptions).orderBy(dropdownOptions.category, dropdownOptions.value);
+  }
+
+  async createDropdownOption(data: InsertDropdownOption): Promise<DropdownOption> {
+    const [opt] = await db.insert(dropdownOptions).values(data).returning();
+    return opt;
+  }
+
+  async updateDropdownOption(id: number, data: Partial<InsertDropdownOption>): Promise<DropdownOption | undefined> {
+    const [opt] = await db.update(dropdownOptions).set(data).where(eq(dropdownOptions.id, id)).returning();
+    return opt;
+  }
+
+  async deleteDropdownOption(id: number): Promise<void> {
+    await db.delete(dropdownOptions).where(eq(dropdownOptions.id, id));
   }
 }
 

@@ -8,7 +8,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db } from "./db";
-import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity } from "@shared/schema";
+import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, DROPDOWN_CATEGORIES } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const upload = multer({
@@ -993,6 +993,76 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only admins can delete announcements" });
       }
       await storage.deleteAnnouncement(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Dropdown Options
+  app.get("/api/dropdown-options", requireAuth, async (_req, res) => {
+    try {
+      const all = await storage.getAllDropdownOptions();
+      res.json(all);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/dropdown-options/:category", requireAuth, async (req, res) => {
+    try {
+      const options = await storage.getDropdownOptionsByCategory(req.params.category);
+      res.json(options);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/dropdown-options", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can manage dropdown options" });
+      }
+      const { category, value } = req.body;
+      if (!category || !value || typeof category !== "string" || typeof value !== "string") {
+        return res.status(400).json({ message: "category and value are required strings" });
+      }
+      const validCategories = DROPDOWN_CATEGORIES.map(c => c.key);
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({ message: `Invalid category. Must be one of: ${validCategories.join(", ")}` });
+      }
+      const opt = await storage.createDropdownOption({ category, value: value.trim(), sortOrder: req.body.sortOrder ?? 0 });
+      res.json(opt);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/dropdown-options/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can manage dropdown options" });
+      }
+      const { value } = req.body;
+      if (!value || typeof value !== "string") {
+        return res.status(400).json({ message: "value is required" });
+      }
+      const opt = await storage.updateDropdownOption(parseInt(req.params.id), { value: value.trim() });
+      res.json(opt);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/dropdown-options/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can manage dropdown options" });
+      }
+      await storage.deleteDropdownOption(parseInt(req.params.id));
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
