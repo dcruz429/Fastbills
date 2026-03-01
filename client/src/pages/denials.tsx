@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, X, Search, History } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Search, History, Scale } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -63,6 +63,7 @@ export default function DenialsPage() {
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [sendToArbId, setSendToArbId] = useState<number | null>(null);
   const [historyDenialId, setHistoryDenialId] = useState<number | null>(null);
 
   if (!user) {
@@ -115,6 +116,17 @@ export default function DenialsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
       setDeleteConfirmId(null);
       toast({ title: "Denial deleted" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const sendToArbMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/denials/${id}/send-to-arbitration`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
+      setSendToArbId(null);
+      toast({ title: "Denial sent to Arbitration" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -271,6 +283,9 @@ export default function DenialsPage() {
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(d)} data-testid={`button-edit-denial-${d.id}`}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600" onClick={() => setSendToArbId(d.id)} title="Send to Arbitration" data-testid={`button-send-arb-${d.id}`}>
+                          <Scale className="h-3.5 w-3.5" />
+                        </Button>
                         {canDelete && (
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-denial-${d.id}`}>
                             <Trash2 className="h-3.5 w-3.5" />
@@ -399,6 +414,21 @@ export default function DenialsPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel-denial">Cancel</Button>
             <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-denial">
               {editingId ? "Save Changes" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sendToArbId !== null} onOpenChange={() => setSendToArbId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Send to Arbitration</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">This will move the denial to the Arbitration page. The denial will be removed from this page. Continue?</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendToArbId(null)} data-testid="button-cancel-send-arb">Cancel</Button>
+            <Button onClick={() => sendToArbId && sendToArbMutation.mutate(sendToArbId)} disabled={sendToArbMutation.isPending} data-testid="button-confirm-send-arb">
+              {sendToArbMutation.isPending ? "Sending..." : "Send to Arbitration"}
             </Button>
           </DialogFooter>
         </DialogContent>

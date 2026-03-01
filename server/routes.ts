@@ -8,7 +8,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db } from "./db";
-import { fileUploads } from "@shared/schema";
+import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const upload = multer({
@@ -629,6 +629,51 @@ export async function registerRoutes(
   app.get("/api/denials/:id/activity", requireAuth, async (req, res) => {
     const denialId = parseInt(req.params.id);
     res.json(await storage.getDenialActivity(denialId));
+  });
+
+  app.post("/api/denials/:id/send-to-arbitration", requireAuth, async (req, res) => {
+    try {
+      const denial = await storage.getDenial(parseInt(req.params.id));
+      if (!denial) return res.status(404).json({ message: "Denial not found" });
+      const arbData = {
+        denialFileName: denial.denialFileName,
+        dateInput: denial.dateInput,
+        intake: denial.intake,
+        doa: denial.doa,
+        clinic: denial.clinic,
+        patientName: denial.patientName,
+        insurance: denial.insurance,
+        dateOfLetter: denial.dateOfLetter,
+        typeOfDenial: denial.typeOfDenial,
+        effectiveDate: denial.effectiveDate,
+        dosFrom: denial.dosFrom,
+        dosTo: denial.dosTo,
+        numberOfDays: denial.numberOfDays,
+        amount: denial.amount,
+        comments: denial.comments,
+        filedTo: denial.filedTo,
+        arbStatus: denial.arbStatus,
+        trialDate: denial.trialDate,
+        arbPaymentStatus: denial.arbPaymentStatus,
+        amountReceived: denial.amountReceived,
+        checkedBy: denial.checkedBy,
+        comment: denial.comment,
+      };
+      const result = await db.transaction(async (tx) => {
+        const [arb] = await tx.insert(arbitrations).values(arbData).returning();
+        await tx.insert(arbitrationActivity).values({
+          arbitrationId: arb.id,
+          userId: req.session.userId!,
+          action: "Created from Denial",
+        });
+        await tx.delete(denialActivity).where(eq(denialActivity.denialId, denial.id));
+        await tx.delete(denials).where(eq(denials.id, denial.id));
+        return arb;
+      });
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
   });
 
   app.delete("/api/denials/:id", requireAuth, async (req, res) => {
