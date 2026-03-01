@@ -7,9 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { Denial, User, Clinic, Insurance } from "@shared/schema";
 import {
   DENIAL_TYPE_OPTIONS,
-  FILED_TO_OPTIONS,
-  ARB_STATUS_OPTIONS,
-  ARB_PAYMENT_STATUS_OPTIONS,
 } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,12 +52,6 @@ const emptyForm = {
   numberOfDays: "",
   amount: "",
   comments: "",
-  filedTo: "",
-  arbStatus: "",
-  trialDate: "",
-  arbPaymentStatus: "",
-  amountReceived: "",
-  checkedBy: "",
   comment: "",
 };
 
@@ -153,12 +144,6 @@ export default function DenialsPage() {
       numberOfDays: denial.numberOfDays != null ? String(denial.numberOfDays) : "",
       amount: denial.amount || "",
       comments: denial.comments || "",
-      filedTo: denial.filedTo || "",
-      arbStatus: denial.arbStatus || "",
-      trialDate: toInputDate(denial.trialDate),
-      arbPaymentStatus: denial.arbPaymentStatus || "",
-      amountReceived: denial.amountReceived || "",
-      checkedBy: denial.checkedBy || "",
       comment: denial.comment || "",
     });
     setDialogOpen(true);
@@ -191,8 +176,7 @@ export default function DenialsPage() {
       d.denialFileName?.toLowerCase().includes(q) ||
       d.clinic?.toLowerCase().includes(q) ||
       d.insurance?.toLowerCase().includes(q) ||
-      d.typeOfDenial?.toLowerCase().includes(q) ||
-      d.filedTo?.toLowerCase().includes(q)
+      d.typeOfDenial?.toLowerCase().includes(q)
     );
   });
 
@@ -247,12 +231,6 @@ export default function DenialsPage() {
                   <TableHead className="min-w-[60px]"># Visits</TableHead>
                   <TableHead className="min-w-[80px]">Amount</TableHead>
                   <TableHead className="min-w-[120px]">Comments</TableHead>
-                  <TableHead className="min-w-[80px]">Filed To</TableHead>
-                  <TableHead className="min-w-[90px]">ARB Status</TableHead>
-                  <TableHead className="min-w-[90px]">Trial Date</TableHead>
-                  <TableHead className="min-w-[110px]">ARB Payment</TableHead>
-                  <TableHead className="min-w-[90px]">Amt Received</TableHead>
-                  <TableHead className="min-w-[90px]">Checked By</TableHead>
                   <TableHead className="min-w-[120px]">Comment</TableHead>
                   <TableHead className="min-w-[80px]">Actions</TableHead>
                 </TableRow>
@@ -260,7 +238,7 @@ export default function DenialsPage() {
               <TableBody>
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={23} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={17} className="text-center py-8 text-muted-foreground">
                       No denials found
                     </TableCell>
                   </TableRow>
@@ -284,18 +262,6 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                     <TableCell className="text-xs">{d.amount || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comments || "-"}</TableCell>
-                    <TableCell className="text-xs">
-                      {d.filedTo ? <Badge variant="secondary" className="text-xs">{d.filedTo}</Badge> : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {d.arbStatus ? <Badge variant="outline" className="text-xs">{d.arbStatus}</Badge> : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">{formatDate(d.trialDate)}</TableCell>
-                    <TableCell className="text-xs">
-                      {d.arbPaymentStatus ? <Badge variant="secondary" className="text-xs">{d.arbPaymentStatus}</Badge> : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">{d.amountReceived || "-"}</TableCell>
-                    <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -423,63 +389,6 @@ export default function DenialsPage() {
             <div className="space-y-1.5">
               <Label>Amount</Label>
               <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-denial-amount" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Filed To</Label>
-              <div className="relative" data-testid="combo-denial-filed-to">
-                <Input
-                  value={form.filedTo}
-                  onChange={e => setForm(f => ({ ...f, filedTo: e.target.value }))}
-                  placeholder="Type or select..."
-                  data-testid="input-denial-filed-to"
-                  list="filed-to-options"
-                />
-                <datalist id="filed-to-options">
-                  {FILED_TO_OPTIONS.map(o => (
-                    <option key={o} value={o} />
-                  ))}
-                </datalist>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>ARB Status</Label>
-              <Select value={form.arbStatus} onValueChange={v => setForm(f => ({ ...f, arbStatus: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-denial-arb-status">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {ARB_STATUS_OPTIONS.map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Trial Date</Label>
-              <Input type="date" value={form.trialDate} onChange={e => setForm(f => ({ ...f, trialDate: e.target.value }))} data-testid="input-denial-trial-date" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>ARB Payment Status</Label>
-              <Select value={form.arbPaymentStatus} onValueChange={v => setForm(f => ({ ...f, arbPaymentStatus: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-denial-arb-payment">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {ARB_PAYMENT_STATUS_OPTIONS.map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Amount Received</Label>
-              <Input value={form.amountReceived} onChange={e => setForm(f => ({ ...f, amountReceived: e.target.value }))} placeholder="$0.00" data-testid="input-denial-amount-received" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Checked By</Label>
-              <Input value={form.checkedBy} onChange={e => setForm(f => ({ ...f, checkedBy: e.target.value }))} data-testid="input-denial-checked-by" />
             </div>
             <div className="space-y-1.5 md:col-span-3">
               <Label>Comments</Label>
