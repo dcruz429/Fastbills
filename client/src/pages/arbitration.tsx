@@ -290,7 +290,6 @@ export default function ArbitrationPage() {
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosTo")} data-testid="sort-dosTo">DOS To{renderSortIcon("dosTo")}</TableHead>
                   <TableHead className="min-w-[60px] cursor-pointer select-none" onClick={() => handleSort("numberOfDays")} data-testid="sort-numberOfDays"># Visits{renderSortIcon("numberOfDays")}</TableHead>
                   <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount{renderSortIcon("amount")}</TableHead>
-                  <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("comments")} data-testid="sort-comments">Comments{renderSortIcon("comments")}</TableHead>
                   <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("filedTo")} data-testid="sort-filedTo">Filed To{renderSortIcon("filedTo")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("arbStatus")} data-testid="sort-arbStatus">ARB Status{renderSortIcon("arbStatus")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("trialDate")} data-testid="sort-trialDate">Trial Date{renderSortIcon("trialDate")}</TableHead>
@@ -305,7 +304,7 @@ export default function ArbitrationPage() {
               <TableBody>
                 {sorted.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={24} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={23} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
@@ -328,7 +327,6 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                     <TableCell className="text-xs">{d.amount || "-"}</TableCell>
-                    <TableCell className="text-xs max-w-[150px] truncate">{d.comments || "-"}</TableCell>
                     <TableCell className="text-xs">
                       {d.filedTo ? <Badge variant="secondary" className="text-xs">{d.filedTo}</Badge> : "-"}
                     </TableCell>

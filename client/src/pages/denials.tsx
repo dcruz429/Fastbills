@@ -288,7 +288,6 @@ export default function DenialsPage() {
                     { key: "dosTo", label: "DOS To", minW: "90px" },
                     { key: "numberOfDays", label: "# Visits", minW: "60px" },
                     { key: "amount", label: "Amount", minW: "80px" },
-                    { key: "comments", label: "Comments", minW: "120px" },
                     { key: "comment", label: "Comment", minW: "120px" },
                     { key: "assignedTo", label: "Assigned To", minW: "110px" },
                   ].map(col => (
@@ -311,7 +310,7 @@ export default function DenialsPage() {
               <TableBody>
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={17} className="text-center py-8 text-muted-foreground">
                       No denials found
                     </TableCell>
                   </TableRow>
@@ -334,7 +333,6 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                     <TableCell className="text-xs">{d.amount || "-"}</TableCell>
-                    <TableCell className="text-xs max-w-[150px] truncate">{d.comments || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                     <TableCell>
