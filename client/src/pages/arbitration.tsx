@@ -272,12 +272,12 @@ export default function ArbitrationPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="min-w-[130px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient Name{renderSortIcon("patientName")}</TableHead>
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("denialFileName")} data-testid="sort-denialFileName">File Name{renderSortIcon("denialFileName")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dateInput")} data-testid="sort-dateInput">Date Input{renderSortIcon("dateInput")}</TableHead>
                   <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("intake")} data-testid="sort-intake">Intake{renderSortIcon("intake")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("doa")} data-testid="sort-doa">DOA{renderSortIcon("doa")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic{renderSortIcon("clinic")}</TableHead>
-                  <TableHead className="min-w-[130px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient Name{renderSortIcon("patientName")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance{renderSortIcon("insurance")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("dateOfLetter")} data-testid="sort-dateOfLetter">Date of Letter{renderSortIcon("dateOfLetter")}</TableHead>
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("typeOfDenial")} data-testid="sort-typeOfDenial">Type of Denial{renderSortIcon("typeOfDenial")}</TableHead>
@@ -307,12 +307,12 @@ export default function ArbitrationPage() {
                 )}
                 {sorted.map(d => (
                   <TableRow key={d.id} data-testid={`row-arbitration-${d.id}`}>
+                    <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                     <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
                     <TableCell className="text-xs">{d.intake || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
                     <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
-                    <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                     <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
                     <TableCell className="text-xs">
