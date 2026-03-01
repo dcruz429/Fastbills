@@ -156,8 +156,14 @@ export function AppSidebar() {
     refetchInterval: 15000,
   });
 
+  const { data: unreadAnnouncementData } = useQuery<{ count: number }>({
+    queryKey: ["/api/announcements/unread-count"],
+    refetchInterval: 30000,
+  });
+
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
   const unreadMsgCount = unreadMsgData?.count || 0;
+  const unreadAnnouncementCount = unreadAnnouncementData?.count || 0;
 
   return (
     <Sidebar>
@@ -183,6 +189,9 @@ export function AppSidebar() {
                     <span>{item.title}</span>
                     {item.title === "Messages" && unreadMsgCount > 0 && (
                       <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full h-5 min-w-5 flex items-center justify-center px-1.5">{unreadMsgCount}</span>
+                    )}
+                    {item.title === "Message Board" && unreadAnnouncementCount > 0 && (
+                      <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full h-5 min-w-5 flex items-center justify-center px-1.5" data-testid="badge-unread-announcements">{unreadAnnouncementCount}</span>
                     )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>

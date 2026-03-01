@@ -69,6 +69,7 @@ export default function MessageBoardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/announcements/unread-count"] });
       setCreateOpen(false);
       setTitle("");
       setBody("");
@@ -86,6 +87,7 @@ export default function MessageBoardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/announcements/unread-count"] });
     },
   });
 
@@ -95,6 +97,7 @@ export default function MessageBoardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/announcements/unread-count"] });
       toast({ title: "Announcement deleted" });
     },
   });

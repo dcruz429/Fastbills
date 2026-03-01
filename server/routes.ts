@@ -891,6 +891,24 @@ export async function registerRoutes(
   });
 
   // Announcements / Message Board
+  app.get("/api/announcements/unread-count", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const all = await storage.getAllAnnouncements();
+      const visible = all.filter(a => {
+        if (a.targetType === "all") return true;
+        if (a.targetType === "role" && a.targetRoles) return a.targetRoles.includes(user.role);
+        if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id) || a.authorId === user.id;
+        return false;
+      });
+      const unread = visible.filter(a => !a.acks.some((ak: any) => ak.userId === user.id));
+      res.json({ count: unread.length });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/announcements", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
