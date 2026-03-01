@@ -69,6 +69,7 @@ client/src/
     denials.tsx        - Insurance denials tracker
     productivity.tsx   - Productivity metrics page
     tickets.tsx        - Suggestion box / ticket system
+    collections.tsx    - Collections tracker page
 
 server/
   index.ts             - Express server setup
@@ -82,6 +83,6 @@ shared/
 ```
 
 ## Database Tables
-- users, tasks, task_activity, clinics, insurances, notifications, denials, tickets, ticket_comments
+- users, tasks, task_activity, clinics, insurances, notifications, denials, collections, tickets, ticket_comments
 - Enums: role, bucket, status, priority, ticket_status, ticket_priority, ticket_category
 - Denials columns: denialFileName, dateInput, intake (dropdown: active users), doa, clinic (dropdown: active clinics), patientName, insurance, dateOfLetter, typeOfDenial, effectiveDate, dosFrom, dosTo, numberOfDays (labeled "# of Visits"), amount, comments, filedTo, arbStatus, trialDate, arbPaymentStatus, amountReceived, checkedBy, comment

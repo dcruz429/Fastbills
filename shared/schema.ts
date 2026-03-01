@@ -209,6 +209,50 @@ export const ARB_PAYMENT_STATUS_OPTIONS = [
   "Collected",
 ];
 
+export const collections = pgTable("collections", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  patientName: text("patient_name").notNull(),
+  inputDate: timestamp("input_date"),
+  clinic: text("clinic"),
+  division: text("division"),
+  insurance: text("insurance"),
+  dosFrom: timestamp("dos_from"),
+  dosTo: timestamp("dos_to"),
+  numberOfVisits: integer("number_of_visits"),
+  amount: text("amount"),
+  issueType: text("issue_type"),
+  typeOfDenial: text("type_of_denial"),
+  action: text("action"),
+  outcome: text("outcome"),
+  priority: text("priority"),
+  assignedTo: text("assigned_to"),
+  status: text("collection_status"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const collectionActivity = pgTable("collection_activity", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  collectionId: integer("collection_id").notNull().references(() => collections.id),
+  userId: integer("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  field: text("field"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+export const COLLECTION_DIVISION_OPTIONS = ["Denied", "Lien", "NF", "WC"];
+export const COLLECTION_ISSUE_TYPE_OPTIONS = [
+  "Denied", "Dropped", "LIEN", "No History of Payment", "No Payment. No Denial Letter", "WC",
+];
+export const COLLECTION_ACTION_OPTIONS = [
+  "Awaiting Payment", "Data Recorded", "Follow-Up", "Rebilling", "Sent for Arbitration",
+  "Sent to Account Specialist", "Write-Off",
+];
+export const COLLECTION_OUTCOME_OPTIONS = ["For Arbitration", "Loss", "Paid", "Pending", "RTP"];
+export const COLLECTION_PRIORITY_OPTIONS = ["Low <10 days", "Medium <20 Days", "High <30 Days", "Critical >30 Days"];
+export const COLLECTION_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done", "Denials", "Arbitration"];
+
 export const ticketStatusEnum = pgEnum("ticket_status", ["open", "working_on_it", "done", "closed"]);
 export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high", "urgent"]);
 export const ticketCategoryEnum = pgEnum("ticket_category", ["bug", "feature_request", "ui_change", "question", "other"]);
@@ -265,6 +309,8 @@ export const insertTaskActivitySchema = createInsertSchema(taskActivity).omit({ 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertDenialSchema = createInsertSchema(denials).omit({ id: true, createdAt: true });
 export const insertDenialActivitySchema = createInsertSchema(denialActivity).omit({ id: true, timestamp: true });
+export const insertCollectionSchema = createInsertSchema(collections).omit({ id: true, createdAt: true });
+export const insertCollectionActivitySchema = createInsertSchema(collectionActivity).omit({ id: true, timestamp: true });
 export const insertTicketSchema = createInsertSchema(tickets).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
 export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true });
 export const insertTicketActivitySchema = createInsertSchema(ticketActivity).omit({ id: true, timestamp: true });
@@ -285,6 +331,10 @@ export type InsertDenial = z.infer<typeof insertDenialSchema>;
 export type Denial = typeof denials.$inferSelect;
 export type InsertDenialActivity = z.infer<typeof insertDenialActivitySchema>;
 export type DenialActivity = typeof denialActivity.$inferSelect;
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type Collection = typeof collections.$inferSelect;
+export type InsertCollectionActivity = z.infer<typeof insertCollectionActivitySchema>;
+export type CollectionActivity = typeof collectionActivity.$inferSelect;
 export type InsertTicket = z.infer<typeof insertTicketSchema>;
 export type Ticket = typeof tickets.$inferSelect;
 export type InsertTicketComment = z.infer<typeof insertTicketCommentSchema>;

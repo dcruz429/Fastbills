@@ -644,6 +644,106 @@ export async function registerRoutes(
     }
   });
 
+  // Collections routes
+  app.get("/api/collections", requireAuth, async (_req, res) => {
+    res.json(await storage.getAllCollections());
+  });
+
+  const collectionFieldLabels: Record<string, string> = {
+    patientName: "Patient's Name", inputDate: "Input Date", clinic: "Clinic", division: "Division",
+    insurance: "Insurance", dosFrom: "DOS From", dosTo: "DOS To", numberOfVisits: "# of Visits",
+    amount: "Amount", issueType: "Issue Type", typeOfDenial: "Type of Denial", action: "Action",
+    outcome: "Outcome", priority: "Priority", assignedTo: "Assigned to", status: "Status",
+  };
+  const collectionTrackFields = Object.keys(collectionFieldLabels);
+
+  app.post("/api/collections", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can create collections" });
+      }
+      const data: any = { ...req.body };
+      const dateFields = ["inputDate", "dosFrom", "dosTo"];
+      for (const f of dateFields) {
+        if (data[f]) { data[f] = new Date(data[f]); } else { data[f] = null; }
+      }
+      if (data.numberOfVisits !== undefined && data.numberOfVisits !== null) {
+        data.numberOfVisits = parseInt(data.numberOfVisits) || null;
+      }
+      const collection = await storage.createCollection(data);
+      await storage.createCollectionActivity({
+        collectionId: collection.id,
+        userId: req.session.userId!,
+        action: "Collection created",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
+      res.json(collection);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/collections/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can edit collections" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getCollection(id);
+      if (!existing) return res.status(404).json({ message: "Collection not found" });
+      const data: any = { ...req.body };
+      const dateFields = ["inputDate", "dosFrom", "dosTo"];
+      for (const f of dateFields) {
+        if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
+      }
+      if (data.numberOfVisits !== undefined) {
+        data.numberOfVisits = data.numberOfVisits ? parseInt(data.numberOfVisits) : null;
+      }
+      for (const field of collectionTrackFields) {
+        if (data[field] !== undefined) {
+          const oldVal = String((existing as any)[field] ?? "");
+          const newVal = String(data[field] ?? "");
+          if (oldVal !== newVal) {
+            await storage.createCollectionActivity({
+              collectionId: id,
+              userId: req.session.userId!,
+              action: `Updated ${collectionFieldLabels[field] || field}`,
+              field,
+              oldValue: oldVal || null,
+              newValue: newVal || null,
+            });
+          }
+        }
+      }
+      const collection = await storage.updateCollection(id, data);
+      res.json(collection);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/collections/:id/activity", requireAuth, async (req, res) => {
+    const collectionId = parseInt(req.params.id);
+    res.json(await storage.getCollectionActivity(collectionId));
+  });
+
+  app.delete("/api/collections/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins and managers can delete collections" });
+      }
+      await storage.deleteCollection(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/files/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

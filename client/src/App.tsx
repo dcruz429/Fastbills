@@ -18,6 +18,7 @@ import ReportsPage from "@/pages/reports";
 import ProductivityPage from "@/pages/productivity";
 import DenialsPage from "@/pages/denials";
 import TicketsPage from "@/pages/tickets";
+import CollectionsPage from "@/pages/collections";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Router() {
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/productivity" component={ProductivityPage} />
       <Route path="/denials" component={DenialsPage} />
       <Route path="/tickets" component={TicketsPage} />
+      <Route path="/collections" component={CollectionsPage} />
       <Route component={NotFound} />
     </Switch>
   );

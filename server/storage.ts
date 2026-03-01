@@ -37,6 +37,12 @@ import {
   type TicketCommentWithUser,
   type InsertTicketActivity,
   type TicketActivityWithUser,
+  collections,
+  collectionActivity,
+  type Collection,
+  type InsertCollection,
+  type CollectionActivity,
+  type InsertCollectionActivity,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -81,6 +87,14 @@ export interface IStorage {
 
   getDenialActivity(denialId: number): Promise<any[]>;
   createDenialActivity(data: InsertDenialActivity): Promise<DenialActivity>;
+
+  getAllCollections(): Promise<Collection[]>;
+  getCollection(id: number): Promise<Collection | undefined>;
+  createCollection(data: InsertCollection): Promise<Collection>;
+  updateCollection(id: number, data: Partial<Collection>): Promise<Collection | undefined>;
+  deleteCollection(id: number): Promise<void>;
+  getCollectionActivity(collectionId: number): Promise<any[]>;
+  createCollectionActivity(data: InsertCollectionActivity): Promise<CollectionActivity>;
 
   getAllTickets(): Promise<TicketWithRelations[]>;
   getTicket(id: number): Promise<Ticket | undefined>;
@@ -351,6 +365,55 @@ export class DatabaseStorage implements IStorage {
 
   async createDenialActivity(data: InsertDenialActivity): Promise<DenialActivity> {
     const [activity] = await db.insert(denialActivity).values(data).returning();
+    return activity;
+  }
+
+  async getAllCollections(): Promise<Collection[]> {
+    return db.select().from(collections).orderBy(desc(collections.createdAt));
+  }
+
+  async getCollection(id: number): Promise<Collection | undefined> {
+    const [c] = await db.select().from(collections).where(eq(collections.id, id));
+    return c;
+  }
+
+  async createCollection(data: InsertCollection): Promise<Collection> {
+    const [c] = await db.insert(collections).values(data).returning();
+    return c;
+  }
+
+  async updateCollection(id: number, data: Partial<Collection>): Promise<Collection | undefined> {
+    const [c] = await db.update(collections).set(data).where(eq(collections.id, id)).returning();
+    return c;
+  }
+
+  async deleteCollection(id: number): Promise<void> {
+    await db.delete(collectionActivity).where(eq(collectionActivity.collectionId, id));
+    await db.delete(collections).where(eq(collections.id, id));
+  }
+
+  async getCollectionActivity(collectionId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: collectionActivity.id,
+        collectionId: collectionActivity.collectionId,
+        userId: collectionActivity.userId,
+        action: collectionActivity.action,
+        field: collectionActivity.field,
+        oldValue: collectionActivity.oldValue,
+        newValue: collectionActivity.newValue,
+        timestamp: collectionActivity.timestamp,
+        userName: users.fullName,
+      })
+      .from(collectionActivity)
+      .leftJoin(users, eq(collectionActivity.userId, users.id))
+      .where(eq(collectionActivity.collectionId, collectionId))
+      .orderBy(desc(collectionActivity.timestamp));
+    return rows;
+  }
+
+  async createCollectionActivity(data: InsertCollectionActivity): Promise<CollectionActivity> {
+    const [activity] = await db.insert(collectionActivity).values(data).returning();
     return activity;
   }
 
