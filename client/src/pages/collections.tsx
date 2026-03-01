@@ -85,6 +85,18 @@ function computePriority(inputDate: string | Date | null | undefined): string {
   return "Low <10 days";
 }
 
+function computeAgeing(inputDate: string | Date | null | undefined): number | null {
+  if (!inputDate) return null;
+  const d = typeof inputDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(inputDate)
+    ? new Date(inputDate + "T00:00:00")
+    : new Date(inputDate);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 function statusColor(s: string) {
   if (s === "Done") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
   if (s === "Working on it") return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
@@ -261,6 +273,7 @@ export default function CollectionsPage() {
               <TableHead className="min-w-[120px]">Action</TableHead>
               <TableHead className="min-w-[100px]">Outcome</TableHead>
               <TableHead className="min-w-[120px]">Priority</TableHead>
+              <TableHead className="min-w-[70px]">Ageing</TableHead>
               <TableHead className="min-w-[120px]">Assigned to</TableHead>
               <TableHead className="min-w-[100px]">Status</TableHead>
               <TableHead className="min-w-[100px] text-right">Actions</TableHead>
@@ -269,7 +282,7 @@ export default function CollectionsPage() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={17} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
                   No collections found
                 </TableCell>
               </TableRow>
@@ -290,6 +303,7 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs">{d.action || "-"}</TableCell>
                   <TableCell className="text-xs">{d.outcome ? <Badge variant="secondary" className="text-xs">{d.outcome}</Badge> : "-"}</TableCell>
                   <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <Badge className={`text-xs ${priorityColor(p)}`}>{p}</Badge> : "-"; })()}</TableCell>
+                  <TableCell className="text-xs font-medium" data-testid={`text-ageing-${d.id}`}>{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
                   <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                   <TableCell className="text-xs">{d.status ? <Badge className={`text-xs ${statusColor(d.status)}`}>{d.status}</Badge> : "-"}</TableCell>
                   <TableCell className="text-right">
@@ -435,6 +449,16 @@ export default function CollectionsPage() {
               <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-priority">
                 {form.inputDate ? (
                   <Badge className={`text-xs ${priorityColor(computePriority(form.inputDate))}`}>{computePriority(form.inputDate)}</Badge>
+                ) : (
+                  <span className="text-muted-foreground">Set Input Date to compute</span>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ageing (auto)</Label>
+              <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-ageing">
+                {form.inputDate ? (
+                  <span className="font-medium">{computeAgeing(form.inputDate) ?? 0} days</span>
                 ) : (
                   <span className="text-muted-foreground">Set Input Date to compute</span>
                 )}
