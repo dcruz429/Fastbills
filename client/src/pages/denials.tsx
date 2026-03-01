@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import type { Denial, User, Clinic } from "@shared/schema";
+import type { Denial, User, Clinic, Insurance } from "@shared/schema";
 import {
   DENIAL_TYPE_OPTIONS,
   FILED_TO_OPTIONS,
@@ -90,8 +90,10 @@ export default function DenialsPage() {
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
+  const { data: allInsurances } = useQuery<Insurance[]>({ queryKey: ["/api/insurances"] });
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false);
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false);
+  const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
 
   const createMutation = useMutation({
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/denials", data),
@@ -374,7 +376,15 @@ export default function DenialsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Insurance</Label>
-              <Input value={form.insurance} onChange={e => setForm(f => ({ ...f, insurance: e.target.value }))} data-testid="input-denial-insurance" />
+              <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                <SelectTrigger data-testid="select-denial-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select insurance</SelectItem>
+                  {sortedInsurances.map(ins => (
+                    <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Date of Letter</Label>
