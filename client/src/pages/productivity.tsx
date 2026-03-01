@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   BarChart,
   Bar,
@@ -31,7 +32,7 @@ type ActivityRecord = {
 };
 
 type TimeRange = "day" | "week" | "month";
-type PeriodPreset = "last_7_days" | "this_month" | "last_month" | "last_3_months" | "custom" | "all_time";
+type PeriodPreset = "last_7_days" | "this_month" | "last_month" | "last_3_months" | "custom" | "all_time" | "single_day";
 
 function getMonthStart(year: number, month: number): Date {
   return new Date(year, month, 1);
@@ -86,6 +87,7 @@ export default function ProductivityPage() {
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("this_month");
   const [customYear, setCustomYear] = useState(now.getFullYear());
   const [customMonth, setCustomMonth] = useState(now.getMonth());
+  const [singleDay, setSingleDay] = useState("");
 
   if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
     return <Redirect to="/" />;
@@ -128,12 +130,17 @@ export default function ProductivityPage() {
   } else if (periodPreset === "custom") {
     dateStart = getMonthStart(customYear, customMonth);
     dateEnd = getMonthEnd(customYear, customMonth);
+  } else if (periodPreset === "single_day" && singleDay) {
+    const d = new Date(singleDay + "T00:00:00");
+    dateStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    dateEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
   }
 
   const periodLabel = periodPreset === "last_7_days" ? "Last 7 Days"
     : periodPreset === "this_month" ? "This Month"
     : periodPreset === "last_month" ? "Last Month"
     : periodPreset === "last_3_months" ? "Last 3 Months"
+    : periodPreset === "single_day" && singleDay ? new Date(singleDay + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : periodPreset === "custom" ? formatMonthYear(customYear, customMonth)
     : "All Time";
 
@@ -266,6 +273,7 @@ export default function ProductivityPage() {
               variant={periodPreset === p ? "default" : "outline"}
               onClick={() => {
                 setPeriodPreset(p);
+                setSingleDay("");
                 if (p === "last_7_days") setTimeRange("day");
               }}
               data-testid={`button-period-${p}`}
@@ -284,6 +292,22 @@ export default function ProductivityPage() {
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateMonth(1)} data-testid="button-next-month">
             <ChevronRight className="h-4 w-4" />
           </Button>
+        </div>
+        <div className="flex items-center gap-1 ml-2 border rounded-md px-2 py-1">
+          <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+          <Input
+            type="date"
+            value={singleDay}
+            onChange={(e) => {
+              setSingleDay(e.target.value);
+              if (e.target.value) {
+                setPeriodPreset("single_day");
+                setTimeRange("day");
+              }
+            }}
+            className="h-7 w-[140px] border-0 p-0 text-sm shadow-none focus-visible:ring-0"
+            data-testid="input-productivity-date"
+          />
         </div>
         <span className="text-sm text-muted-foreground ml-2">Showing: {periodLabel}</span>
       </div>
