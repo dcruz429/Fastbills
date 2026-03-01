@@ -270,12 +270,12 @@ export default function DenialsPage() {
               <TableHeader>
                 <TableRow>
                   {[
+                    { key: "patientName", label: "Patient Name", minW: "130px" },
                     { key: "denialFileName", label: "File Name", minW: "120px" },
                     { key: "dateInput", label: "Date Input", minW: "90px" },
                     { key: "intake", label: "Intake", minW: "80px" },
                     { key: "doa", label: "DOA", minW: "90px" },
                     { key: "clinic", label: "Clinic", minW: "100px" },
-                    { key: "patientName", label: "Patient Name", minW: "130px" },
                     { key: "insurance", label: "Insurance", minW: "100px" },
                     { key: "dateOfLetter", label: "Date of Letter", minW: "100px" },
                     { key: "typeOfDenial", label: "Type of Denial", minW: "120px" },
@@ -313,12 +313,12 @@ export default function DenialsPage() {
                 )}
                 {filtered.map(d => (
                   <TableRow key={d.id} data-testid={`row-denial-${d.id}`}>
+                    <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                     <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
                     <TableCell className="text-xs">{d.intake || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
                     <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
-                    <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                     <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
                     <TableCell className="text-xs">
