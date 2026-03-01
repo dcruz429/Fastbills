@@ -330,7 +330,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {allClinics?.map((c) => (
+                    {allClinics?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
                       <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -347,7 +347,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {allInsurances?.map((i) => (
+                    {allInsurances?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((i) => (
                       <SelectItem key={i.id} value={i.id.toString()}>{i.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -368,7 +368,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Unassigned</SelectItem>
-                      {allUsers?.filter(u => u.active).map((u) => (
+                      {allUsers?.filter(u => u.active).slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map((u) => (
                         <SelectItem key={u.id} value={u.id.toString()}>{u.fullName}</SelectItem>
                       ))}
                     </SelectContent>

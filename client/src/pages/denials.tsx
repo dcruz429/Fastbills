@@ -91,8 +91,8 @@ export default function DenialsPage() {
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
   const { data: allInsurances } = useQuery<Insurance[]>({ queryKey: ["/api/insurances"] });
-  const activeUsers = (allUsers || []).filter(u => u.isActive !== false);
-  const activeClinics = (allClinics || []).filter(c => c.isActive !== false);
+  const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
 
   const createMutation = useMutation({

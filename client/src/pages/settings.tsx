@@ -83,7 +83,7 @@ function ClinicSettings() {
         </Button>
       </div>
       <div className="space-y-1">
-        {clinics?.map((c) => (
+        {clinics?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
           <div key={c.id} className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30" data-testid={`clinic-item-${c.id}`}>
             {editingId === c.id ? (
               <div className="flex items-center gap-2 flex-1 mr-2">
@@ -214,7 +214,7 @@ function InsuranceSettings() {
         </Button>
       </div>
       <div className="space-y-1">
-        {insurances?.map((i) => (
+        {insurances?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((i) => (
           <div key={i.id} className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30" data-testid={`insurance-item-${i.id}`}>
             {editingId === i.id ? (
               <div className="flex items-center gap-2 flex-1 mr-2">
@@ -413,7 +413,7 @@ function UserSettings() {
       </Button>
 
       <div className="space-y-1">
-        {users?.map((u) => (
+        {users?.slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map((u) => (
           <div key={u.id} className="py-2 px-3 rounded-md bg-muted/30" data-testid={`user-item-${u.id}`}>
             {editingId === u.id ? (
               <div className="space-y-3">

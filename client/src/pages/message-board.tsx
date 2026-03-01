@@ -53,7 +53,7 @@ export default function MessageBoardPage() {
   });
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
-  const activeUsers = (allUsers || []).filter(u => u.active !== false);
+  const activeUsers = (allUsers || []).filter(u => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
 
   const isAdmin = user?.role === "admin" || user?.role === "manager";
 

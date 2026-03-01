@@ -239,7 +239,7 @@ export default function ProductivityPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Users</SelectItem>
-              {users?.filter(u => u.active).map(u => (
+              {users?.filter(u => u.active).slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map(u => (
                 <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>
               ))}
             </SelectContent>

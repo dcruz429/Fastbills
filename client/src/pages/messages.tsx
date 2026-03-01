@@ -34,7 +34,7 @@ export default function MessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
-  const activeUsers = (allUsers || []).filter(u => u.active !== false && u.id !== user?.id);
+  const activeUsers = (allUsers || []).filter(u => u.active !== false && u.id !== user?.id).sort((a, b) => a.fullName.localeCompare(b.fullName));
 
   const { data: conversations, isLoading: convsLoading } = useQuery<any[]>({
     queryKey: ["/api/messages/conversations"],

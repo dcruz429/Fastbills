@@ -257,7 +257,7 @@ export default function BoardPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Clinics</SelectItem>
-            {clinics?.map((c) => (
+            {clinics?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
               <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
             ))}
           </SelectContent>
@@ -269,7 +269,7 @@ export default function BoardPage() {
           <SelectContent>
             <SelectItem value="all">All Assigned</SelectItem>
             <SelectItem value="unassigned">Unassigned</SelectItem>
-            {users?.filter(u => u.isActive !== false).map((u) => (
+            {users?.filter(u => u.isActive !== false).slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map((u) => (
               <SelectItem key={u.id} value={u.id.toString()}>{u.fullName}</SelectItem>
             ))}
           </SelectContent>

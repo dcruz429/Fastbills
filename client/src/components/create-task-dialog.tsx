@@ -134,7 +134,7 @@ export function CreateTaskDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
-                  {clinics?.map((c) => (
+                  {clinics?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
                     <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -151,7 +151,7 @@ export function CreateTaskDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
-                  {insurances?.map((i) => (
+                  {insurances?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((i) => (
                     <SelectItem key={i.id} value={i.id.toString()}>{i.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -171,7 +171,7 @@ export function CreateTaskDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Unassigned</SelectItem>
-                  {users?.filter(u => u.active).map((u) => (
+                  {users?.filter(u => u.active).slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map((u) => (
                     <SelectItem key={u.id} value={u.id.toString()}>{u.fullName}</SelectItem>
                   ))}
                 </SelectContent>

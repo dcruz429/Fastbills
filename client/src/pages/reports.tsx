@@ -93,7 +93,7 @@ export default function ReportsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Clinics</SelectItem>
-            {clinics?.map((c) => (
+            {clinics?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
               <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
             ))}
           </SelectContent>
