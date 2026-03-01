@@ -1,8 +1,9 @@
 import { storage } from "./storage";
 import { db } from "./db";
-import { users } from "@shared/schema";
+import { users, insurances } from "@shared/schema";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import { sql } from "drizzle-orm";
 
 const scryptAsync = promisify(scrypt);
 
@@ -12,7 +13,40 @@ async function hashPassword(password: string): Promise<string> {
   return `${buf.toString("hex")}.${salt}`;
 }
 
+const INSURANCE_NAMES = [
+  "21st Century", "Abrams", "Abrams Fensterman", "Adirondak", "Affirmative Direct",
+  "American Family", "American Freedom", "American National", "Amico", "AmTrust",
+  "Arch", "ATIC", "Biberk", "Black Car Fund", "Bristol West", "Broadspire",
+  "Cannon Cochran", "Carolina Casualty Ins", "Cedar Ins", "Chubb",
+  "Chubb National Ins", "Corporate Claims Service", "Country-Wide",
+  "Crum & Foster Ins", "CURE Ins", "Davies Group", "Empire Fire",
+  "Empire Fire Marine Ins", "Employers Assurance", "Erie Ins", "ESB",
+  "Esurance", "Farmers Ins", "First Chicago", "Foremost", "Founders Ins",
+  "Gallagher Bassett", "GEICO", "Genotee", "Glacier Ins", "Hagerty",
+  "Hanover", "Hartford", "Hereford (NF)", "Hereford (WC)", "Hertz",
+  "ICW/Amity", "Infinity Auto", "Integon", "Kemper", "Komodo", "Lancer",
+  "Liberty Mutual", "Liberty Mutual (WC)", "Maya", "Memic",
+  "Mercury Casualty", "MTA-Bus (NF)", "MTA-Bus (WC)", "MVAIC", "NARISK",
+  "National General", "Nationwide Mutual", "NJM Ins (NF)", "NJM Ins (WC)",
+  "NY Law Dept", "NYCM", "NYCTA", "NYS Workers Comp Board", "NYSIF",
+  "Ocean (WC)", "Ocean Harbor", "Old Republic Ins", "Pearl Holding",
+  "Pennsylvania", "Plymouth", "Progressive", "Rental Claims", "Rep West",
+  "SafeCo", "Sedgwick", "Sedgwick (NF)", "Sedgwick (WC)", "State Farm",
+  "Stillwater", "Tesla Ins Services", "The General Ins", "Transit General Ins",
+  "Travelers", "Travelers (WC)", "Tristar Risk Mngt", "USAA", "Utica",
+  "Voyager", "Zurich",
+];
+
+export async function seedInsurances() {
+  for (const name of INSURANCE_NAMES) {
+    await db.insert(insurances).values({ name }).onConflictDoNothing();
+  }
+  console.log(`Ensured ${INSURANCE_NAMES.length} insurances exist`);
+}
+
 export async function seed() {
+  await seedInsurances();
+
   const existingUsers = await storage.getAllUsers();
   if (existingUsers.length > 0) return;
 
