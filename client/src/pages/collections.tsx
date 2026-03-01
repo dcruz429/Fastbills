@@ -88,7 +88,7 @@ export default function CollectionsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [historyId, setHistoryId] = useState<number | null>(null);
 
-  if (!user || !["admin", "manager"].includes(user.role)) {
+  if (!user) {
     return <Redirect to="/" />;
   }
 

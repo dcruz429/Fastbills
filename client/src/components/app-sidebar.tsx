@@ -53,7 +53,7 @@ const navItems = [
   { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner"] },
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner"] },
   { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager"] },
-  { title: "Collections", url: "/collections", icon: Landmark, roles: ["admin", "manager"] },
+  { title: "Collections", url: "/collections", icon: Landmark, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
   { title: "Suggestion Box", url: "/tickets", icon: Lightbulb, roles: ["admin"] },
 ];
 
