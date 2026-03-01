@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, X, Search, History, Scale } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -65,6 +65,8 @@ export default function DenialsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [sendToArbId, setSendToArbId] = useState<number | null>(null);
   const [historyDenialId, setHistoryDenialId] = useState<number | null>(null);
+  const [sortCol, setSortCol] = useState<string>("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -180,7 +182,28 @@ export default function DenialsPage() {
 
   const canDelete = user?.role === "admin" || user?.role === "manager";
 
-  const filtered = (denials || []).filter(d => {
+  const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo"]);
+  const numberColumns = new Set(["numberOfDays"]);
+
+  function handleSort(col: string) {
+    if (sortCol !== col) {
+      setSortCol(col);
+      setSortDir("asc");
+    } else if (sortDir === "asc") {
+      setSortDir("desc");
+    } else {
+      setSortCol("");
+      setSortDir("");
+    }
+  }
+
+  function renderSortIcon(col: string) {
+    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    if (sortDir === "asc") return <ArrowUp className="h-3 w-3 ml-1" />;
+    return <ArrowDown className="h-3 w-3 ml-1" />;
+  }
+
+  const filteredUnsorted = (denials || []).filter(d => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -190,6 +213,24 @@ export default function DenialsPage() {
       d.insurance?.toLowerCase().includes(q) ||
       d.typeOfDenial?.toLowerCase().includes(q)
     );
+  });
+
+  const filtered = [...filteredUnsorted].sort((a, b) => {
+    if (!sortCol || !sortDir) return 0;
+    const key = sortCol as keyof Denial;
+    const valA = a[key];
+    const valB = b[key];
+    let cmp = 0;
+    if (dateColumns.has(sortCol)) {
+      const ta = valA ? new Date(valA as string).getTime() : 0;
+      const tb = valB ? new Date(valB as string).getTime() : 0;
+      cmp = ta - tb;
+    } else if (numberColumns.has(sortCol)) {
+      cmp = (Number(valA) || 0) - (Number(valB) || 0);
+    } else {
+      cmp = String(valA || "").localeCompare(String(valB || ""));
+    }
+    return sortDir === "asc" ? cmp : -cmp;
   });
 
   if (isLoading) {
@@ -228,22 +269,37 @@ export default function DenialsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[120px]">File Name</TableHead>
-                  <TableHead className="min-w-[90px]">Date Input</TableHead>
-                  <TableHead className="min-w-[80px]">Intake</TableHead>
-                  <TableHead className="min-w-[90px]">DOA</TableHead>
-                  <TableHead className="min-w-[100px]">Clinic</TableHead>
-                  <TableHead className="min-w-[130px]">Patient Name</TableHead>
-                  <TableHead className="min-w-[100px]">Insurance</TableHead>
-                  <TableHead className="min-w-[100px]">Date of Letter</TableHead>
-                  <TableHead className="min-w-[120px]">Type of Denial</TableHead>
-                  <TableHead className="min-w-[100px]">Effective Date</TableHead>
-                  <TableHead className="min-w-[90px]">DOS From</TableHead>
-                  <TableHead className="min-w-[90px]">DOS To</TableHead>
-                  <TableHead className="min-w-[60px]"># Visits</TableHead>
-                  <TableHead className="min-w-[80px]">Amount</TableHead>
-                  <TableHead className="min-w-[120px]">Comments</TableHead>
-                  <TableHead className="min-w-[120px]">Comment</TableHead>
+                  {[
+                    { key: "denialFileName", label: "File Name", minW: "120px" },
+                    { key: "dateInput", label: "Date Input", minW: "90px" },
+                    { key: "intake", label: "Intake", minW: "80px" },
+                    { key: "doa", label: "DOA", minW: "90px" },
+                    { key: "clinic", label: "Clinic", minW: "100px" },
+                    { key: "patientName", label: "Patient Name", minW: "130px" },
+                    { key: "insurance", label: "Insurance", minW: "100px" },
+                    { key: "dateOfLetter", label: "Date of Letter", minW: "100px" },
+                    { key: "typeOfDenial", label: "Type of Denial", minW: "120px" },
+                    { key: "effectiveDate", label: "Effective Date", minW: "100px" },
+                    { key: "dosFrom", label: "DOS From", minW: "90px" },
+                    { key: "dosTo", label: "DOS To", minW: "90px" },
+                    { key: "numberOfDays", label: "# Visits", minW: "60px" },
+                    { key: "amount", label: "Amount", minW: "80px" },
+                    { key: "comments", label: "Comments", minW: "120px" },
+                    { key: "comment", label: "Comment", minW: "120px" },
+                  ].map(col => (
+                    <TableHead
+                      key={col.key}
+                      className="cursor-pointer select-none hover-elevate"
+                      style={{ minWidth: col.minW }}
+                      onClick={() => handleSort(col.key)}
+                      data-testid={`sort-header-${col.key}`}
+                    >
+                      <div className="flex items-center">
+                        {col.label}
+                        {renderSortIcon(col.key)}
+                      </div>
+                    </TableHead>
+                  ))}
                   <TableHead className="min-w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>

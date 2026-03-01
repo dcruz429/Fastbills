@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Search, History } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -71,6 +71,8 @@ export default function ArbitrationPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortCol, setSortCol] = useState<string>("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [historyId, setHistoryId] = useState<number | null>(null);
 
@@ -183,6 +185,27 @@ export default function ArbitrationPage() {
 
   const canDelete = user?.role === "admin" || user?.role === "manager";
 
+  const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
+  const numberColumns = new Set(["numberOfDays"]);
+
+  function handleSort(col: string) {
+    if (sortCol !== col) {
+      setSortCol(col);
+      setSortDir("asc");
+    } else if (sortDir === "asc") {
+      setSortDir("desc");
+    } else {
+      setSortCol("");
+      setSortDir("");
+    }
+  }
+
+  function renderSortIcon(col: string) {
+    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline-block opacity-50" />;
+    if (sortDir === "asc") return <ArrowUp className="h-3 w-3 ml-1 inline-block" />;
+    return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
+  }
+
   const filtered = (arbitrations || []).filter(d => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -195,6 +218,23 @@ export default function ArbitrationPage() {
       d.filedTo?.toLowerCase().includes(q)
     );
   });
+
+  const sorted = sortCol && sortDir ? [...filtered].sort((a, b) => {
+    const key = sortCol as keyof Arbitration;
+    const aVal = a[key];
+    const bVal = b[key];
+    let cmp = 0;
+    if (dateColumns.has(sortCol)) {
+      const aTime = aVal ? new Date(aVal as string).getTime() : 0;
+      const bTime = bVal ? new Date(bVal as string).getTime() : 0;
+      cmp = aTime - bTime;
+    } else if (numberColumns.has(sortCol)) {
+      cmp = (Number(aVal) || 0) - (Number(bVal) || 0);
+    } else {
+      cmp = String(aVal || "").localeCompare(String(bVal || ""));
+    }
+    return sortDir === "desc" ? -cmp : cmp;
+  }) : filtered;
 
   if (isLoading) {
     return (
@@ -232,40 +272,40 @@ export default function ArbitrationPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[120px]">File Name</TableHead>
-                  <TableHead className="min-w-[90px]">Date Input</TableHead>
-                  <TableHead className="min-w-[80px]">Intake</TableHead>
-                  <TableHead className="min-w-[90px]">DOA</TableHead>
-                  <TableHead className="min-w-[100px]">Clinic</TableHead>
-                  <TableHead className="min-w-[130px]">Patient Name</TableHead>
-                  <TableHead className="min-w-[100px]">Insurance</TableHead>
-                  <TableHead className="min-w-[100px]">Date of Letter</TableHead>
-                  <TableHead className="min-w-[120px]">Type of Denial</TableHead>
-                  <TableHead className="min-w-[100px]">Effective Date</TableHead>
-                  <TableHead className="min-w-[90px]">DOS From</TableHead>
-                  <TableHead className="min-w-[90px]">DOS To</TableHead>
-                  <TableHead className="min-w-[60px]"># Visits</TableHead>
-                  <TableHead className="min-w-[80px]">Amount</TableHead>
-                  <TableHead className="min-w-[120px]">Comments</TableHead>
-                  <TableHead className="min-w-[80px]">Filed To</TableHead>
-                  <TableHead className="min-w-[90px]">ARB Status</TableHead>
-                  <TableHead className="min-w-[90px]">Trial Date</TableHead>
-                  <TableHead className="min-w-[110px]">ARB Payment</TableHead>
-                  <TableHead className="min-w-[90px]">Amt Received</TableHead>
-                  <TableHead className="min-w-[90px]">Checked By</TableHead>
-                  <TableHead className="min-w-[120px]">Comment</TableHead>
+                  <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("denialFileName")} data-testid="sort-denialFileName">File Name{renderSortIcon("denialFileName")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dateInput")} data-testid="sort-dateInput">Date Input{renderSortIcon("dateInput")}</TableHead>
+                  <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("intake")} data-testid="sort-intake">Intake{renderSortIcon("intake")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("doa")} data-testid="sort-doa">DOA{renderSortIcon("doa")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic{renderSortIcon("clinic")}</TableHead>
+                  <TableHead className="min-w-[130px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient Name{renderSortIcon("patientName")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance{renderSortIcon("insurance")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("dateOfLetter")} data-testid="sort-dateOfLetter">Date of Letter{renderSortIcon("dateOfLetter")}</TableHead>
+                  <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("typeOfDenial")} data-testid="sort-typeOfDenial">Type of Denial{renderSortIcon("typeOfDenial")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("effectiveDate")} data-testid="sort-effectiveDate">Effective Date{renderSortIcon("effectiveDate")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosFrom")} data-testid="sort-dosFrom">DOS From{renderSortIcon("dosFrom")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosTo")} data-testid="sort-dosTo">DOS To{renderSortIcon("dosTo")}</TableHead>
+                  <TableHead className="min-w-[60px] cursor-pointer select-none" onClick={() => handleSort("numberOfDays")} data-testid="sort-numberOfDays"># Visits{renderSortIcon("numberOfDays")}</TableHead>
+                  <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount{renderSortIcon("amount")}</TableHead>
+                  <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("comments")} data-testid="sort-comments">Comments{renderSortIcon("comments")}</TableHead>
+                  <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("filedTo")} data-testid="sort-filedTo">Filed To{renderSortIcon("filedTo")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("arbStatus")} data-testid="sort-arbStatus">ARB Status{renderSortIcon("arbStatus")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("trialDate")} data-testid="sort-trialDate">Trial Date{renderSortIcon("trialDate")}</TableHead>
+                  <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("arbPaymentStatus")} data-testid="sort-arbPaymentStatus">ARB Payment{renderSortIcon("arbPaymentStatus")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("amountReceived")} data-testid="sort-amountReceived">Amt Received{renderSortIcon("amountReceived")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("checkedBy")} data-testid="sort-checkedBy">Checked By{renderSortIcon("checkedBy")}</TableHead>
+                  <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("comment")} data-testid="sort-comment">Comment{renderSortIcon("comment")}</TableHead>
                   <TableHead className="min-w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 && (
+                {sorted.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={23} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
                 )}
-                {filtered.map(d => (
+                {sorted.map(d => (
                   <TableRow key={d.id} data-testid={`row-arbitration-${d.id}`}>
                     <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>

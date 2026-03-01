@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, X, Search, History } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -115,6 +115,8 @@ export default function CollectionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [historyId, setHistoryId] = useState<number | null>(null);
+  const [sortCol, setSortCol] = useState<string>("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -217,7 +219,7 @@ export default function CollectionsPage() {
   };
 
   const q = searchQuery.toLowerCase();
-  const filtered = (dataList || []).filter(d =>
+  const filteredUnsorted = (dataList || []).filter(d =>
     d.patientName?.toLowerCase().includes(q) ||
     d.clinic?.toLowerCase().includes(q) ||
     d.insurance?.toLowerCase().includes(q) ||
@@ -225,6 +227,68 @@ export default function CollectionsPage() {
     d.division?.toLowerCase().includes(q) ||
     d.issueType?.toLowerCase().includes(q)
   );
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) {
+      if (sortDir === "asc") { setSortDir("desc"); }
+      else if (sortDir === "desc") { setSortCol(""); setSortDir(""); }
+      else { setSortDir("asc"); }
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline-block opacity-50" />;
+    if (sortDir === "asc") return <ArrowUp className="h-3 w-3 ml-1 inline-block" />;
+    return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
+  };
+
+  const dateColumns = new Set(["inputDate", "dosFrom", "dosTo"]);
+  const numberColumns = new Set(["numberOfVisits", "ageing"]);
+
+  const filtered = [...filteredUnsorted].sort((a, b) => {
+    if (!sortCol || !sortDir) return 0;
+
+    let valA: any;
+    let valB: any;
+
+    if (sortCol === "priority") {
+      const priorityOrder: Record<string, number> = { "Low <10 days": 0, "Medium <20 Days": 1, "High <30 Days": 2, "Critical >30 Days": 3 };
+      valA = priorityOrder[computePriority(a.inputDate)] ?? -1;
+      valB = priorityOrder[computePriority(b.inputDate)] ?? -1;
+      const diff = valA - valB;
+      return sortDir === "asc" ? diff : -diff;
+    }
+
+    if (sortCol === "ageing") {
+      valA = computeAgeing(a.inputDate) ?? -1;
+      valB = computeAgeing(b.inputDate) ?? -1;
+      const diff = valA - valB;
+      return sortDir === "asc" ? diff : -diff;
+    }
+
+    valA = (a as any)[sortCol] ?? "";
+    valB = (b as any)[sortCol] ?? "";
+
+    if (dateColumns.has(sortCol)) {
+      const tA = valA ? new Date(valA).getTime() : 0;
+      const tB = valB ? new Date(valB).getTime() : 0;
+      return sortDir === "asc" ? tA - tB : tB - tA;
+    }
+
+    if (numberColumns.has(sortCol)) {
+      const nA = parseFloat(valA) || 0;
+      const nB = parseFloat(valB) || 0;
+      return sortDir === "asc" ? nA - nB : nB - nA;
+    }
+
+    const sA = String(valA).toLowerCase();
+    const sB = String(valB).toLowerCase();
+    const cmp = sA.localeCompare(sB);
+    return sortDir === "asc" ? cmp : -cmp;
+  });
 
   if (isLoading) {
     return (
@@ -259,23 +323,23 @@ export default function CollectionsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[160px]">Patient's Name</TableHead>
-              <TableHead className="min-w-[90px]">Input Date</TableHead>
-              <TableHead className="min-w-[60px]">Clinic</TableHead>
-              <TableHead className="min-w-[70px]">Division</TableHead>
-              <TableHead className="min-w-[120px]">Insurance</TableHead>
-              <TableHead className="min-w-[90px]">DOS From</TableHead>
-              <TableHead className="min-w-[90px]">DOS To</TableHead>
-              <TableHead className="min-w-[50px]"># of Visits</TableHead>
-              <TableHead className="min-w-[80px]">Amount</TableHead>
-              <TableHead className="min-w-[120px]">Issue Type</TableHead>
-              <TableHead className="min-w-[120px]">Type of Denial</TableHead>
-              <TableHead className="min-w-[120px]">Action</TableHead>
-              <TableHead className="min-w-[100px]">Outcome</TableHead>
-              <TableHead className="min-w-[120px]">Priority</TableHead>
-              <TableHead className="min-w-[70px]">Ageing</TableHead>
-              <TableHead className="min-w-[120px]">Assigned to</TableHead>
-              <TableHead className="min-w-[100px]">Status</TableHead>
+              <TableHead className="min-w-[160px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient's Name <SortIcon col="patientName" /></TableHead>
+              <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("inputDate")} data-testid="sort-inputDate">Input Date <SortIcon col="inputDate" /></TableHead>
+              <TableHead className="min-w-[60px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic <SortIcon col="clinic" /></TableHead>
+              <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("division")} data-testid="sort-division">Division <SortIcon col="division" /></TableHead>
+              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance <SortIcon col="insurance" /></TableHead>
+              <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosFrom")} data-testid="sort-dosFrom">DOS From <SortIcon col="dosFrom" /></TableHead>
+              <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosTo")} data-testid="sort-dosTo">DOS To <SortIcon col="dosTo" /></TableHead>
+              <TableHead className="min-w-[50px] cursor-pointer select-none" onClick={() => handleSort("numberOfVisits")} data-testid="sort-numberOfVisits"># of Visits <SortIcon col="numberOfVisits" /></TableHead>
+              <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount <SortIcon col="amount" /></TableHead>
+              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("issueType")} data-testid="sort-issueType">Issue Type <SortIcon col="issueType" /></TableHead>
+              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("typeOfDenial")} data-testid="sort-typeOfDenial">Type of Denial <SortIcon col="typeOfDenial" /></TableHead>
+              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("action")} data-testid="sort-action">Action <SortIcon col="action" /></TableHead>
+              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("outcome")} data-testid="sort-outcome">Outcome <SortIcon col="outcome" /></TableHead>
+              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("priority")} data-testid="sort-priority">Priority <SortIcon col="priority" /></TableHead>
+              <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("ageing")} data-testid="sort-ageing">Ageing <SortIcon col="ageing" /></TableHead>
+              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned to <SortIcon col="assignedTo" /></TableHead>
+              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
               <TableHead className="min-w-[100px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
