@@ -177,7 +177,12 @@ export default function MessagesPage() {
           {selectedUserId && selectedUser ? (
             <>
               <div className="px-4 py-3 border-b">
-                <h3 className="font-semibold" data-testid="text-chat-user">{selectedUser.fullName}</h3>
+                <h3 className="font-semibold flex items-center gap-2" data-testid="text-chat-user">
+                  {selectedUser.fullName}
+                  {(sortedContacts.find(c => c.user?.id === selectedUserId)?.unreadCount || 0) > 0 && (
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 shrink-0" />
+                  )}
+                </h3>
                 <span className="text-xs text-muted-foreground capitalize">{selectedUser.role}</span>
               </div>
               <ScrollArea className="flex-1 p-4">
