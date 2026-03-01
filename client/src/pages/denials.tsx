@@ -74,7 +74,7 @@ export default function DenialsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [historyDenialId, setHistoryDenialId] = useState<number | null>(null);
 
-  if (!user || !["admin", "manager"].includes(user.role)) {
+  if (!user) {
     return <Redirect to="/" />;
   }
 
