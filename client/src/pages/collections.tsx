@@ -43,7 +43,8 @@ function toInputDate(d: string | Date | null | undefined) {
 }
 
 const emptyForm = {
-  patientName: "",
+  patientLastName: "",
+  patientFirstName: "",
   inputDate: "",
   clinic: "",
   division: "",
@@ -108,8 +109,16 @@ export default function CollectionsPage() {
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false);
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
 
+  const formToPayload = (f: typeof emptyForm) => {
+    const { patientLastName, patientFirstName, ...rest } = f;
+    const patientName = patientFirstName.trim()
+      ? `${patientLastName.trim()}, ${patientFirstName.trim()}`
+      : patientLastName.trim();
+    return { ...rest, patientName };
+  };
+
   const createMutation = useMutation({
-    mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/collections", data),
+    mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/collections", formToPayload(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
       setDialogOpen(false);
@@ -120,7 +129,7 @@ export default function CollectionsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => apiRequest("PATCH", `/api/collections/${id}`, data),
+    mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => apiRequest("PATCH", `/api/collections/${id}`, formToPayload(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
       setDialogOpen(false);
@@ -143,8 +152,10 @@ export default function CollectionsPage() {
 
   const handleEdit = (c: Collection) => {
     setEditingId(c.id);
+    const nameParts = (c.patientName || "").split(",").map(s => s.trim());
     setForm({
-      patientName: c.patientName || "",
+      patientLastName: nameParts[0] || "",
+      patientFirstName: nameParts[1] || "",
       inputDate: toInputDate(c.inputDate),
       clinic: c.clinic || "",
       division: c.division || "",
@@ -165,8 +176,8 @@ export default function CollectionsPage() {
   };
 
   const handleSubmit = () => {
-    if (!form.patientName.trim()) {
-      toast({ title: "Patient name is required", variant: "destructive" });
+    if (!form.patientLastName.trim()) {
+      toast({ title: "Last name is required", variant: "destructive" });
       return;
     }
     if (editingId) {
@@ -291,8 +302,12 @@ export default function CollectionsPage() {
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Patient's Name *</Label>
-              <Input value={form.patientName} onChange={e => setForm(f => ({ ...f, patientName: e.target.value }))} data-testid="input-collection-patient-name" />
+              <Label>Last Name *</Label>
+              <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-collection-last-name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>First Name</Label>
+              <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-collection-first-name" />
             </div>
             <div className="space-y-1.5">
               <Label>Input Date</Label>
