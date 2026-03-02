@@ -269,9 +269,9 @@ export default function DenialsPage() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[calc(100vh-280px)]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
                   {[
                     { key: "patientName", label: "Patient Name", minW: "130px" },
