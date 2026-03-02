@@ -517,6 +517,41 @@ export const insertDropdownOptionSchema = createInsertSchema(dropdownOptions).om
 export type DropdownOption = typeof dropdownOptions.$inferSelect;
 export type InsertDropdownOption = z.infer<typeof insertDropdownOptionSchema>;
 
+export const POSTING_DOCUMENT_TYPES = ["Payment", "Denials", "NP Forms", "MD Rx", "Med Records"];
+export const POSTING_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
+export const POSTING_PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
+
+export const postings = pgTable("postings", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  fileNumber: text("file_number"),
+  clinic: text("clinic"),
+  scannedDate: timestamp("scanned_date"),
+  documentType: text("document_type"),
+  postedDate: timestamp("posted_date"),
+  priority: text("priority"),
+  assignedTo: text("assigned_to"),
+  status: text("posting_status"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const postingActivity = pgTable("posting_activity", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  postingId: integer("posting_id").notNull().references(() => postings.id),
+  userId: integer("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  field: text("field"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+export const insertPostingSchema = createInsertSchema(postings).omit({ id: true, createdAt: true });
+export const insertPostingActivitySchema = createInsertSchema(postingActivity).omit({ id: true, timestamp: true });
+export type InsertPosting = z.infer<typeof insertPostingSchema>;
+export type Posting = typeof postings.$inferSelect;
+export type InsertPostingActivity = z.infer<typeof insertPostingActivitySchema>;
+export type PostingActivity = typeof postingActivity.$inferSelect;
+
 export const DROPDOWN_CATEGORIES = [
   { key: "denial_type", label: "Type of Denial" },
   { key: "filed_to", label: "Filed To" },

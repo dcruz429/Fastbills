@@ -937,6 +937,96 @@ export async function registerRoutes(
     }
   });
 
+  // Postings
+  app.get("/api/postings", requireAuth, async (_req, res) => {
+    try {
+      const all = await storage.getAllPostings();
+      res.json(all);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/postings", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can create postings" });
+      }
+      const data: any = { ...req.body };
+      const dateFields = ["scannedDate", "postedDate"];
+      for (const f of dateFields) {
+        if (data[f]) { data[f] = new Date(data[f]); } else { data[f] = null; }
+      }
+      const posting = await storage.createPosting(data);
+      await storage.createPostingActivity({
+        postingId: posting.id,
+        userId: req.session.userId!,
+        action: "Posting created",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
+      res.json(posting);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/postings/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can edit postings" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getPosting(id);
+      if (!existing) return res.status(404).json({ message: "Posting not found" });
+      const data: any = { ...req.body };
+      const dateFields = ["scannedDate", "postedDate"];
+      for (const f of dateFields) {
+        if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
+      }
+      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate"];
+      for (const field of trackFields) {
+        const oldVal = (existing as any)[field];
+        const newVal = data[field];
+        if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+          await storage.createPostingActivity({
+            postingId: id,
+            userId: req.session.userId!,
+            action: `Changed ${field}`,
+            field,
+            oldValue: oldVal ? String(oldVal) : null,
+            newValue: newVal ? String(newVal) : null,
+          });
+        }
+      }
+      const updated = await storage.updatePosting(id, data);
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/postings/:id/activity", requireAuth, async (req, res) => {
+    const activity = await storage.getPostingActivity(parseInt(req.params.id));
+    res.json(activity);
+  });
+
+  app.delete("/api/postings/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can delete postings" });
+      }
+      await storage.deletePosting(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // Announcements / Message Board
   app.get("/api/announcements/unread-count", requireAuth, async (req, res) => {
     try {

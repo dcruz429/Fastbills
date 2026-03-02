@@ -62,6 +62,12 @@ import {
   dropdownOptions,
   type DropdownOption,
   type InsertDropdownOption,
+  postings,
+  postingActivity,
+  type Posting,
+  type InsertPosting,
+  type PostingActivity,
+  type InsertPostingActivity,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -122,6 +128,14 @@ export interface IStorage {
   deleteCollection(id: number): Promise<void>;
   getCollectionActivity(collectionId: number): Promise<any[]>;
   createCollectionActivity(data: InsertCollectionActivity): Promise<CollectionActivity>;
+
+  getAllPostings(): Promise<Posting[]>;
+  getPosting(id: number): Promise<Posting | undefined>;
+  createPosting(data: InsertPosting): Promise<Posting>;
+  updatePosting(id: number, data: Partial<Posting>): Promise<Posting | undefined>;
+  deletePosting(id: number): Promise<void>;
+  getPostingActivity(postingId: number): Promise<any[]>;
+  createPostingActivity(data: InsertPostingActivity): Promise<PostingActivity>;
 
   getAllTickets(): Promise<TicketWithRelations[]>;
   getTicket(id: number): Promise<Ticket | undefined>;
@@ -507,6 +521,55 @@ export class DatabaseStorage implements IStorage {
 
   async createCollectionActivity(data: InsertCollectionActivity): Promise<CollectionActivity> {
     const [activity] = await db.insert(collectionActivity).values(data).returning();
+    return activity;
+  }
+
+  async getAllPostings(): Promise<Posting[]> {
+    return db.select().from(postings).orderBy(desc(postings.createdAt));
+  }
+
+  async getPosting(id: number): Promise<Posting | undefined> {
+    const [posting] = await db.select().from(postings).where(eq(postings.id, id));
+    return posting;
+  }
+
+  async createPosting(data: InsertPosting): Promise<Posting> {
+    const [posting] = await db.insert(postings).values(data).returning();
+    return posting;
+  }
+
+  async updatePosting(id: number, data: Partial<Posting>): Promise<Posting | undefined> {
+    const [posting] = await db.update(postings).set(data).where(eq(postings.id, id)).returning();
+    return posting;
+  }
+
+  async deletePosting(id: number): Promise<void> {
+    await db.delete(postingActivity).where(eq(postingActivity.postingId, id));
+    await db.delete(postings).where(eq(postings.id, id));
+  }
+
+  async getPostingActivity(postingId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: postingActivity.id,
+        postingId: postingActivity.postingId,
+        userId: postingActivity.userId,
+        action: postingActivity.action,
+        field: postingActivity.field,
+        oldValue: postingActivity.oldValue,
+        newValue: postingActivity.newValue,
+        timestamp: postingActivity.timestamp,
+        userName: users.fullName,
+      })
+      .from(postingActivity)
+      .leftJoin(users, eq(postingActivity.userId, users.id))
+      .where(eq(postingActivity.postingId, postingId))
+      .orderBy(desc(postingActivity.timestamp));
+    return rows;
+  }
+
+  async createPostingActivity(data: InsertPostingActivity): Promise<PostingActivity> {
+    const [activity] = await db.insert(postingActivity).values(data).returning();
     return activity;
   }
 

@@ -21,6 +21,7 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Reports**: CSV export with filters
 - **Audit Trail**: All task changes recorded with user, timestamp, old/new values
 - **Overdue Detection**: Visual highlighting, escalation levels (1/3/5 days)
+- **Posting**: Track scanned documents through posting workflow with File #, Clinic, Document Type, Priority, Assigned To, Status fields, slide-out drawer editing, activity history
 - **Denials**: Track insurance denials with full spreadsheet-style table, dropdown selects for Type of Denial, Filed To, ARB Status, ARB Payment Status
 - **Arbitration**: Separate tracker mirroring Denials template for arbitration cases with same columns, CRUD, activity history
 - **Productivity**: Date-filtered productivity metrics (This Month, Last Month, Last 3 Months, custom month)
@@ -73,6 +74,7 @@ client/src/
     arbitration.tsx    - Arbitration tracker
     productivity.tsx   - Productivity metrics page
     tickets.tsx        - Suggestion box / ticket system
+    posting.tsx        - Posting tracker page
     collections.tsx    - Collections tracker page
     message-board.tsx  - Announcements / message board
     messages.tsx       - Direct messaging
@@ -89,6 +91,6 @@ shared/
 ```
 
 ## Database Tables
-- users, tasks, task_activity, clinics, insurances, notifications, denials, arbitrations, collections, tickets, ticket_comments, announcements, announcement_acks, direct_messages, dropdown_options
+- users, tasks, task_activity, clinics, insurances, notifications, denials, arbitrations, collections, postings, posting_activity, tickets, ticket_comments, announcements, announcement_acks, direct_messages, dropdown_options
 - Enums: role, bucket, status, priority, ticket_status, ticket_priority, ticket_category
 - Denials columns: denialFileName, dateInput, intake (dropdown: active users), doa, clinic (dropdown: active clinics), patientName, insurance, dateOfLetter, typeOfDenial, effectiveDate, dosFrom, dosTo, numberOfDays (labeled "# of Visits"), amount, comments, filedTo, arbStatus, trialDate, arbPaymentStatus, amountReceived, checkedBy, comment

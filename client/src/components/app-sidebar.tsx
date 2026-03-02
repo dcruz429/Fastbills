@@ -15,6 +15,7 @@ import {
   Megaphone,
   MessageCircle,
   Scale,
+  FileText,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
@@ -55,6 +56,7 @@ const navItems = [
   { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner"] },
   { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner"] },
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner"] },
+  { title: "Posting", url: "/posting", icon: FileText, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
   { title: "Collections", url: "/collections", icon: Landmark, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
   { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
   { title: "Arbitration", url: "/arbitration", icon: Scale, roles: ["admin", "manager", "verifier", "biller", "assigner"] },

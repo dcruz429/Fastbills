@@ -22,6 +22,7 @@ import CollectionsPage from "@/pages/collections";
 import ArbitrationPage from "@/pages/arbitration";
 import MessageBoardPage from "@/pages/message-board";
 import MessagesPage from "@/pages/messages";
+import PostingPage from "@/pages/posting";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Router() {
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/denials" component={DenialsPage} />
       <Route path="/arbitration" component={ArbitrationPage} />
       <Route path="/tickets" component={TicketsPage} />
+      <Route path="/posting" component={PostingPage} />
       <Route path="/collections" component={CollectionsPage} />
       <Route path="/message-board" component={MessageBoardPage} />
       <Route path="/messages" component={MessagesPage} />
