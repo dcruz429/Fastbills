@@ -938,10 +938,16 @@ export async function registerRoutes(
   });
 
   // Postings
-  app.get("/api/postings", requireAuth, async (_req, res) => {
+  app.get("/api/postings", requireAuth, async (req, res) => {
     try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllPostings();
-      res.json(all);
+      if (["admin", "manager", "assigner"].includes(user.role)) {
+        res.json(all);
+      } else {
+        res.json(all.filter(p => p.assignedTo === user.fullName));
+      }
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
