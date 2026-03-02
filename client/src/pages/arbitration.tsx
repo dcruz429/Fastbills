@@ -255,8 +255,8 @@ export default function ArbitrationPage() {
   }
 
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="p-6 flex flex-col h-[calc(100vh-64px)] animate-fade-in">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <h1 className="text-2xl font-bold" data-testid="text-arbitration-title">Arbitration</h1>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -275,9 +275,9 @@ export default function ArbitrationPage() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-auto max-h-[calc(100vh-280px)]">
+      <Card className="flex-1 min-h-0 flex flex-col">
+        <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
+          <div className="overflow-auto flex-1 min-h-0">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>

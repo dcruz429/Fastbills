@@ -435,8 +435,8 @@ export default function CollectionsPage() {
   }
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="p-6 flex flex-col h-[calc(100vh-64px)] animate-fade-in">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold" data-testid="text-collections-title">Collections</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => { setCsvDialogOpen(true); setCsvPreview([]); setCsvFileName(""); }} data-testid="button-import-csv">
@@ -448,7 +448,7 @@ export default function CollectionsPage() {
         </div>
       </div>
 
-      <div className="relative max-w-sm">
+      <div className="relative max-w-sm mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search collections..."
@@ -459,7 +459,7 @@ export default function CollectionsPage() {
         />
       </div>
 
-      <div className="border rounded-lg overflow-auto max-h-[calc(100vh-220px)]">
+      <div className="border rounded-lg overflow-auto flex-1 min-h-0">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
