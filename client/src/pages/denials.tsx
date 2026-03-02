@@ -13,10 +13,12 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -61,13 +63,12 @@ const emptyForm = {
 export default function DenialsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [sendToArbId, setSendToArbId] = useState<number | null>(null);
-  const [historyDenialId, setHistoryDenialId] = useState<number | null>(null);
   const [sortCol, setSortCol] = useState<string>("patientName");
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
 
@@ -76,9 +77,9 @@ export default function DenialsPage() {
   }
 
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
-    queryKey: ["/api/denials", historyDenialId, "activity"],
-    queryFn: () => fetch(`/api/denials/${historyDenialId}/activity`, { credentials: "include" }).then(r => r.json()),
-    enabled: historyDenialId !== null,
+    queryKey: ["/api/denials", editingId, "activity"],
+    queryFn: () => fetch(`/api/denials/${editingId}/activity`, { credentials: "include" }).then(r => r.json()),
+    enabled: editingId !== null && drawerOpen,
   });
 
   const { data: denials, isLoading } = useQuery<Denial[]>({
@@ -97,7 +98,7 @@ export default function DenialsPage() {
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/denials", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
-      setDialogOpen(false);
+      setDrawerOpen(false);
       setForm({ ...emptyForm });
       toast({ title: "Denial created" });
     },
@@ -108,7 +109,8 @@ export default function DenialsPage() {
     mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => apiRequest("PATCH", `/api/denials/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
-      setDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/denials", editingId, "activity"] });
+      setDrawerOpen(false);
       setEditingId(null);
       setForm({ ...emptyForm });
       toast({ title: "Denial updated" });
@@ -121,6 +123,8 @@ export default function DenialsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
       setDeleteConfirmId(null);
+      setDrawerOpen(false);
+      setEditingId(null);
       toast({ title: "Denial deleted" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -140,7 +144,7 @@ export default function DenialsPage() {
   function openCreate() {
     setEditingId(null);
     setForm({ ...emptyForm });
-    setDialogOpen(true);
+    setDrawerOpen(true);
   }
 
   function openEdit(denial: Denial) {
@@ -165,7 +169,7 @@ export default function DenialsPage() {
       comment: denial.comment || "",
       assignedTo: denial.assignedTo || "",
     });
-    setDialogOpen(true);
+    setDrawerOpen(true);
   }
 
   function handleSubmit() {
@@ -251,6 +255,11 @@ export default function DenialsPage() {
     );
   }
 
+  const editingDenial = editingId ? (denials || []).find(d => d.id === editingId) : null;
+  const drawerTitle = editingId
+    ? (editingDenial?.patientName || "Edit Denial")
+    : "New Denial";
+
   return (
     <div className="p-6 flex flex-col h-[calc(100vh-64px)] animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
@@ -321,7 +330,12 @@ export default function DenialsPage() {
                   </TableRow>
                 )}
                 {filtered.map(d => (
-                  <TableRow key={d.id} data-testid={`row-denial-${d.id}`}>
+                  <TableRow
+                    key={d.id}
+                    className="cursor-pointer"
+                    onClick={() => openEdit(d)}
+                    data-testid={`row-denial-${d.id}`}
+                  >
                     <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                     <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
@@ -341,13 +355,7 @@ export default function DenialsPage() {
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHistoryDenialId(d.id)} data-testid={`button-history-denial-${d.id}`}>
-                          <History className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(d)} data-testid={`button-edit-denial-${d.id}`}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
+                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600" onClick={() => setSendToArbId(d.id)} title="Send to Arbitration" data-testid={`button-send-arb-${d.id}`}>
                           <Scale className="h-3.5 w-3.5" />
                         </Button>
@@ -366,137 +374,264 @@ export default function DenialsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Denial" : "New Denial"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
-            <div className="space-y-1.5">
-              <Label>Denial File Name</Label>
-              <Input value={form.denialFileName} onChange={e => setForm(f => ({ ...f, denialFileName: e.target.value }))} data-testid="input-denial-file-name" />
+      <Sheet open={drawerOpen} onOpenChange={(v) => {
+        if (!v) {
+          setDrawerOpen(false);
+          setEditingId(null);
+          setForm({ ...emptyForm });
+        }
+      }}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-[420px] p-0 flex flex-col"
+          data-testid="denial-detail-drawer"
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target?.closest("[role='listbox']") || target?.closest("[data-radix-popper-content-wrapper]")) {
+              e.preventDefault();
+            }
+          }}
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target?.closest("[role='listbox']") || target?.closest("[data-radix-popper-content-wrapper]")) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <SheetHeader className="p-4 pb-2">
+            <SheetTitle className="text-left" data-testid="text-denial-drawer-title">
+              {drawerTitle}
+            </SheetTitle>
+            {editingId && (
+              <p className="text-xs text-muted-foreground">Denial #{editingId}</p>
+            )}
+          </SheetHeader>
+
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Patient First Name</Label>
+                  <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-denial-patient-first-name" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Patient Last Name *</Label>
+                  <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-denial-patient-last-name" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Denial File Name</Label>
+                  <Input value={form.denialFileName} onChange={e => setForm(f => ({ ...f, denialFileName: e.target.value }))} data-testid="input-denial-file-name" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Date Input</Label>
+                  <Input type="date" value={form.dateInput} onChange={e => setForm(f => ({ ...f, dateInput: e.target.value }))} data-testid="input-denial-date-input" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Intake</Label>
+                  <Select value={form.intake || "__clear__"} onValueChange={v => setForm(f => ({ ...f, intake: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-intake">
+                      <SelectValue placeholder="Select user..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {activeUsers.map(u => (
+                        <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOA</Label>
+                  <Input type="date" value={form.doa} onChange={e => setForm(f => ({ ...f, doa: e.target.value }))} data-testid="input-denial-doa" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Clinic</Label>
+                  <Select value={form.clinic || "__clear__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-clinic">
+                      <SelectValue placeholder="Select clinic..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {activeClinics.map(c => (
+                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Insurance</Label>
+                  <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Select insurance</SelectItem>
+                      {sortedInsurances.map(ins => (
+                        <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Date of Letter</Label>
+                  <Input type="date" value={form.dateOfLetter} onChange={e => setForm(f => ({ ...f, dateOfLetter: e.target.value }))} data-testid="input-denial-date-of-letter" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Type of Denial</Label>
+                  <Select value={form.typeOfDenial} onValueChange={v => setForm(f => ({ ...f, typeOfDenial: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-type">
+                      <SelectValue placeholder="Select type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(denialTypeOptions || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Effective Date</Label>
+                  <Input type="date" value={form.effectiveDate} onChange={e => setForm(f => ({ ...f, effectiveDate: e.target.value }))} data-testid="input-denial-effective-date" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOS From</Label>
+                  <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-denial-dos-from" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOS To</Label>
+                  <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-denial-dos-to" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground"># of Visits</Label>
+                  <Input type="number" value={form.numberOfDays} onChange={e => setForm(f => ({ ...f, numberOfDays: e.target.value }))} data-testid="input-denial-days" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Amount</Label>
+                  <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-denial-amount" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Assigned To</Label>
+                  <Select value={form.assignedTo || "__clear__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-assigned-to">
+                      <SelectValue placeholder="Select user..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {activeUsers.map(u => (
+                        <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Comments</Label>
+                <Textarea value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} rows={2} data-testid="input-denial-comments" />
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={handleSubmit}
+                disabled={createMutation.isPending || updateMutation.isPending}
+                data-testid="button-save-denial"
+              >
+                {createMutation.isPending || updateMutation.isPending
+                  ? "Saving..."
+                  : editingId ? "Save Changes" : "Create"}
+              </Button>
+
+              {editingId && canDelete && (
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setDeleteConfirmId(editingId)}
+                  data-testid="button-delete-denial-drawer"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Denial
+                </Button>
+              )}
+
+              {editingId && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                      <History className="h-4 w-4" />
+                      Audit Trail
+                    </h3>
+                    {activityLoading ? (
+                      <div className="space-y-3">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                      </div>
+                    ) : !activityData || activityData.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No activity recorded yet</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {activityData.map((a: any) => (
+                          <div key={a.id} className="border rounded-md p-3 space-y-1" data-testid={`activity-denial-${a.id}`}>
+                            <div className="flex items-center justify-between flex-wrap gap-1">
+                              <span className="text-sm font-medium">{a.action}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(a.timestamp).toLocaleString("en-US", {
+                                  month: "short", day: "numeric", year: "numeric",
+                                  hour: "numeric", minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              by {a.userName || "System"}
+                            </div>
+                            {a.field && (
+                              <div className="text-xs mt-1 space-y-0.5">
+                                {a.oldValue && (
+                                  <div className="flex gap-1">
+                                    <span className="text-muted-foreground">From:</span>
+                                    <span className="line-through text-muted-foreground">{a.oldValue}</span>
+                                  </div>
+                                )}
+                                {a.newValue && (
+                                  <div className="flex gap-1">
+                                    <span className="text-muted-foreground">To:</span>
+                                    <span className="font-medium">{a.newValue}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>Date Input</Label>
-              <Input type="date" value={form.dateInput} onChange={e => setForm(f => ({ ...f, dateInput: e.target.value }))} data-testid="input-denial-date-input" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Intake</Label>
-              <Select value={form.intake || "__clear__"} onValueChange={v => setForm(f => ({ ...f, intake: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-denial-intake">
-                  <SelectValue placeholder="Select user..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {activeUsers.map(u => (
-                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>DOA</Label>
-              <Input type="date" value={form.doa} onChange={e => setForm(f => ({ ...f, doa: e.target.value }))} data-testid="input-denial-doa" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Patient First Name</Label>
-              <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-denial-patient-first-name" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Patient Last Name *</Label>
-              <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-denial-patient-last-name" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Clinic</Label>
-              <Select value={form.clinic || "__clear__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-denial-clinic">
-                  <SelectValue placeholder="Select clinic..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {activeClinics.map(c => (
-                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Insurance</Label>
-              <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-denial-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Select insurance</SelectItem>
-                  {sortedInsurances.map(ins => (
-                    <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Date of Letter</Label>
-              <Input type="date" value={form.dateOfLetter} onChange={e => setForm(f => ({ ...f, dateOfLetter: e.target.value }))} data-testid="input-denial-date-of-letter" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Type of Denial</Label>
-              <Select value={form.typeOfDenial} onValueChange={v => setForm(f => ({ ...f, typeOfDenial: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-denial-type">
-                  <SelectValue placeholder="Select type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {(denialTypeOptions || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Effective Date</Label>
-              <Input type="date" value={form.effectiveDate} onChange={e => setForm(f => ({ ...f, effectiveDate: e.target.value }))} data-testid="input-denial-effective-date" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>DOS From</Label>
-              <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-denial-dos-from" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>DOS To</Label>
-              <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-denial-dos-to" />
-            </div>
-            <div className="space-y-1.5">
-              <Label># of Visits</Label>
-              <Input type="number" value={form.numberOfDays} onChange={e => setForm(f => ({ ...f, numberOfDays: e.target.value }))} data-testid="input-denial-days" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Amount</Label>
-              <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-denial-amount" />
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <Label>Comments</Label>
-              <Textarea value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} rows={2} data-testid="input-denial-comments" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Assigned To</Label>
-              <Select value={form.assignedTo || "__clear__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-denial-assigned-to">
-                  <SelectValue placeholder="Select user..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {activeUsers.map(u => (
-                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel-denial">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-denial">
-              {editingId ? "Save Changes" : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={sendToArbId !== null} onOpenChange={() => setSendToArbId(null)}>
         <DialogContent className="max-w-sm">
@@ -525,63 +660,6 @@ export default function DenialsPage() {
               Delete
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={historyDenialId !== null} onOpenChange={() => setHistoryDenialId(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Audit Trail
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-[60vh] pr-4">
-            {activityLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : !activityData || activityData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No activity recorded yet</p>
-            ) : (
-              <div className="space-y-3">
-                {activityData.map((a: any) => (
-                  <div key={a.id} className="border rounded-lg p-3 space-y-1" data-testid={`activity-denial-${a.id}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{a.action}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(a.timestamp).toLocaleString("en-US", {
-                          month: "short", day: "numeric", year: "numeric",
-                          hour: "numeric", minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      by {a.userName || "System"}
-                    </div>
-                    {a.field && (
-                      <div className="text-xs mt-1 space-y-0.5">
-                        {a.oldValue && (
-                          <div className="flex gap-1">
-                            <span className="text-muted-foreground">From:</span>
-                            <span className="line-through text-muted-foreground">{a.oldValue}</span>
-                          </div>
-                        )}
-                        {a.newValue && (
-                          <div className="flex gap-1">
-                            <span className="text-muted-foreground">To:</span>
-                            <span className="font-medium">{a.newValue}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

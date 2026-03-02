@@ -12,11 +12,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -67,23 +70,23 @@ const emptyForm = {
 export default function ArbitrationPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
   const [sortCol, setSortCol] = useState<string>("patientName");
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const [historyId, setHistoryId] = useState<number | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   if (!user) {
     return <Redirect to="/" />;
   }
 
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
-    queryKey: ["/api/arbitrations", historyId, "activity"],
-    queryFn: () => fetch(`/api/arbitrations/${historyId}/activity`, { credentials: "include" }).then(r => r.json()),
-    enabled: historyId !== null,
+    queryKey: ["/api/arbitrations", editingId, "activity"],
+    queryFn: () => fetch(`/api/arbitrations/${editingId}/activity`, { credentials: "include" }).then(r => r.json()),
+    enabled: editingId !== null && drawerOpen,
   });
 
   const { data: arbitrations, isLoading } = useQuery<Arbitration[]>({
@@ -105,7 +108,7 @@ export default function ArbitrationPage() {
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/arbitrations", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
-      setDialogOpen(false);
+      setDrawerOpen(false);
       setForm({ ...emptyForm });
       toast({ title: "Arbitration created" });
     },
@@ -116,7 +119,8 @@ export default function ArbitrationPage() {
     mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => apiRequest("PATCH", `/api/arbitrations/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
-      setDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/arbitrations", editingId, "activity"] });
+      setDrawerOpen(false);
       setEditingId(null);
       setForm({ ...emptyForm });
       toast({ title: "Arbitration updated" });
@@ -129,6 +133,8 @@ export default function ArbitrationPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
       setDeleteConfirmId(null);
+      setDrawerOpen(false);
+      setEditingId(null);
       toast({ title: "Arbitration deleted" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -137,7 +143,8 @@ export default function ArbitrationPage() {
   function openCreate() {
     setEditingId(null);
     setForm({ ...emptyForm });
-    setDialogOpen(true);
+    setHistoryOpen(false);
+    setDrawerOpen(true);
   }
 
   function openEdit(arb: Arbitration) {
@@ -168,7 +175,8 @@ export default function ArbitrationPage() {
       comment: arb.comment || "",
       assignedTo: arb.assignedTo || "",
     });
-    setDialogOpen(true);
+    setHistoryOpen(false);
+    setDrawerOpen(true);
   }
 
   function handleSubmit() {
@@ -254,6 +262,10 @@ export default function ArbitrationPage() {
     );
   }
 
+  const drawerTitle = editingId
+    ? (form.patientFirstName ? `${form.patientLastName}, ${form.patientFirstName}` : form.patientLastName || "Edit Arbitration")
+    : "New Arbitration";
+
   return (
     <div className="p-6 flex flex-col h-[calc(100vh-64px)] animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
@@ -315,7 +327,7 @@ export default function ArbitrationPage() {
                   </TableRow>
                 )}
                 {sorted.map(d => (
-                  <TableRow key={d.id} data-testid={`row-arbitration-${d.id}`}>
+                  <TableRow key={d.id} className="cursor-pointer" onClick={() => openEdit(d)} data-testid={`row-arbitration-${d.id}`}>
                     <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                     <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
@@ -348,14 +360,8 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHistoryId(d.id)} data-testid={`button-history-arbitration-${d.id}`}>
-                          <History className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(d)} data-testid={`button-edit-arbitration-${d.id}`}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
                         {canDelete && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-arbitration-${d.id}`}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(d.id); }} data-testid={`button-delete-arbitration-${d.id}`}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
@@ -369,194 +375,325 @@ export default function ArbitrationPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Arbitration" : "New Arbitration"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
-            <div className="space-y-1.5">
-              <Label>File Name</Label>
-              <Input value={form.denialFileName} onChange={e => setForm(f => ({ ...f, denialFileName: e.target.value }))} data-testid="input-arb-file-name" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Date Input</Label>
-              <Input type="date" value={form.dateInput} onChange={e => setForm(f => ({ ...f, dateInput: e.target.value }))} data-testid="input-arb-date-input" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Intake</Label>
-              <Select value={form.intake || "__clear__"} onValueChange={v => setForm(f => ({ ...f, intake: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-arb-intake">
-                  <SelectValue placeholder="Select user..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {activeUsers.map(u => (
-                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>DOA</Label>
-              <Input type="date" value={form.doa} onChange={e => setForm(f => ({ ...f, doa: e.target.value }))} data-testid="input-arb-doa" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Patient First Name</Label>
-              <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-arb-patient-first-name" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Patient Last Name *</Label>
-              <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-arb-patient-last-name" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Clinic</Label>
-              <Select value={form.clinic || "__clear__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-arb-clinic">
-                  <SelectValue placeholder="Select clinic..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {activeClinics.map(c => (
-                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Insurance</Label>
-              <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-arb-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Select insurance</SelectItem>
-                  {sortedInsurances.map(ins => (
-                    <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Date of Letter</Label>
-              <Input type="date" value={form.dateOfLetter} onChange={e => setForm(f => ({ ...f, dateOfLetter: e.target.value }))} data-testid="input-arb-date-of-letter" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Type of Denial</Label>
-              <Select value={form.typeOfDenial} onValueChange={v => setForm(f => ({ ...f, typeOfDenial: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-arb-type">
-                  <SelectValue placeholder="Select type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {(denialTypeOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Effective Date</Label>
-              <Input type="date" value={form.effectiveDate} onChange={e => setForm(f => ({ ...f, effectiveDate: e.target.value }))} data-testid="input-arb-effective-date" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>DOS From</Label>
-              <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-arb-dos-from" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>DOS To</Label>
-              <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-arb-dos-to" />
-            </div>
-            <div className="space-y-1.5">
-              <Label># of Visits</Label>
-              <Input type="number" value={form.numberOfDays} onChange={e => setForm(f => ({ ...f, numberOfDays: e.target.value }))} data-testid="input-arb-days" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Amount</Label>
-              <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-arb-amount" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Filed To</Label>
-              <div className="relative" data-testid="combo-arb-filed-to">
-                <Input
-                  value={form.filedTo}
-                  onChange={e => setForm(f => ({ ...f, filedTo: e.target.value }))}
-                  placeholder="Type or select..."
-                  data-testid="input-arb-filed-to"
-                  list="arb-filed-to-options"
-                />
-                <datalist id="arb-filed-to-options">
-                  {(filedToOpts || []).map(o => o.value).map(o => (
-                    <option key={o} value={o} />
-                  ))}
-                </datalist>
+      <Sheet open={drawerOpen} onOpenChange={(v) => { if (!v) { setDrawerOpen(false); setEditingId(null); setForm({ ...emptyForm }); } }}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-[420px] p-0 flex flex-col"
+          data-testid="arbitration-detail-drawer"
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target?.closest("[role='listbox']") || target?.closest("[data-radix-popper-content-wrapper]")) {
+              e.preventDefault();
+            }
+          }}
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target?.closest("[role='listbox']") || target?.closest("[data-radix-popper-content-wrapper]")) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <SheetHeader className="p-4 pb-2">
+            <SheetTitle className="text-left" data-testid="text-arbitration-drawer-title">
+              {drawerTitle}
+            </SheetTitle>
+          </SheetHeader>
+
+          <ScrollArea className="flex-1">
+            <div className="p-4 pt-2 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Patient First Name</Label>
+                  <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-arb-patient-first-name" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Patient Last Name *</Label>
+                  <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-arb-patient-last-name" />
+                </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">File Name</Label>
+                  <Input value={form.denialFileName} onChange={e => setForm(f => ({ ...f, denialFileName: e.target.value }))} data-testid="input-arb-file-name" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Date Input</Label>
+                  <Input type="date" value={form.dateInput} onChange={e => setForm(f => ({ ...f, dateInput: e.target.value }))} data-testid="input-arb-date-input" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Intake</Label>
+                  <Select value={form.intake || "__clear__"} onValueChange={v => setForm(f => ({ ...f, intake: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-intake">
+                      <SelectValue placeholder="Select user..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {activeUsers.map(u => (
+                        <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOA</Label>
+                  <Input type="date" value={form.doa} onChange={e => setForm(f => ({ ...f, doa: e.target.value }))} data-testid="input-arb-doa" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Clinic</Label>
+                  <Select value={form.clinic || "__clear__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-clinic">
+                      <SelectValue placeholder="Select clinic..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {activeClinics.map(c => (
+                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Insurance</Label>
+                  <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Select insurance</SelectItem>
+                      {sortedInsurances.map(ins => (
+                        <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Date of Letter</Label>
+                  <Input type="date" value={form.dateOfLetter} onChange={e => setForm(f => ({ ...f, dateOfLetter: e.target.value }))} data-testid="input-arb-date-of-letter" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Type of Denial</Label>
+                  <Select value={form.typeOfDenial} onValueChange={v => setForm(f => ({ ...f, typeOfDenial: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-type">
+                      <SelectValue placeholder="Select type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(denialTypeOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Effective Date</Label>
+                  <Input type="date" value={form.effectiveDate} onChange={e => setForm(f => ({ ...f, effectiveDate: e.target.value }))} data-testid="input-arb-effective-date" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOS From</Label>
+                  <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-arb-dos-from" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOS To</Label>
+                  <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-arb-dos-to" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground"># of Visits</Label>
+                  <Input type="number" value={form.numberOfDays} onChange={e => setForm(f => ({ ...f, numberOfDays: e.target.value }))} data-testid="input-arb-days" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Amount</Label>
+                  <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-arb-amount" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Filed To</Label>
+                  <div className="relative" data-testid="combo-arb-filed-to">
+                    <Input
+                      value={form.filedTo}
+                      onChange={e => setForm(f => ({ ...f, filedTo: e.target.value }))}
+                      placeholder="Type or select..."
+                      data-testid="input-arb-filed-to"
+                      list="arb-filed-to-options"
+                    />
+                    <datalist id="arb-filed-to-options">
+                      {(filedToOpts || []).map(o => o.value).map(o => (
+                        <option key={o} value={o} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">ARB Status</Label>
+                  <Select value={form.arbStatus} onValueChange={v => setForm(f => ({ ...f, arbStatus: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-status">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(arbStatusOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Trial Date</Label>
+                  <Input type="date" value={form.trialDate} onChange={e => setForm(f => ({ ...f, trialDate: e.target.value }))} data-testid="input-arb-trial-date" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">ARB Payment Status</Label>
+                  <Select value={form.arbPaymentStatus} onValueChange={v => setForm(f => ({ ...f, arbPaymentStatus: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-payment">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(arbPaymentOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Amount Received</Label>
+                  <Input value={form.amountReceived} onChange={e => setForm(f => ({ ...f, amountReceived: e.target.value }))} placeholder="$0.00" data-testid="input-arb-amount-received" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Checked By</Label>
+                  <Input value={form.checkedBy} onChange={e => setForm(f => ({ ...f, checkedBy: e.target.value }))} data-testid="input-arb-checked-by" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Assigned To</Label>
+                  <Select value={form.assignedTo || "__clear__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-assigned-to">
+                      <SelectValue placeholder="Select user..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {activeUsers.map(u => (
+                        <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Comments</Label>
+                <Textarea value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} rows={2} data-testid="input-arb-comments" />
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={handleSubmit}
+                disabled={createMutation.isPending || updateMutation.isPending}
+                data-testid="button-save-arbitration"
+              >
+                {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingId ? "Save Changes" : "Create"}
+              </Button>
+
+              {editingId && canDelete && (
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setDeleteConfirmId(editingId)}
+                  data-testid="button-delete-arbitration-drawer"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Arbitration
+                </Button>
+              )}
+
+              {editingId && (
+                <>
+                  <Separator />
+                  <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-toggle-history">
+                        <History className="h-4 w-4" />
+                        <span className="text-sm font-semibold">Activity History</span>
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="space-y-3 pt-2">
+                        {activityLoading ? (
+                          <div className="space-y-3">
+                            <Skeleton className="h-12 w-full" />
+                            <Skeleton className="h-12 w-full" />
+                            <Skeleton className="h-12 w-full" />
+                          </div>
+                        ) : !activityData || activityData.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">No activity recorded yet</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {activityData.map((a: any) => (
+                              <div key={a.id} className="border rounded-md p-3 space-y-1" data-testid={`activity-arb-${a.id}`}>
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <span className="text-sm font-medium">{a.action}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(a.timestamp).toLocaleString("en-US", {
+                                      month: "short", day: "numeric", year: "numeric",
+                                      hour: "numeric", minute: "2-digit",
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  by {a.userName || "System"}
+                                </div>
+                                {a.field && (
+                                  <div className="text-xs mt-1 space-y-0.5">
+                                    {a.oldValue && (
+                                      <div className="flex gap-1 flex-wrap">
+                                        <span className="text-muted-foreground">From:</span>
+                                        <span className="line-through text-muted-foreground">{a.oldValue}</span>
+                                      </div>
+                                    )}
+                                    {a.newValue && (
+                                      <div className="flex gap-1 flex-wrap">
+                                        <span className="text-muted-foreground">To:</span>
+                                        <span className="font-medium">{a.newValue}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>ARB Status</Label>
-              <Select value={form.arbStatus} onValueChange={v => setForm(f => ({ ...f, arbStatus: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-arb-status">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {(arbStatusOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Trial Date</Label>
-              <Input type="date" value={form.trialDate} onChange={e => setForm(f => ({ ...f, trialDate: e.target.value }))} data-testid="input-arb-trial-date" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>ARB Payment Status</Label>
-              <Select value={form.arbPaymentStatus} onValueChange={v => setForm(f => ({ ...f, arbPaymentStatus: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-arb-payment">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {(arbPaymentOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Amount Received</Label>
-              <Input value={form.amountReceived} onChange={e => setForm(f => ({ ...f, amountReceived: e.target.value }))} placeholder="$0.00" data-testid="input-arb-amount-received" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Checked By</Label>
-              <Input value={form.checkedBy} onChange={e => setForm(f => ({ ...f, checkedBy: e.target.value }))} data-testid="input-arb-checked-by" />
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <Label>Comments</Label>
-              <Textarea value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} rows={2} data-testid="input-arb-comments" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Assigned To</Label>
-              <Select value={form.assignedTo || "__clear__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__clear__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-arb-assigned-to">
-                  <SelectValue placeholder="Select user..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear__">-- None --</SelectItem>
-                  {activeUsers.map(u => (
-                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel-arbitration">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-arbitration">
-              {editingId ? "Save Changes" : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={deleteConfirmId !== null} onOpenChange={() => setDeleteConfirmId(null)}>
         <DialogContent className="max-w-sm">
@@ -570,63 +707,6 @@ export default function ArbitrationPage() {
               Delete
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={historyId !== null} onOpenChange={() => setHistoryId(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Audit Trail
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-[60vh] pr-4">
-            {activityLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : !activityData || activityData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No activity recorded yet</p>
-            ) : (
-              <div className="space-y-3">
-                {activityData.map((a: any) => (
-                  <div key={a.id} className="border rounded-lg p-3 space-y-1" data-testid={`activity-arb-${a.id}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{a.action}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(a.timestamp).toLocaleString("en-US", {
-                          month: "short", day: "numeric", year: "numeric",
-                          hour: "numeric", minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      by {a.userName || "System"}
-                    </div>
-                    {a.field && (
-                      <div className="text-xs mt-1 space-y-0.5">
-                        {a.oldValue && (
-                          <div className="flex gap-1">
-                            <span className="text-muted-foreground">From:</span>
-                            <span className="line-through text-muted-foreground">{a.oldValue}</span>
-                          </div>
-                        )}
-                        {a.newValue && (
-                          <div className="flex gap-1">
-                            <span className="text-muted-foreground">To:</span>
-                            <span className="font-medium">{a.newValue}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

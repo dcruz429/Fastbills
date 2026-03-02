@@ -10,9 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload } from "lucide-react";
+import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, Clock, User as UserIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -110,7 +113,7 @@ export default function CollectionsPage() {
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const [historyId, setHistoryId] = useState<number | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [sortCol, setSortCol] = useState<string>("patientName");
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
@@ -122,9 +125,9 @@ export default function CollectionsPage() {
   }
 
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
-    queryKey: ["/api/collections", historyId, "activity"],
-    queryFn: () => fetch(`/api/collections/${historyId}/activity`, { credentials: "include" }).then(r => r.json()),
-    enabled: historyId !== null,
+    queryKey: ["/api/collections", editingId, "activity"],
+    queryFn: () => fetch(`/api/collections/${editingId}/activity`, { credentials: "include" }).then(r => r.json()),
+    enabled: editingId !== null,
   });
 
   const { data: dataList, isLoading } = useQuery<Collection[]>({
@@ -338,6 +341,7 @@ export default function CollectionsPage() {
       assignedTo: c.assignedTo || "",
       status: c.status || "",
     });
+    setHistoryOpen(false);
     setDialogOpen(true);
   };
 
@@ -492,7 +496,7 @@ export default function CollectionsPage() {
               </TableRow>
             ) : (
               filtered.map(d => (
-                <TableRow key={d.id} data-testid={`row-collection-${d.id}`}>
+                <TableRow key={d.id} data-testid={`row-collection-${d.id}`} className="cursor-pointer" onClick={() => handleEdit(d)}>
                   <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                   <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
                   <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
@@ -510,14 +514,8 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs font-medium" data-testid={`text-ageing-${d.id}`}>{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
                   <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                   <TableCell className="text-xs">{d.status ? <Badge className={`text-xs ${statusColor(d.status)}`}>{d.status}</Badge> : "-"}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setHistoryId(d.id)} data-testid={`button-history-collection-${d.id}`}>
-                        <History className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(d)} data-testid={`button-edit-collection-${d.id}`}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-${d.id}`}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -530,177 +528,285 @@ export default function CollectionsPage() {
         </Table>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={v => { if (!v) { setDialogOpen(false); setEditingId(null); } }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle data-testid="text-collection-dialog-title">{editingId ? "Edit Collection" : "New Collection"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Last Name *</Label>
-              <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-collection-last-name" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>First Name</Label>
-              <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-collection-first-name" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Input Date</Label>
-              <Input type="date" value={form.inputDate} onChange={e => setForm(f => ({ ...f, inputDate: e.target.value }))} data-testid="input-collection-input-date" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Clinic</Label>
-              <Select value={form.clinic || "__none__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-clinic"><SelectValue placeholder="Select clinic" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {activeClinics.map(c => (
-                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Division</Label>
-              <Select value={form.division || "__none__"} onValueChange={v => setForm(f => ({ ...f, division: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-division"><SelectValue placeholder="Select division" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {(divisionOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Insurance</Label>
-              <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Select insurance</SelectItem>
-                  {sortedInsurances.map(ins => (
-                    <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>DOS From</Label>
-              <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-collection-dos-from" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>DOS To</Label>
-              <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-collection-dos-to" />
-            </div>
-            <div className="space-y-1.5">
-              <Label># of Visits</Label>
-              <Input type="number" value={form.numberOfVisits} onChange={e => setForm(f => ({ ...f, numberOfVisits: e.target.value }))} data-testid="input-collection-visits" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Amount</Label>
-              <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-collection-amount" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Issue Type</Label>
-              <Select value={form.issueType || "__none__"} onValueChange={v => setForm(f => ({ ...f, issueType: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-issue-type"><SelectValue placeholder="Select..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {(issueTypeOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Type of Denial</Label>
-              <Select value={form.typeOfDenial || "__none__"} onValueChange={v => setForm(f => ({ ...f, typeOfDenial: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-type-denial"><SelectValue placeholder="Select..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {(denialTypeOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Action</Label>
-              <Select value={form.action || "__none__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-action"><SelectValue placeholder="Select..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {(actionOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Outcome</Label>
-              <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-outcome"><SelectValue placeholder="Select..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {(outcomeOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Priority (auto)</Label>
-              <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-priority">
-                {form.inputDate ? (
-                  <Badge className={`text-xs ${priorityColor(computePriority(form.inputDate))}`}>{computePriority(form.inputDate)}</Badge>
-                ) : (
-                  <span className="text-muted-foreground">Set Input Date to compute</span>
-                )}
+      <Sheet open={dialogOpen} onOpenChange={v => { if (!v) { setDialogOpen(false); setEditingId(null); } }}>
+        <SheetContent
+          side="right"
+          className="w-[420px] sm:max-w-[420px] p-0"
+          data-testid="collection-detail-drawer"
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target?.closest("[role='listbox']") || target?.closest("[data-radix-popper-content-wrapper]")) {
+              e.preventDefault();
+            }
+          }}
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target?.closest("[role='listbox']") || target?.closest("[data-radix-popper-content-wrapper]")) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <SheetHeader className="p-4 pb-0">
+            <SheetTitle className="text-left" data-testid="text-collection-dialog-title">
+              {editingId ? (form.patientFirstName ? `${form.patientLastName}, ${form.patientFirstName}` : form.patientLastName || "Edit Collection") : "New Collection"}
+            </SheetTitle>
+            {editingId && (
+              <p className="text-xs text-muted-foreground">Collection #{editingId}</p>
+            )}
+          </SheetHeader>
+
+          <ScrollArea className="h-[calc(100vh-80px)]">
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Last Name *</Label>
+                  <Input value={form.patientLastName} onChange={e => setForm(f => ({ ...f, patientLastName: e.target.value }))} data-testid="input-collection-last-name" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">First Name</Label>
+                  <Input value={form.patientFirstName} onChange={e => setForm(f => ({ ...f, patientFirstName: e.target.value }))} data-testid="input-collection-first-name" />
+                </div>
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Ageing (auto)</Label>
-              <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-ageing">
-                {form.inputDate ? (
-                  <span className="font-medium">{computeAgeing(form.inputDate) ?? 0} days</span>
-                ) : (
-                  <span className="text-muted-foreground">Set Input Date to compute</span>
-                )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Input Date</Label>
+                  <Input type="date" value={form.inputDate} onChange={e => setForm(f => ({ ...f, inputDate: e.target.value }))} data-testid="input-collection-input-date" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Clinic</Label>
+                  <Select value={form.clinic || "__none__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-clinic"><SelectValue placeholder="Select clinic" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {activeClinics.map(c => (
+                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Division</Label>
+                  <Select value={form.division || "__none__"} onValueChange={v => setForm(f => ({ ...f, division: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-division"><SelectValue placeholder="Select division" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(divisionOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Insurance</Label>
+                  <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Select insurance</SelectItem>
+                      {sortedInsurances.map(ins => (
+                        <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOS From</Label>
+                  <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-collection-dos-from" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOS To</Label>
+                  <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-collection-dos-to" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground"># of Visits</Label>
+                  <Input type="number" value={form.numberOfVisits} onChange={e => setForm(f => ({ ...f, numberOfVisits: e.target.value }))} data-testid="input-collection-visits" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Amount</Label>
+                  <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-collection-amount" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Issue Type</Label>
+                  <Select value={form.issueType || "__none__"} onValueChange={v => setForm(f => ({ ...f, issueType: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-issue-type"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(issueTypeOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Type of Denial</Label>
+                  <Select value={form.typeOfDenial || "__none__"} onValueChange={v => setForm(f => ({ ...f, typeOfDenial: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-type-denial"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(denialTypeOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Action</Label>
+                  <Select value={form.action || "__none__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-action"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(actionOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Outcome</Label>
+                  <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-outcome"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(outcomeOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Priority (auto)</Label>
+                  <div className="flex items-center h-9 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-priority">
+                    {form.inputDate ? (
+                      <Badge className={`text-xs ${priorityColor(computePriority(form.inputDate))}`}>{computePriority(form.inputDate)}</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Set Input Date</span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Ageing (auto)</Label>
+                  <div className="flex items-center h-9 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-ageing">
+                    {form.inputDate ? (
+                      <span className="font-medium text-xs">{computeAgeing(form.inputDate) ?? 0} days</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Set Input Date</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Assigned to</Label>
+                  <Select value={form.assignedTo || "__none__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-assigned"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {activeUsers.map(u => (
+                        <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={form.status || "__none__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-status"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(statusOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={handleSubmit}
+                disabled={createMutation.isPending || updateMutation.isPending}
+                data-testid="button-save-collection"
+              >
+                {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+
+              {editingId && (
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setDeleteConfirmId(editingId)}
+                  data-testid="button-delete-collection-drawer"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Collection
+                </Button>
+              )}
+
+              {editingId && (
+                <>
+                  <Separator />
+                  <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-between" data-testid="button-toggle-history">
+                        <span className="flex items-center gap-1.5 text-sm font-semibold">
+                          <History className="h-4 w-4" />
+                          Activity History
+                        </span>
+                        <ChevronDown className={`h-4 w-4 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="pt-2 space-y-2">
+                        {activityLoading ? (
+                          <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : activityData && activityData.length > 0 ? (
+                          <div className="space-y-2">
+                            {activityData.map((a: any) => (
+                              <div key={a.id} className="text-xs p-2.5 rounded-md bg-muted/50 space-y-0.5">
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <UserIcon className="h-3 w-3" />
+                                  <span className="font-medium text-foreground">{a.action}</span>
+                                  <span className="mx-0.5">·</span>
+                                  <Clock className="h-3 w-3" />
+                                  <span>{new Date(a.timestamp).toLocaleString()}</span>
+                                </div>
+                                {a.userName && <p className="text-xs text-muted-foreground">by {a.userName}</p>}
+                                {a.oldValue && a.newValue && (
+                                  <p className="text-xs mt-1">
+                                    <span className="line-through text-muted-foreground">{a.oldValue}</span>
+                                    {" → "}
+                                    <span className="font-medium">{a.newValue}</span>
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-4">No activity recorded</p>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>Assigned to</Label>
-              <Select value={form.assignedTo || "__none__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-assigned"><SelectValue placeholder="Select..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {activeUsers.map(u => (
-                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={form.status || "__none__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-collection-status"><SelectValue placeholder="Select..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {(statusOpts || []).map(o => o.value).map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setDialogOpen(false); setEditingId(null); }} data-testid="button-cancel-collection">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-collection">
-              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={deleteConfirmId !== null} onOpenChange={() => setDeleteConfirmId(null)}>
         <DialogContent>
@@ -708,47 +814,8 @@ export default function CollectionsPage() {
           <p>Are you sure you want to delete this collection entry? This cannot be undone.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => deleteConfirmId && deleteMutation.mutate(deleteConfirmId)} data-testid="button-confirm-delete-collection">Delete</Button>
+            <Button variant="destructive" onClick={() => { if (deleteConfirmId) { deleteMutation.mutate(deleteConfirmId); if (deleteConfirmId === editingId) { setDialogOpen(false); setEditingId(null); } } }} data-testid="button-confirm-delete-collection">Delete</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={historyId !== null} onOpenChange={() => setHistoryId(null)}>
-        <DialogContent className="max-w-lg max-h-[70vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="h-4 w-4" /> Activity History
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[50vh]">
-            {activityLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : activityData && activityData.length > 0 ? (
-              <div className="space-y-3">
-                {activityData.map((a: any) => (
-                  <div key={a.id} className="border rounded p-2 text-sm">
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium">{a.action}</span>
-                      <span className="text-xs text-muted-foreground">{new Date(a.timestamp).toLocaleString()}</span>
-                    </div>
-                    {a.userName && <p className="text-xs text-muted-foreground">by {a.userName}</p>}
-                    {a.oldValue && a.newValue && (
-                      <p className="text-xs mt-1">
-                        <span className="line-through text-muted-foreground">{a.oldValue}</span>
-                        {" → "}
-                        <span className="font-medium">{a.newValue}</span>
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No activity recorded</p>
-            )}
-          </ScrollArea>
         </DialogContent>
       </Dialog>
 
