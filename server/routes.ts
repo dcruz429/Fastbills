@@ -924,6 +924,34 @@ export async function registerRoutes(
     res.json(await storage.getCollectionActivity(collectionId));
   });
 
+  app.post("/api/collections/:id/notes", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { note } = req.body;
+      if (!note) return res.status(400).json({ message: "Note required" });
+      const existing = await storage.getCollection(id);
+      if (!existing) return res.status(404).json({ message: "Collection not found" });
+      const existingNotes = existing.notes || "";
+      const user = await storage.getUser(req.session.userId!);
+      const timestamp = new Date().toISOString();
+      const newNotes = existingNotes
+        ? `${existingNotes}\n\n[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`
+        : `[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`;
+      await storage.updateCollection(id, { notes: newNotes });
+      await storage.createCollectionActivity({
+        collectionId: id,
+        userId: req.session.userId!,
+        action: "Added note",
+        field: "notes",
+        oldValue: null,
+        newValue: note,
+      });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.delete("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

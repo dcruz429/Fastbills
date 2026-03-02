@@ -267,6 +267,7 @@ export const collections = pgTable("collections", {
   priority: text("priority"),
   assignedTo: text("assigned_to"),
   status: text("collection_status"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

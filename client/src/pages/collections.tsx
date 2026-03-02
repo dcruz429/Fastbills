@@ -15,7 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, Clock, User as UserIcon } from "lucide-react";
+import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, Clock, User as UserIcon, MessageSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -119,6 +120,7 @@ export default function CollectionsPage() {
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvFileName, setCsvFileName] = useState("");
+  const [newNote, setNewNote] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -204,6 +206,17 @@ export default function CollectionsPage() {
       });
     },
     onError: (e: any) => toast({ title: "Import failed", description: e.message, variant: "destructive" }),
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: (note: string) => apiRequest("POST", `/api/collections/${editingId}/notes`, { note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/collections", editingId, "activity"] });
+      setNewNote("");
+      toast({ title: "Note added" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const CSV_COLUMN_MAP: Record<string, string> = {
@@ -342,6 +355,7 @@ export default function CollectionsPage() {
       status: c.status || "",
     });
     setHistoryOpen(false);
+    setNewNote("");
     setDialogOpen(true);
   };
 
@@ -752,6 +766,64 @@ export default function CollectionsPage() {
                   Delete Collection
                 </Button>
               )}
+
+              {editingId && (() => {
+                const currentCollection = (dataList || []).find(c => c.id === editingId);
+                return (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                        <MessageSquare className="h-4 w-4" />
+                        Notes
+                      </h3>
+                      {currentCollection?.notes && (
+                        <div className="space-y-2 max-h-48 overflow-y-auto" data-testid="notes-display">
+                          {currentCollection.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse().map((block: string, idx: number) => {
+                            const headerMatch = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
+                            if (headerMatch) {
+                              return (
+                                <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50 space-y-0.5" data-testid={`note-item-${idx}`}>
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <UserIcon className="h-3 w-3" />
+                                    <span className="font-medium text-foreground">{headerMatch[1]}</span>
+                                    <span className="mx-0.5">·</span>
+                                    <Clock className="h-3 w-3" />
+                                    <span>{new Date(headerMatch[2]).toLocaleString()}</span>
+                                  </div>
+                                  <p className="text-foreground whitespace-pre-wrap">{headerMatch[3].trim()}</p>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50" data-testid={`note-item-${idx}`}>
+                                <p className="text-foreground whitespace-pre-wrap">{block.trim()}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Textarea
+                          placeholder="Add a note..."
+                          value={newNote}
+                          onChange={(e) => setNewNote(e.target.value)}
+                          className="text-sm"
+                          data-testid="input-collection-note"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => newNote.trim() && addNoteMutation.mutate(newNote.trim())}
+                        disabled={!newNote.trim() || addNoteMutation.isPending}
+                        data-testid="button-add-note"
+                      >
+                        Add Note
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
 
               {editingId && (
                 <>
