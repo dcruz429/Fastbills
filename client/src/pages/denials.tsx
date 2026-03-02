@@ -63,8 +63,8 @@ export default function DenialsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [sendToArbId, setSendToArbId] = useState<number | null>(null);
   const [historyDenialId, setHistoryDenialId] = useState<number | null>(null);
-  const [sortCol, setSortCol] = useState<string>("");
-  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("");
+  const [sortCol, setSortCol] = useState<string>("patientName");
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
 
   if (!user) {
     return <Redirect to="/" />;

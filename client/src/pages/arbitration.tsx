@@ -66,8 +66,8 @@ export default function ArbitrationPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortCol, setSortCol] = useState<string>("");
-  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("");
+  const [sortCol, setSortCol] = useState<string>("patientName");
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [historyId, setHistoryId] = useState<number | null>(null);
 
