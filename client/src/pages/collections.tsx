@@ -18,9 +18,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
-  const date = new Date(d);
+  const str = typeof d === "string" ? d : d.toISOString();
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return `${parseInt(match[2])}/${parseInt(match[3])}/${match[1]}`;
+  }
+  const date = new Date(str);
   if (isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", { timeZone: "America/New_York" });
+  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()}`;
 }
 
 function toInputDate(d: string | Date | null | undefined) {
