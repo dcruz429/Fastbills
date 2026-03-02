@@ -459,7 +459,7 @@ export default function CollectionsPage() {
         />
       </div>
 
-      <div className="border rounded-lg overflow-auto flex-1 min-h-0">
+      <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
