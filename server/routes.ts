@@ -806,8 +806,8 @@ export async function registerRoutes(
   app.post("/api/collections", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins and managers can create collections" });
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can create collections" });
       }
       const data: any = { ...req.body };
       const dateFields = ["inputDate", "dosFrom", "dosTo"];
@@ -835,8 +835,8 @@ export async function registerRoutes(
   app.post("/api/collections/import-csv", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins and managers can import collections" });
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can import collections" });
       }
       const { rows } = req.body;
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -882,8 +882,8 @@ export async function registerRoutes(
   app.patch("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins and managers can edit collections" });
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can edit collections" });
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getCollection(id);
@@ -927,8 +927,8 @@ export async function registerRoutes(
   app.delete("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins and managers can delete collections" });
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can delete collections" });
       }
       await storage.deleteCollection(parseInt(req.params.id));
       res.json({ ok: true });
