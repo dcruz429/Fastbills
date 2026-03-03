@@ -973,8 +973,8 @@ export async function registerRoutes(
   app.post("/api/collections/remove-duplicates", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and case coordinators can remove duplicates" });
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can remove duplicates" });
       }
       const all = await storage.getAllCollections();
       const seen = new Map<string, number>();

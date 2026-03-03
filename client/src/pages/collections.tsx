@@ -499,18 +499,20 @@ export default function CollectionsPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold" data-testid="text-collections-title">Collections</h1>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (confirm("This will remove duplicate collections (matching patient name + clinic), keeping the one with the most data. Continue?")) {
-                removeDuplicatesMutation.mutate();
-              }
-            }}
-            disabled={removeDuplicatesMutation.isPending}
-            data-testid="button-remove-duplicates"
-          >
-            <Copy className="h-4 w-4 mr-1" /> {removeDuplicatesMutation.isPending ? "Removing..." : "Remove Duplicates"}
-          </Button>
+          {user.role === "admin" && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (confirm("This will remove duplicate collections (matching patient name + clinic), keeping the one with the most data. Continue?")) {
+                  removeDuplicatesMutation.mutate();
+                }
+              }}
+              disabled={removeDuplicatesMutation.isPending}
+              data-testid="button-remove-duplicates"
+            >
+              <Copy className="h-4 w-4 mr-1" /> {removeDuplicatesMutation.isPending ? "Removing..." : "Remove Duplicates"}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => { setCsvDialogOpen(true); setCsvPreview([]); setCsvFileName(""); }} data-testid="button-import-csv">
             <Upload className="h-4 w-4 mr-1" /> Import CSV
           </Button>
