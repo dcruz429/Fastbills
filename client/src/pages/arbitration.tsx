@@ -227,7 +227,7 @@ export default function ArbitrationPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   }
 
-  const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner";
 
   const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo].filter(f => f && f !== "__all__").length;
 

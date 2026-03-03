@@ -679,8 +679,8 @@ export async function registerRoutes(
   app.delete("/api/denials/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || (user.role !== "admin" && user.role !== "manager")) {
-        return res.status(403).json({ message: "Only admins and managers can delete denials" });
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can delete denials" });
       }
       await storage.deleteDenial(parseInt(req.params.id));
       res.json({ ok: true });
@@ -780,8 +780,8 @@ export async function registerRoutes(
   app.delete("/api/arbitrations/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || (user.role !== "admin" && user.role !== "manager")) {
-        return res.status(403).json({ message: "Only admins and managers can delete arbitrations" });
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and assigners can delete arbitrations" });
       }
       await storage.deleteArbitration(parseInt(req.params.id));
       res.json({ ok: true });
