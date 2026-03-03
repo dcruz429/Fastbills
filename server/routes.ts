@@ -539,8 +539,19 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
-  app.get("/api/denials", requireAuth, async (_req, res) => {
-    res.json(await storage.getAllDenials());
+  app.get("/api/denials", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const all = await storage.getAllDenials();
+      if (["admin", "manager", "assigner"].includes(user.role)) {
+        res.json(all);
+      } else {
+        res.json(all.filter(d => d.assignedTo === user.fullName));
+      }
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
   });
 
   const denialFieldLabels: Record<string, string> = {
@@ -690,8 +701,19 @@ export async function registerRoutes(
   });
 
   // Arbitration routes
-  app.get("/api/arbitrations", requireAuth, async (_req, res) => {
-    res.json(await storage.getAllArbitrations());
+  app.get("/api/arbitrations", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const all = await storage.getAllArbitrations();
+      if (["admin", "manager", "assigner"].includes(user.role)) {
+        res.json(all);
+      } else {
+        res.json(all.filter(a => a.assignedTo === user.fullName));
+      }
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
   });
 
   const arbFieldLabels: Record<string, string> = {
@@ -791,8 +813,19 @@ export async function registerRoutes(
   });
 
   // Collections routes
-  app.get("/api/collections", requireAuth, async (_req, res) => {
-    res.json(await storage.getAllCollections());
+  app.get("/api/collections", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const all = await storage.getAllCollections();
+      if (["admin", "manager", "assigner"].includes(user.role)) {
+        res.json(all);
+      } else {
+        res.json(all.filter(c => c.assignedTo === user.fullName));
+      }
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
   });
 
   const collectionFieldLabels: Record<string, string> = {
