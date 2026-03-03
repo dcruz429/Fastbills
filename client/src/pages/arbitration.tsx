@@ -249,7 +249,7 @@ export default function ArbitrationPage() {
     if (filterFiledTo && filterFiledTo !== "__all__" && d.filedTo !== filterFiledTo) return false;
     if (filterArbStatus && filterArbStatus !== "__all__" && d.arbStatus !== filterArbStatus) return false;
     if (filterArbPaymentStatus && filterArbPaymentStatus !== "__all__" && d.arbPaymentStatus !== filterArbPaymentStatus) return false;
-    if (filterAssignedTo && filterAssignedTo !== "__all__" && d.assignedTo !== filterAssignedTo) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").trim() !== filterAssignedTo.trim()) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -430,8 +430,8 @@ export default function ArbitrationPage() {
                 <SelectContent>
                   <SelectItem value="__all__">All</SelectItem>
                   {(() => {
-                    const names = new Set(activeUsers.map(u => u.fullName));
-                    (arbitrations || []).forEach(d => { if (d.assignedTo) names.add(d.assignedTo); });
+                    const names = new Set(activeUsers.map(u => u.fullName.trim()));
+                    (arbitrations || []).forEach(d => { if (d.assignedTo) names.add(d.assignedTo.trim()); });
                     return [...names].sort().map(name => (
                       <SelectItem key={name} value={name}>{name}</SelectItem>
                     ));

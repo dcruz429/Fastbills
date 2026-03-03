@@ -415,7 +415,7 @@ export default function CollectionsPage() {
     if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
     if (filterIssueType && filterIssueType !== "__all__" && d.issueType !== filterIssueType) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
-    if (filterAssignedTo && filterAssignedTo !== "__all__" && d.assignedTo !== filterAssignedTo) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").trim() !== filterAssignedTo.trim()) return false;
     if (filterPriority && filterPriority !== "__all__") {
       const rowPriority = computePriority(d.inputDate);
       if (rowPriority !== filterPriority) return false;
@@ -629,8 +629,8 @@ export default function CollectionsPage() {
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
                 {(() => {
-                  const userNames = new Set(activeUsers.map(u => u.fullName));
-                  (dataList || []).forEach(d => { if (d.assignedTo) userNames.add(d.assignedTo); });
+                  const userNames = new Set(activeUsers.map(u => u.fullName.trim()));
+                  (dataList || []).forEach(d => { if (d.assignedTo) userNames.add(d.assignedTo.trim()); });
                   return [...userNames].sort().map(name => (
                     <SelectItem key={name} value={name}>{name}</SelectItem>
                   ));

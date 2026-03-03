@@ -206,7 +206,7 @@ export default function PostingPage() {
     if (filterDocumentType && filterDocumentType !== "__all__" && d.documentType !== filterDocumentType) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
     if (filterPriority && filterPriority !== "__all__" && d.priority !== filterPriority) return false;
-    if (filterAssignedTo && filterAssignedTo !== "__all__" && d.assignedTo !== filterAssignedTo) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").trim() !== filterAssignedTo.trim()) return false;
     return true;
   });
 
@@ -347,8 +347,8 @@ export default function PostingPage() {
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
                 {(() => {
-                  const names = new Set(activeUsers.map(u => u.fullName));
-                  (postingList || []).forEach(d => { if (d.assignedTo) names.add(d.assignedTo); });
+                  const names = new Set(activeUsers.map(u => u.fullName.trim()));
+                  (postingList || []).forEach(d => { if (d.assignedTo) names.add(d.assignedTo.trim()); });
                   return [...names].sort().map(name => (
                     <SelectItem key={name} value={name}>{name}</SelectItem>
                   ));
