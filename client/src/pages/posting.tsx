@@ -206,7 +206,7 @@ export default function PostingPage() {
     if (filterDocumentType && filterDocumentType !== "__all__" && d.documentType !== filterDocumentType) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
     if (filterPriority && filterPriority !== "__all__" && d.priority !== filterPriority) return false;
-    if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").trim() !== filterAssignedTo.trim()) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
     return true;
   });
 
@@ -346,7 +346,7 @@ export default function PostingPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
-                {[...new Set((postingList || []).map(d => d.assignedTo?.trim()).filter(Boolean).concat(activeUsers.map(u => u.fullName.trim())))].sort().map(name => (
+                {[...new Map([...(postingList || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
               </SelectContent>

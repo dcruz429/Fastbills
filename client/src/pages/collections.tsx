@@ -415,7 +415,7 @@ export default function CollectionsPage() {
     if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
     if (filterIssueType && filterIssueType !== "__all__" && d.issueType !== filterIssueType) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
-    if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").trim() !== filterAssignedTo.trim()) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
     if (filterPriority && filterPriority !== "__all__") {
       const rowPriority = computePriority(d.inputDate);
       if (rowPriority !== filterPriority) return false;
@@ -628,7 +628,7 @@ export default function CollectionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
-                {[...new Set((dataList || []).map(d => d.assignedTo?.trim()).filter(Boolean).concat(activeUsers.map(u => u.fullName.trim())))].sort().map(name => (
+                {[...new Map([...(dataList || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
               </SelectContent>
