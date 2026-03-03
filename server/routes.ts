@@ -843,7 +843,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No rows provided" });
       }
       const dateFields = ["inputDate", "dosFrom", "dosTo"];
-      const results: { success: number; errors: string[] } = { success: 0, errors: [] };
+      const results: { success: number; updated: number; errors: string[] } = { success: 0, updated: 0, errors: [] };
+      const existingCollections = await storage.getAllCollections();
       for (let i = 0; i < rows.length; i++) {
         try {
           const data: any = { ...rows[i] };
@@ -859,16 +860,33 @@ export async function registerRoutes(
           } else {
             data.numberOfVisits = null;
           }
-          const collection = await storage.createCollection(data);
-          await storage.createCollectionActivity({
-            collectionId: collection.id,
-            userId: req.session.userId!,
-            action: "Collection created (CSV import)",
-            field: null,
-            oldValue: null,
-            newValue: null,
-          });
-          results.success++;
+          const match = existingCollections.find(c =>
+            c.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() &&
+            (c.clinic || "").toLowerCase().trim() === (data.clinic || "").toLowerCase().trim()
+          );
+          if (match) {
+            await storage.updateCollection(match.id, data);
+            await storage.createCollectionActivity({
+              collectionId: match.id,
+              userId: req.session.userId!,
+              action: "Collection updated (CSV import)",
+              field: null,
+              oldValue: null,
+              newValue: null,
+            });
+            results.updated++;
+          } else {
+            const collection = await storage.createCollection(data);
+            await storage.createCollectionActivity({
+              collectionId: collection.id,
+              userId: req.session.userId!,
+              action: "Collection created (CSV import)",
+              field: null,
+              oldValue: null,
+              newValue: null,
+            });
+            results.success++;
+          }
         } catch (e: any) {
           results.errors.push(`Row ${i + 1}: ${e.message}`);
         }
@@ -947,6 +965,35 @@ export async function registerRoutes(
         newValue: note,
       });
       res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/collections/remove-duplicates", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can remove duplicates" });
+      }
+      const all = await storage.getAllCollections();
+      const seen = new Map<string, number>();
+      let removed = 0;
+      const sorted = [...all].sort((a, b) => {
+        const aHasData = [a.amount, a.assignedTo, a.insurance, a.dosFrom, a.dosTo].filter(Boolean).length;
+        const bHasData = [b.amount, b.assignedTo, b.insurance, b.dosFrom, b.dosTo].filter(Boolean).length;
+        return bHasData - aHasData;
+      });
+      for (const c of sorted) {
+        const key = `${(c.patientName || "").toLowerCase().trim()}|${(c.clinic || "").toLowerCase().trim()}`;
+        if (seen.has(key)) {
+          await storage.deleteCollection(c.id);
+          removed++;
+        } else {
+          seen.set(key, c.id);
+        }
+      }
+      res.json({ removed });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

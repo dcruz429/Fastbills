@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, Clock, User as UserIcon, MessageSquare, Filter } from "lucide-react";
+import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, Clock, User as UserIcon, MessageSquare, Filter, Copy } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -209,11 +209,21 @@ export default function CollectionsPage() {
       setCsvFileName("");
       toast({
         title: `Import complete`,
-        description: `${result.success} collections created${result.errors.length > 0 ? `, ${result.errors.length} errors` : ""}`,
+        description: `${result.success} created, ${result.updated || 0} updated${result.errors.length > 0 ? `, ${result.errors.length} errors` : ""}`,
         variant: result.errors.length > 0 ? "destructive" : "default",
       });
     },
     onError: (e: any) => toast({ title: "Import failed", description: e.message, variant: "destructive" }),
+  });
+
+  const removeDuplicatesMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/collections/remove-duplicates"),
+    onSuccess: async (res) => {
+      const result = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      toast({ title: `Removed ${result.removed} duplicate(s)` });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const addNoteMutation = useMutation({
@@ -489,6 +499,18 @@ export default function CollectionsPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold" data-testid="text-collections-title">Collections</h1>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (confirm("This will remove duplicate collections (matching patient name + clinic), keeping the one with the most data. Continue?")) {
+                removeDuplicatesMutation.mutate();
+              }
+            }}
+            disabled={removeDuplicatesMutation.isPending}
+            data-testid="button-remove-duplicates"
+          >
+            <Copy className="h-4 w-4 mr-1" /> {removeDuplicatesMutation.isPending ? "Removing..." : "Remove Duplicates"}
+          </Button>
           <Button variant="outline" onClick={() => { setCsvDialogOpen(true); setCsvPreview([]); setCsvFileName(""); }} data-testid="button-import-csv">
             <Upload className="h-4 w-4 mr-1" /> Import CSV
           </Button>
