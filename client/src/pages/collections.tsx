@@ -226,16 +226,6 @@ export default function CollectionsPage() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const fixStatusMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/collections/fix-assigned-status"),
-    onSuccess: async (res) => {
-      const result = await res.json();
-      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
-      toast({ title: `Fixed ${result.fixed} collection status(es) to "Assigned"` });
-    },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
   const addNoteMutation = useMutation({
     mutationFn: (note: string) => apiRequest("POST", `/api/collections/${editingId}/notes`, { note }),
     onSuccess: () => {
@@ -521,20 +511,6 @@ export default function CollectionsPage() {
               data-testid="button-remove-duplicates"
             >
               <Copy className="h-4 w-4 mr-1" /> {removeDuplicatesMutation.isPending ? "Removing..." : "Remove Duplicates"}
-            </Button>
-          )}
-          {user.role === "admin" && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (confirm("This will set status to 'Assigned' for all collections that have someone assigned but no status. Continue?")) {
-                  fixStatusMutation.mutate();
-                }
-              }}
-              disabled={fixStatusMutation.isPending}
-              data-testid="button-fix-statuses"
-            >
-              {fixStatusMutation.isPending ? "Fixing..." : "Fix Statuses"}
             </Button>
           )}
           <Button variant="outline" onClick={() => { setCsvDialogOpen(true); setCsvPreview([]); setCsvFileName(""); }} data-testid="button-import-csv">

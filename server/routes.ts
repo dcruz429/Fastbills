@@ -817,9 +817,6 @@ export async function registerRoutes(
       if (data.numberOfVisits !== undefined && data.numberOfVisits !== null) {
         data.numberOfVisits = parseInt(data.numberOfVisits) || null;
       }
-      if (data.assignedTo && data.assignedTo.trim() && (!data.status || data.status === "Unassigned")) {
-        data.status = "Assigned";
-      }
       const collection = await storage.createCollection(data);
       await storage.createCollectionActivity({
         collectionId: collection.id,
@@ -862,9 +859,6 @@ export async function registerRoutes(
             data.numberOfVisits = parseInt(data.numberOfVisits) || null;
           } else {
             data.numberOfVisits = null;
-          }
-          if (data.assignedTo && data.assignedTo.trim() && (!data.status || data.status === "Unassigned")) {
-            data.status = "Assigned";
           }
           const match = existingCollections.find(c =>
             c.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() &&
@@ -920,13 +914,6 @@ export async function registerRoutes(
       if (data.numberOfVisits !== undefined) {
         data.numberOfVisits = data.numberOfVisits ? parseInt(data.numberOfVisits) : null;
       }
-      if (data.assignedTo !== undefined) {
-        if (data.assignedTo && data.assignedTo.trim() && (!existing.status || existing.status === "Unassigned") && (!data.status || data.status === "Unassigned" || data.status === existing.status)) {
-          data.status = "Assigned";
-        } else if ((!data.assignedTo || !data.assignedTo.trim()) && (existing.status === "Assigned")) {
-          data.status = "Unassigned";
-        }
-      }
       for (const field of collectionTrackFields) {
         if (data[field] !== undefined) {
           const oldVal = String((existing as any)[field] ?? "");
@@ -978,26 +965,6 @@ export async function registerRoutes(
         newValue: note,
       });
       res.json({ ok: true });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.post("/api/collections/fix-assigned-status", requireAuth, async (req, res) => {
-    try {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
-        return res.status(403).json({ message: "Only admins can fix statuses" });
-      }
-      const all = await storage.getAllCollections();
-      let fixed = 0;
-      for (const c of all) {
-        if (c.assignedTo && c.assignedTo.trim() && (!c.status || c.status === "Unassigned")) {
-          await storage.updateCollection(c.id, { status: "Assigned" });
-          fixed++;
-        }
-      }
-      res.json({ fixed });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
