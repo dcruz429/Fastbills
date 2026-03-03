@@ -429,13 +429,9 @@ export default function ArbitrationPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">All</SelectItem>
-                  {(() => {
-                    const names = new Set(activeUsers.map(u => u.fullName.trim()));
-                    (arbitrations || []).forEach(d => { if (d.assignedTo) names.add(d.assignedTo.trim()); });
-                    return [...names].sort().map(name => (
-                      <SelectItem key={name} value={name}>{name}</SelectItem>
-                    ));
-                  })()}
+                  {[...new Set((arbitrations || []).map(d => d.assignedTo?.trim()).filter(Boolean).concat(activeUsers.map(u => u.fullName.trim())))].sort().map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

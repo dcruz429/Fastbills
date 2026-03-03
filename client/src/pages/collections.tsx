@@ -628,13 +628,9 @@ export default function CollectionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
-                {(() => {
-                  const userNames = new Set(activeUsers.map(u => u.fullName.trim()));
-                  (dataList || []).forEach(d => { if (d.assignedTo) userNames.add(d.assignedTo.trim()); });
-                  return [...userNames].sort().map(name => (
-                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                  ));
-                })()}
+                {[...new Set((dataList || []).map(d => d.assignedTo?.trim()).filter(Boolean).concat(activeUsers.map(u => u.fullName.trim())))].sort().map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
