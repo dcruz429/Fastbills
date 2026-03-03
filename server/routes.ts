@@ -306,7 +306,7 @@ export async function registerRoutes(
     try {
       const creator = await storage.getUser(req.session.userId!);
       if (!creator || (creator.role !== "admin" && creator.role !== "manager" && creator.role !== "assigner")) {
-        return res.status(403).json({ message: "Only admins and assigners can create tasks" });
+        return res.status(403).json({ message: "Only admins and case coordinators can create tasks" });
       }
       const parsed = createTaskSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -680,7 +680,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can delete denials" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can delete denials" });
       }
       await storage.deleteDenial(parseInt(req.params.id));
       res.json({ ok: true });
@@ -781,7 +781,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can delete arbitrations" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can delete arbitrations" });
       }
       await storage.deleteArbitration(parseInt(req.params.id));
       res.json({ ok: true });
@@ -807,7 +807,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can create collections" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can create collections" });
       }
       const data: any = { ...req.body };
       const dateFields = ["inputDate", "dosFrom", "dosTo"];
@@ -836,7 +836,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can import collections" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can import collections" });
       }
       const { rows } = req.body;
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -883,7 +883,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can edit collections" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can edit collections" });
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getCollection(id);
@@ -956,7 +956,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can delete collections" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can delete collections" });
       }
       await storage.deleteCollection(parseInt(req.params.id));
       res.json({ ok: true });
@@ -985,7 +985,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can create postings" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can create postings" });
       }
       const data: any = { ...req.body };
       const dateFields = ["scannedDate", "postedDate"];
@@ -1011,7 +1011,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can edit postings" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can edit postings" });
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getPosting(id);
@@ -1052,7 +1052,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
-        return res.status(403).json({ message: "Only admins, managers, and assigners can delete postings" });
+        return res.status(403).json({ message: "Only admins, managers, and case coordinators can delete postings" });
       }
       await storage.deletePosting(parseInt(req.params.id));
       res.json({ ok: true });

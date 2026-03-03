@@ -38,14 +38,14 @@ A workflow management system for tracking patient tasks through insurance verifi
 Status options are role-restricted:
 - Verifier: Assigned, Working on it, Verified, Dropped
 - Biller: Assigned, Working on it, Billed
-- Admin/Assigner: All statuses
+- Admin/Case Coordinator: All statuses
 
 ## User Roles
 - **Admin**: Full access, override workflow, manage settings, manage users
 - **Manager**: Same as Admin, but cannot edit/delete/deactivate existing users
 - **Verifier**: Verify insurance, move to Ready for Billing
 - **Biller**: Bill verified patients, mark Billed/Done/Dropped
-- **Assigner**: Create tasks, assign staff, set priorities
+- **Case Coordinator** (db value: "assigner"): Create tasks, assign staff, set priorities, full access to all tracker pages
 
 ## Default Login
 - Admin: `admin` / `admin123`

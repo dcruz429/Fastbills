@@ -34,7 +34,7 @@ const ROLE_LABELS: Record<string, string> = {
   manager: "Manager",
   verifier: "Verifier",
   biller: "Biller",
-  assigner: "Assigner",
+  assigner: "Case Coordinator",
 };
 
 export default function MessageBoardPage() {

@@ -393,7 +393,7 @@ function UserSettings() {
             <SelectContent>
               <SelectItem value="verifier">Verifier</SelectItem>
               <SelectItem value="biller">Biller</SelectItem>
-              <SelectItem value="assigner">Assigner</SelectItem>
+              <SelectItem value="assigner">Case Coordinator</SelectItem>
               <SelectItem value="manager">Manager</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
@@ -455,7 +455,7 @@ function UserSettings() {
                       <SelectContent>
                         <SelectItem value="verifier">Verifier</SelectItem>
                         <SelectItem value="biller">Biller</SelectItem>
-                        <SelectItem value="assigner">Assigner</SelectItem>
+                        <SelectItem value="assigner">Case Coordinator</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
@@ -498,7 +498,7 @@ function UserSettings() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{u.fullName}</span>
                   <Badge variant="secondary" className="no-default-active-elevate text-xs capitalize">
-                    {u.role}
+                    {u.role === "assigner" ? "Case Coordinator" : u.role}
                   </Badge>
                   {!u.active && (
                     <Badge variant="secondary" className="no-default-active-elevate text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">
