@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter } from "lucide-react";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -81,6 +81,12 @@ export default function PostingPage() {
   const [sortCol, setSortCol] = useState<string>("fileNumber");
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterClinic, setFilterClinic] = useState("");
+  const [filterDocumentType, setFilterDocumentType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterPriority, setFilterPriority] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -183,9 +189,26 @@ export default function PostingPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const filteredUnsorted = (postingList || []).filter(d =>
-    !searchQuery || Object.values(d).some(v => v && String(v).toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const activeFilterCount = [filterClinic, filterDocumentType, filterStatus, filterPriority, filterAssignedTo]
+    .filter(v => v && v !== "__all__").length;
+
+  function clearFilters() {
+    setFilterClinic("");
+    setFilterDocumentType("");
+    setFilterStatus("");
+    setFilterPriority("");
+    setFilterAssignedTo("");
+  }
+
+  const filteredUnsorted = (postingList || []).filter(d => {
+    if (searchQuery && !Object.values(d).some(v => v && String(v).toLowerCase().includes(searchQuery.toLowerCase()))) return false;
+    if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
+    if (filterDocumentType && filterDocumentType !== "__all__" && d.documentType !== filterDocumentType) return false;
+    if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
+    if (filterPriority && filterPriority !== "__all__" && d.priority !== filterPriority) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && d.assignedTo !== filterAssignedTo) return false;
+    return true;
+  });
 
   const dateColumns = new Set(["scannedDate", "postedDate", "createdAt"]);
 
@@ -236,6 +259,101 @@ export default function PostingPage() {
           data-testid="input-search-postings"
         />
       </div>
+
+      <div className="flex items-center gap-2 mb-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          data-testid="button-toggle-filters"
+        >
+          <Filter className="h-4 w-4 mr-1" />
+          Filters
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="ml-1 text-xs">{activeFilterCount}</Badge>
+          )}
+        </Button>
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
+      {filtersOpen && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" data-testid="filter-grid-postings">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Clinic</Label>
+            <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-clinic">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {activeClinics.map(c => (
+                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Document Type</Label>
+            <Select value={filterDocumentType || "__all__"} onValueChange={v => setFilterDocumentType(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-document-type">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {POSTING_DOCUMENT_TYPES.map(t => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Status</Label>
+            <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-status">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {POSTING_STATUS_OPTIONS.map(s => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Priority</Label>
+            <Select value={filterPriority || "__all__"} onValueChange={v => setFilterPriority(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-priority">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {POSTING_PRIORITY_OPTIONS.map(p => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Assigned To</Label>
+            <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-assigned-to">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {activeUsers.map(u => (
+                  <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
         <Table>

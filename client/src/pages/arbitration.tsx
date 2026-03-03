@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -78,6 +78,14 @@ export default function ArbitrationPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterClinic, setFilterClinic] = useState("");
+  const [filterInsurance, setFilterInsurance] = useState("");
+  const [filterTypeOfDenial, setFilterTypeOfDenial] = useState("");
+  const [filterFiledTo, setFilterFiledTo] = useState("");
+  const [filterArbStatus, setFilterArbStatus] = useState("");
+  const [filterArbPaymentStatus, setFilterArbPaymentStatus] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -221,8 +229,27 @@ export default function ArbitrationPage() {
 
   const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
 
+  const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo].filter(f => f && f !== "__all__").length;
+
+  function clearFilters() {
+    setFilterClinic("");
+    setFilterInsurance("");
+    setFilterTypeOfDenial("");
+    setFilterFiledTo("");
+    setFilterArbStatus("");
+    setFilterArbPaymentStatus("");
+    setFilterAssignedTo("");
+  }
+
   const filtered = (arbitrations || []).filter(d => {
     if (!isAdminOrManager && d.assignedTo !== user?.fullName) return false;
+    if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
+    if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
+    if (filterTypeOfDenial && filterTypeOfDenial !== "__all__" && d.typeOfDenial !== filterTypeOfDenial) return false;
+    if (filterFiledTo && filterFiledTo !== "__all__" && d.filedTo !== filterFiledTo) return false;
+    if (filterArbStatus && filterArbStatus !== "__all__" && d.arbStatus !== filterArbStatus) return false;
+    if (filterArbPaymentStatus && filterArbPaymentStatus !== "__all__" && d.arbPaymentStatus !== filterArbPaymentStatus) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && d.assignedTo !== filterAssignedTo) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -285,6 +312,131 @@ export default function ArbitrationPage() {
             <Plus className="h-4 w-4 mr-1" /> New Arbitration
           </Button>
         </div>
+      </div>
+
+      <div className="mb-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            data-testid="button-toggle-filters"
+          >
+            <Filter className="h-4 w-4 mr-1" />
+            Filters
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="ml-1 text-xs">{activeFilterCount}</Badge>
+            )}
+          </Button>
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
+              <X className="h-3 w-3 mr-1" />
+              Clear Filters
+            </Button>
+          )}
+        </div>
+        {filtersOpen && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Clinic</Label>
+              <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)}>
+                <SelectTrigger className="h-9 text-xs" data-testid="filter-clinic">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  {activeClinics.map(c => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Insurance</Label>
+              <Select value={filterInsurance || "__all__"} onValueChange={v => setFilterInsurance(v)}>
+                <SelectTrigger className="h-9 text-xs" data-testid="filter-insurance">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  {sortedInsurances.map(i => (
+                    <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Type of Denial</Label>
+              <Select value={filterTypeOfDenial || "__all__"} onValueChange={v => setFilterTypeOfDenial(v)}>
+                <SelectTrigger className="h-9 text-xs" data-testid="filter-type-of-denial">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  {(denialTypeOpts || []).map(o => (
+                    <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Filed To</Label>
+              <Select value={filterFiledTo || "__all__"} onValueChange={v => setFilterFiledTo(v)}>
+                <SelectTrigger className="h-9 text-xs" data-testid="filter-filed-to">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  {(filedToOpts || []).map(o => (
+                    <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">ARB Status</Label>
+              <Select value={filterArbStatus || "__all__"} onValueChange={v => setFilterArbStatus(v)}>
+                <SelectTrigger className="h-9 text-xs" data-testid="filter-arb-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  {(arbStatusOpts || []).map(o => (
+                    <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">ARB Payment Status</Label>
+              <Select value={filterArbPaymentStatus || "__all__"} onValueChange={v => setFilterArbPaymentStatus(v)}>
+                <SelectTrigger className="h-9 text-xs" data-testid="filter-arb-payment-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  {(arbPaymentOpts || []).map(o => (
+                    <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Assigned To</Label>
+              <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>
+                <SelectTrigger className="h-9 text-xs" data-testid="filter-assigned-to">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  {activeUsers.map(u => (
+                    <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
       </div>
 
       <Card className="flex-1 min-h-0 flex flex-col">

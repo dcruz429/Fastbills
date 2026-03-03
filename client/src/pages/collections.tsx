@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, Clock, User as UserIcon, MessageSquare } from "lucide-react";
+import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, Clock, User as UserIcon, MessageSquare, Filter } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -121,6 +121,14 @@ export default function CollectionsPage() {
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvFileName, setCsvFileName] = useState("");
   const [newNote, setNewNote] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterClinic, setFilterClinic] = useState("");
+  const [filterDivision, setFilterDivision] = useState("");
+  const [filterInsurance, setFilterInsurance] = useState("");
+  const [filterIssueType, setFilterIssueType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterPriority, setFilterPriority] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -371,15 +379,39 @@ export default function CollectionsPage() {
     }
   };
 
+  const activeFilterCount = [filterClinic, filterDivision, filterInsurance, filterIssueType, filterStatus, filterAssignedTo, filterPriority].filter(v => v && v !== "__all__").length;
+
+  const clearAllFilters = () => {
+    setFilterClinic("");
+    setFilterDivision("");
+    setFilterInsurance("");
+    setFilterIssueType("");
+    setFilterStatus("");
+    setFilterAssignedTo("");
+    setFilterPriority("");
+  };
+
   const q = searchQuery.toLowerCase();
-  const filteredUnsorted = (dataList || []).filter(d =>
-    d.patientName?.toLowerCase().includes(q) ||
-    d.clinic?.toLowerCase().includes(q) ||
-    d.insurance?.toLowerCase().includes(q) ||
-    d.assignedTo?.toLowerCase().includes(q) ||
-    d.division?.toLowerCase().includes(q) ||
-    d.issueType?.toLowerCase().includes(q)
-  );
+  const filteredUnsorted = (dataList || []).filter(d => {
+    const matchesSearch = d.patientName?.toLowerCase().includes(q) ||
+      d.clinic?.toLowerCase().includes(q) ||
+      d.insurance?.toLowerCase().includes(q) ||
+      d.assignedTo?.toLowerCase().includes(q) ||
+      d.division?.toLowerCase().includes(q) ||
+      d.issueType?.toLowerCase().includes(q);
+    if (!matchesSearch) return false;
+    if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
+    if (filterDivision && filterDivision !== "__all__" && d.division !== filterDivision) return false;
+    if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
+    if (filterIssueType && filterIssueType !== "__all__" && d.issueType !== filterIssueType) return false;
+    if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && d.assignedTo !== filterAssignedTo) return false;
+    if (filterPriority && filterPriority !== "__all__") {
+      const rowPriority = computePriority(d.inputDate);
+      if (rowPriority !== filterPriority) return false;
+    }
+    return true;
+  });
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -476,6 +508,125 @@ export default function CollectionsPage() {
           data-testid="input-search-collections"
         />
       </div>
+
+      <div className="flex items-center gap-2 mb-3">
+        <Button variant="outline" size="sm" onClick={() => setFiltersOpen(!filtersOpen)} data-testid="button-toggle-filters" className="text-xs">
+          <Filter className="h-3.5 w-3.5 mr-1" />
+          Filters
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">{activeFilterCount}</Badge>
+          )}
+        </Button>
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" onClick={clearAllFilters} data-testid="button-clear-filters" className="text-xs">
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
+      {filtersOpen && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" data-testid="filter-grid">
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Clinic</Label>
+            <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)} data-testid="filter-clinic">
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-clinic">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {activeClinics.map(c => (
+                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Division</Label>
+            <Select value={filterDivision || "__all__"} onValueChange={v => setFilterDivision(v)} data-testid="filter-division">
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-division">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {(divisionOpts || []).map(o => (
+                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Insurance</Label>
+            <Select value={filterInsurance || "__all__"} onValueChange={v => setFilterInsurance(v)} data-testid="filter-insurance">
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-insurance">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {sortedInsurances.map(ins => (
+                  <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Issue Type</Label>
+            <Select value={filterIssueType || "__all__"} onValueChange={v => setFilterIssueType(v)} data-testid="filter-issue-type">
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-issue-type">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {(issueTypeOpts || []).map(o => (
+                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Status</Label>
+            <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)} data-testid="filter-status">
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-status">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {(statusOpts || []).map(o => (
+                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Assigned To</Label>
+            <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)} data-testid="filter-assigned-to">
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-assigned-to">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {activeUsers.map(u => (
+                  <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Priority</Label>
+            <Select value={filterPriority || "__all__"} onValueChange={v => setFilterPriority(v)} data-testid="filter-priority">
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-priority">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                <SelectItem value="Low <10 days">Low</SelectItem>
+                <SelectItem value="Medium <20 Days">Medium</SelectItem>
+                <SelectItem value="High <30 Days">High</SelectItem>
+                <SelectItem value="Critical >30 Days">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
         <Table>

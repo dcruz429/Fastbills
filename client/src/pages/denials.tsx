@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDown, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -71,6 +71,14 @@ export default function DenialsPage() {
   const [sendToArbId, setSendToArbId] = useState<number | null>(null);
   const [sortCol, setSortCol] = useState<string>("patientName");
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterClinic, setFilterClinic] = useState("");
+  const [filterInsurance, setFilterInsurance] = useState("");
+  const [filterTypeOfDenial, setFilterTypeOfDenial] = useState("");
+  const [filterFiledTo, setFilterFiledTo] = useState("");
+  const [filterArbStatus, setFilterArbStatus] = useState("");
+  const [filterArbPaymentStatus, setFilterArbPaymentStatus] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -90,6 +98,9 @@ export default function DenialsPage() {
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
   const { data: allInsurances } = useQuery<Insurance[]>({ queryKey: ["/api/insurances"] });
   const { data: denialTypeOptions } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_type"] });
+  const { data: filedToOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "filed_to"] });
+  const { data: arbStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_status"] });
+  const { data: arbPaymentStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_payment_status"] });
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -214,8 +225,27 @@ export default function DenialsPage() {
 
   const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
 
+  const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo].filter(v => v && v !== "__all__").length;
+
+  function clearFilters() {
+    setFilterClinic("");
+    setFilterInsurance("");
+    setFilterTypeOfDenial("");
+    setFilterFiledTo("");
+    setFilterArbStatus("");
+    setFilterArbPaymentStatus("");
+    setFilterAssignedTo("");
+  }
+
   const filteredUnsorted = (denials || []).filter(d => {
     if (!isAdminOrManager && d.assignedTo !== user?.fullName) return false;
+    if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
+    if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
+    if (filterTypeOfDenial && filterTypeOfDenial !== "__all__" && d.typeOfDenial !== filterTypeOfDenial) return false;
+    if (filterFiledTo && filterFiledTo !== "__all__" && d.filedTo !== filterFiledTo) return false;
+    if (filterArbStatus && filterArbStatus !== "__all__" && d.arbStatus !== filterArbStatus) return false;
+    if (filterArbPaymentStatus && filterArbPaymentStatus !== "__all__" && d.arbPaymentStatus !== filterArbPaymentStatus) return false;
+    if (filterAssignedTo && filterAssignedTo !== "__all__" && d.assignedTo !== filterAssignedTo) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -280,6 +310,130 @@ export default function DenialsPage() {
           </Button>
         </div>
       </div>
+
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs"
+          onClick={() => setFiltersOpen(v => !v)}
+          data-testid="button-toggle-filters"
+        >
+          <Filter className="h-3.5 w-3.5 mr-1" />
+          Filters
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">{activeFilterCount}</Badge>
+          )}
+        </Button>
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
+      {filtersOpen && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Clinic</Label>
+            <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-clinic">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {activeClinics.map(c => (
+                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Insurance</Label>
+            <Select value={filterInsurance || "__all__"} onValueChange={v => setFilterInsurance(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-insurance">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {sortedInsurances.map(ins => (
+                  <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Type of Denial</Label>
+            <Select value={filterTypeOfDenial || "__all__"} onValueChange={v => setFilterTypeOfDenial(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-type-of-denial">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {(denialTypeOptions || []).map(o => (
+                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Filed To</Label>
+            <Select value={filterFiledTo || "__all__"} onValueChange={v => setFilterFiledTo(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-filed-to">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {(filedToOpts || []).map(o => (
+                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">ARB Status</Label>
+            <Select value={filterArbStatus || "__all__"} onValueChange={v => setFilterArbStatus(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-arb-status">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {(arbStatusOpts || []).map(o => (
+                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">ARB Payment Status</Label>
+            <Select value={filterArbPaymentStatus || "__all__"} onValueChange={v => setFilterArbPaymentStatus(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-arb-payment-status">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {(arbPaymentStatusOpts || []).map(o => (
+                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Assigned To</Label>
+            <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-assigned-to">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {activeUsers.map(u => (
+                  <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       <Card className="flex-1 min-h-0 flex flex-col">
         <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
