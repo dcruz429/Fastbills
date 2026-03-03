@@ -57,6 +57,8 @@ const emptyForm = {
   amount: "",
   comments: "",
   comment: "",
+  action: "",
+  outcome: "",
   assignedTo: "",
 };
 
@@ -101,6 +103,8 @@ export default function DenialsPage() {
   const { data: filedToOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "filed_to"] });
   const { data: arbStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_status"] });
   const { data: arbPaymentStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_payment_status"] });
+  const { data: actionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_action"] });
+  const { data: outcomeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_outcome"] });
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -178,6 +182,8 @@ export default function DenialsPage() {
       amount: denial.amount || "",
       comments: denial.comments || "",
       comment: denial.comment || "",
+      action: denial.action || "",
+      outcome: denial.outcome || "",
       assignedTo: denial.assignedTo || "",
     });
     setDrawerOpen(true);
@@ -200,7 +206,7 @@ export default function DenialsPage() {
     }
   }
 
-  const canDelete = user?.role === "admin" || user?.role === "manager";
+  const canDelete = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner";
 
   const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo"]);
   const numberColumns = new Set(["numberOfDays"]);
@@ -456,6 +462,8 @@ export default function DenialsPage() {
                     { key: "dosTo", label: "DOS To", minW: "90px" },
                     { key: "numberOfDays", label: "# Visits", minW: "60px" },
                     { key: "amount", label: "Amount", minW: "80px" },
+                    { key: "action", label: "Action", minW: "120px" },
+                    { key: "outcome", label: "Outcome", minW: "100px" },
                     { key: "comment", label: "Comment", minW: "120px" },
                     { key: "assignedTo", label: "Assigned To", minW: "110px" },
                   ].map(col => (
@@ -478,7 +486,7 @@ export default function DenialsPage() {
               <TableBody>
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={17} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={19} className="text-center py-8 text-muted-foreground">
                       No denials found
                     </TableCell>
                   </TableRow>
@@ -506,6 +514,8 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                     <TableCell className="text-xs">{d.amount || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.action || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                     <TableCell>
@@ -693,6 +703,37 @@ export default function DenialsPage() {
                       <SelectItem value="__clear__">-- None --</SelectItem>
                       {activeUsers.map(u => (
                         <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Action</Label>
+                  <Select value={form.action || "__clear__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-action">
+                      <SelectValue placeholder="Select action..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(actionOpts || []).map(o => (
+                        <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Outcome</Label>
+                  <Select value={form.outcome || "__clear__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-outcome">
+                      <SelectValue placeholder="Select outcome..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(outcomeOpts || []).map(o => (
+                        <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

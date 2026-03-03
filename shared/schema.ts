@@ -91,6 +91,8 @@ export const denials = pgTable("denials", {
   amountReceived: text("amount_received"),
   checkedBy: text("checked_by"),
   comment: text("comment"),
+  action: text("action"),
+  outcome: text("outcome"),
   assignedTo: text("assigned_to"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -560,6 +562,8 @@ export const DROPDOWN_CATEGORIES = [
   { key: "arb_payment_status", label: "ARB Payment Status" },
   { key: "collection_division", label: "Collection Division" },
   { key: "collection_issue_type", label: "Collection Issue Type" },
+  { key: "denial_action", label: "Denial Action" },
+  { key: "denial_outcome", label: "Denial Outcome" },
   { key: "collection_action", label: "Collection Action" },
   { key: "collection_outcome", label: "Collection Outcome" },
   { key: "collection_status", label: "Collection Status" },
