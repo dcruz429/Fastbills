@@ -346,9 +346,13 @@ export default function PostingPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
-                {activeUsers.map(u => (
-                  <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
-                ))}
+                {(() => {
+                  const names = new Set(activeUsers.map(u => u.fullName));
+                  (postingList || []).forEach(d => { if (d.assignedTo) names.add(d.assignedTo); });
+                  return [...names].sort().map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ));
+                })()}
               </SelectContent>
             </Select>
           </div>
