@@ -18,7 +18,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock } from "lucide-react";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -81,6 +82,7 @@ export default function PostingPage() {
   const [sortCol, setSortCol] = useState<string>("fileNumber");
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [newNote, setNewNote] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterClinic, setFilterClinic] = useState("");
   const [filterDocumentType, setFilterDocumentType] = useState("");
@@ -136,6 +138,17 @@ export default function PostingPage() {
       setDrawerOpen(false);
       setEditingId(null);
       toast({ title: "Posting deleted" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: (note: string) => apiRequest("POST", `/api/postings/${editingId}/notes`, { note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/postings", editingId, "activity"] });
+      setNewNote("");
+      toast({ title: "Note added" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -506,6 +519,64 @@ export default function PostingPage() {
                 </Button>
               )}
             </div>
+
+            {editingId && (() => {
+              const currentPosting = (postingList || []).find(p => p.id === editingId);
+              return (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                      <MessageSquare className="h-4 w-4" />
+                      Notes
+                    </h3>
+                    {currentPosting?.notes && (
+                      <div className="space-y-2 max-h-48 overflow-y-auto" data-testid="posting-notes-display">
+                        {currentPosting.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse().map((block: string, idx: number) => {
+                          const headerMatch = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
+                          if (headerMatch) {
+                            return (
+                              <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50 space-y-0.5" data-testid={`posting-note-item-${idx}`}>
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <UserIcon className="h-3 w-3" />
+                                  <span className="font-medium text-foreground">{headerMatch[1]}</span>
+                                  <span className="mx-0.5">·</span>
+                                  <Clock className="h-3 w-3" />
+                                  <span>{new Date(headerMatch[2]).toLocaleString()}</span>
+                                </div>
+                                <p className="text-foreground whitespace-pre-wrap">{headerMatch[3].trim()}</p>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50" data-testid={`posting-note-item-${idx}`}>
+                              <p className="text-foreground whitespace-pre-wrap">{block.trim()}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Textarea
+                        placeholder="Add a note..."
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        className="text-sm"
+                        data-testid="input-posting-note"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => newNote.trim() && addNoteMutation.mutate(newNote.trim())}
+                      disabled={!newNote.trim() || addNoteMutation.isPending}
+                      data-testid="button-add-posting-note"
+                    >
+                      Add Note
+                    </Button>
+                  </div>
+                </>
+              );
+            })()}
 
             {editingId && (
               <>

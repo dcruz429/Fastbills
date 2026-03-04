@@ -1128,6 +1128,34 @@ export async function registerRoutes(
     res.json(activity);
   });
 
+  app.post("/api/postings/:id/notes", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { note } = req.body;
+      if (!note) return res.status(400).json({ message: "Note required" });
+      const existing = await storage.getPosting(id);
+      if (!existing) return res.status(404).json({ message: "Posting not found" });
+      const existingNotes = existing.notes || "";
+      const user = await storage.getUser(req.session.userId!);
+      const timestamp = new Date().toISOString();
+      const newNotes = existingNotes
+        ? `${existingNotes}\n\n[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`
+        : `[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`;
+      await storage.updatePosting(id, { notes: newNotes });
+      await storage.createPostingActivity({
+        postingId: id,
+        userId: req.session.userId!,
+        action: "Added note",
+        field: "notes",
+        oldValue: null,
+        newValue: note,
+      });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.delete("/api/postings/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
