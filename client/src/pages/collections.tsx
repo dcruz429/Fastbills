@@ -694,7 +694,7 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
                   <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                   <TableCell className="text-xs text-center">{d.numberOfVisits ?? "-"}</TableCell>
-                  <TableCell className="text-xs">{d.amount || "-"}</TableCell>
+                  <TableCell className="text-xs">{d.amount ? `$${parseFloat(d.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}</TableCell>
                   <TableCell className="text-xs">{d.issueType || "-"}</TableCell>
                   <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
                   <TableCell className="text-xs">{d.action || "-"}</TableCell>
@@ -1136,7 +1136,7 @@ export default function CollectionsPage() {
                         <td className="py-1 px-2">{row.clinic || "—"}</td>
                         <td className="py-1 px-2">{row.insurance || "—"}</td>
                         <td className="py-1 px-2">{row.inputDate || "—"}</td>
-                        <td className="py-1 px-2">{row.amount || "—"}</td>
+                        <td className="py-1 px-2">{row.amount ? `$${parseFloat(row.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</td>
                         <td className="py-1 px-2">{row.status || "—"}</td>
                       </tr>
                     ))}
