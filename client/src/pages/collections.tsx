@@ -115,8 +115,8 @@ export default function CollectionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [sortCol, setSortCol] = useState<string>("amount");
-  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("desc");
+  const [sortCol, setSortCol] = useState<string>("patientName");
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvFileName, setCsvFileName] = useState("");
