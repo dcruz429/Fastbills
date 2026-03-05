@@ -523,7 +523,7 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
-                    <TableCell className="text-xs">{d.amount || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.amount ? `$${parseFloat(d.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}</TableCell>
                     <TableCell className="text-xs">{d.action || "-"}</TableCell>
                     <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>

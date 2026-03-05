@@ -505,7 +505,7 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
-                    <TableCell className="text-xs">{d.amount || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.amount ? `$${parseFloat(d.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}</TableCell>
                     <TableCell className="text-xs">
                       {d.filedTo ? <Badge variant="secondary" className="text-xs">{d.filedTo}</Badge> : "-"}
                     </TableCell>
@@ -516,7 +516,7 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">
                       {d.arbPaymentStatus ? <Badge variant="secondary" className="text-xs">{d.arbPaymentStatus}</Badge> : "-"}
                     </TableCell>
-                    <TableCell className="text-xs">{d.amountReceived || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.amountReceived ? `$${parseFloat(d.amountReceived).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}</TableCell>
                     <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
