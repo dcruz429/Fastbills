@@ -1032,6 +1032,35 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/collections/fix-assigned", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can fix assignments" });
+      }
+      const all = await storage.getAllCollections();
+      const allUsers = await storage.getAllUsers();
+      const userNameMap = new Map<string, string>();
+      for (const u of allUsers) {
+        userNameMap.set(u.fullName.replace(/\s+/g, ' ').trim().toLowerCase(), u.fullName);
+      }
+      let fixed = 0;
+      for (const c of all) {
+        if (!c.assignedTo) continue;
+        const normalized = c.assignedTo.replace(/\s+/g, ' ').trim();
+        const key = normalized.toLowerCase();
+        const matchedName = userNameMap.get(key);
+        if (matchedName && matchedName !== c.assignedTo) {
+          await storage.updateCollection(c.id, { assignedTo: matchedName });
+          fixed++;
+        }
+      }
+      res.json({ fixed });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.delete("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
