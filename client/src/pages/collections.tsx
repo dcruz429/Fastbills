@@ -664,7 +664,7 @@ export default function CollectionsPage() {
 
       <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
         <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
+          <TableHeader className="sticky top-0 bg-background z-20 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <TableRow>
               <TableHead className="min-w-[160px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient's Name <SortIcon col="patientName" /></TableHead>
               <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("inputDate")} data-testid="sort-inputDate">Input Date <SortIcon col="inputDate" /></TableHead>
