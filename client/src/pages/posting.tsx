@@ -69,6 +69,7 @@ const emptyForm = {
   priority: "",
   assignedTo: "",
   status: "",
+  amount: "",
 };
 
 export default function PostingPage() {
@@ -180,6 +181,7 @@ export default function PostingPage() {
       priority: d.priority || "",
       assignedTo: d.assignedTo || "",
       status: d.status || "",
+      amount: d.amount || "",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -224,6 +226,7 @@ export default function PostingPage() {
   });
 
   const dateColumns = new Set(["scannedDate", "postedDate", "createdAt"]);
+  const numberColumns = new Set(["amount"]);
 
   const filtered = [...filteredUnsorted].sort((a, b) => {
     if (!sortCol || !sortDir) return 0;
@@ -234,6 +237,12 @@ export default function PostingPage() {
       const tA = valA ? new Date(valA).getTime() : 0;
       const tB = valB ? new Date(valB).getTime() : 0;
       return sortDir === "asc" ? tA - tB : tB - tA;
+    }
+
+    if (numberColumns.has(sortCol)) {
+      const nA = parseFloat(valA) || 0;
+      const nB = parseFloat(valB) || 0;
+      return sortDir === "asc" ? nA - nB : nB - nA;
     }
 
     const cmp = String(valA).localeCompare(String(valB), undefined, { sensitivity: "base" });
@@ -368,6 +377,16 @@ export default function PostingPage() {
         </div>
       )}
 
+      <div className="flex items-center gap-2 mb-3">
+        <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">
+          <span className="text-sm font-medium text-muted-foreground">Total Amount:</span>
+          <span className="text-lg font-bold" data-testid="sum-amount-value">
+            ${filtered.reduce((sum, d) => sum + (parseFloat(d.amount || "0") || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+          <span className="text-xs text-muted-foreground">({filtered.length} record{filtered.length !== 1 ? "s" : ""})</span>
+        </div>
+      </div>
+
       <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
@@ -379,6 +398,7 @@ export default function PostingPage() {
               <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("postedDate")} data-testid="sort-postedDate">Posted Date <SortIcon col="postedDate" /></TableHead>
               <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("priority")} data-testid="sort-priority">Priority <SortIcon col="priority" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To <SortIcon col="assignedTo" /></TableHead>
+              <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount <SortIcon col="amount" /></TableHead>
               <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
               {canEdit && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
             </TableRow>
@@ -386,7 +406,7 @@ export default function PostingPage() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canEdit ? 10 : 9} className="text-center py-8 text-muted-foreground">
                   No postings found
                 </TableCell>
               </TableRow>
@@ -405,6 +425,7 @@ export default function PostingPage() {
                   <TableCell className="text-xs">{formatDate(d.postedDate)}</TableCell>
                   <TableCell className="text-xs">{d.priority ? <Badge className={`text-xs ${priorityColor(d.priority)}`}>{d.priority}</Badge> : "-"}</TableCell>
                   <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                  <TableCell className="text-xs">{d.amount ? `$${parseFloat(d.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}</TableCell>
                   <TableCell className="text-xs">{d.status ? <Badge className={`text-xs ${statusColor(d.status)}`}>{d.status}</Badge> : "-"}</TableCell>
                   {canEdit && (
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
@@ -500,6 +521,10 @@ export default function PostingPage() {
                     })()}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Amount</Label>
+                <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-posting-amount" />
               </div>
               <div className="space-y-1.5">
                 <Label>Status</Label>

@@ -1101,7 +1101,7 @@ export async function registerRoutes(
       for (const f of dateFields) {
         if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
       }
-      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate"];
+      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];

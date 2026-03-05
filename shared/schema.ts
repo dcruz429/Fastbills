@@ -534,6 +534,7 @@ export const postings = pgTable("postings", {
   priority: text("priority"),
   assignedTo: text("assigned_to"),
   status: text("posting_status"),
+  amount: text("amount"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
