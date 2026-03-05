@@ -489,9 +489,15 @@ export default function PostingPage() {
                   <SelectTrigger data-testid="select-posting-assigned-to"><SelectValue placeholder="Select user" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">-- None --</SelectItem>
-                    {activeUsers.map(u => (
-                      <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
-                    ))}
+                    {(() => {
+                      const names = new Map(activeUsers.map(u => [u.fullName.replace(/\s+/g, ' ').trim().toLowerCase(), u.fullName]));
+                      if (form.assignedTo && !names.has(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase())) {
+                        names.set(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase(), form.assignedTo);
+                      }
+                      return [...names.values()].sort().map(name => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ));
+                    })()}
                   </SelectContent>
                 </Select>
               </div>
