@@ -445,7 +445,7 @@ export default function DenialsPage() {
         <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">
           <span className="text-sm font-medium text-muted-foreground">Total Amount:</span>
           <span className="text-lg font-bold" data-testid="sum-amount-value">
-            ${filtered.reduce((sum, d) => sum + (parseFloat(d.amount || "0") || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${filtered.reduce((sum, d) => sum + (parseFloat((d.amount || "0").replace(/[^0-9.\-]/g, '')) || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
           <span className="text-xs text-muted-foreground">({filtered.length} record{filtered.length !== 1 ? "s" : ""})</span>
         </div>
@@ -523,7 +523,7 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
-                    <TableCell className="text-xs">{d.amount ? `$${parseFloat(d.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}</TableCell>
+                    <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                     <TableCell className="text-xs">{d.action || "-"}</TableCell>
                     <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
