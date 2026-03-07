@@ -30,8 +30,12 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Message Board**: Announcements with targeted delivery (all staff, by role, specific users), read receipts/acknowledgment tracking, admin/manager can post and delete
 - **Direct Messages**: Real-time 1:1 messaging between users with read receipts, unread counts in sidebar, conversation list with last message preview
 
+## Page Layout
+- **Verification** (`/verification`): Standalone page showing only "For Verification" bucket tasks with filters, sorting, task detail drawer
+- **Task Board** (`/`): Shows "Ready for Billing" and "Done" buckets (no longer shows For Verification)
+
 ## Task Workflow
-1. **For Verification**: Task created and assigned to a verifier. Verifier works on it.
+1. **For Verification**: Task created and assigned to a verifier. Verifier works on it. (Shown on Verification page)
 2. **Verifier marks Verified** → Task auto-moves to "Ready for Billing", status becomes "Unassigned", assignment cleared. All admins/assigners get notified to assign a biller.
 3. **Admin/Assigner assigns a biller** → Status becomes "Assigned".
 4. **Biller marks Billed** → Task auto-moves to "Done" bucket.
@@ -67,7 +71,8 @@ client/src/
     create-task-dialog.tsx - New task dialog
   pages/
     login.tsx          - Login page
-    board.tsx          - Main task board
+    board.tsx          - Main task board (Ready for Billing + Done)
+    verification.tsx   - Verification page (For Verification bucket)
     dashboard.tsx      - Supervisor dashboard
     workload.tsx       - Employee workload view
     billing-queue.tsx  - Auto-sorted billing queue

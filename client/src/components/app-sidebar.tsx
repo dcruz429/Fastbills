@@ -17,6 +17,7 @@ import {
   Scale,
   FileText,
   FileCheck,
+  ShieldCheck,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
@@ -53,6 +54,7 @@ import { useQuery } from "@tanstack/react-query";
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Verification", url: "/verification", icon: ShieldCheck, roles: ["admin", "manager", "verifier", "assigner", "account_manager", "case_manager"] },
   { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
   { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner", "account_manager", "case_manager"] },
   { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner", "account_manager", "case_manager"] },

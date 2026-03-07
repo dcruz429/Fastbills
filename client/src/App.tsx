@@ -24,12 +24,14 @@ import MessageBoardPage from "@/pages/message-board";
 import MessagesPage from "@/pages/messages";
 import PostingPage from "@/pages/posting";
 import ChecksPage from "@/pages/checks";
+import VerificationPage from "@/pages/verification";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={BoardPage} />
+      <Route path="/verification" component={VerificationPage} />
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/workload" component={WorkloadPage} />
       <Route path="/billing-queue" component={BillingQueuePage} />

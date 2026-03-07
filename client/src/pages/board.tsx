@@ -27,7 +27,6 @@ import {
   ChevronRight,
   ChevronUp,
   MessageSquare,
-  ShieldCheck,
   Clock,
   FileCheck,
   CheckCircle2,
@@ -79,13 +78,6 @@ function sortTasks(tasks: TaskWithRelations[], field: SortField, dir: SortDir): 
 }
 
 const bucketConfig = {
-  for_verification: {
-    label: "FOR VERIFICATION",
-    icon: ShieldCheck,
-    color: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-950/20",
-    border: "border-amber-200 dark:border-amber-800/30",
-  },
   ready_for_billing: {
     label: "READY FOR BILLING",
     icon: FileCheck,
@@ -111,7 +103,6 @@ export default function BoardPage() {
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterClinic, setFilterClinic] = useState("all");
   const [filterAssignedTo, setFilterAssignedTo] = useState("all");
-  const [filterBucket, setFilterBucket] = useState("all");
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [filterEscalated, setFilterEscalated] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>("patientName");
@@ -119,7 +110,6 @@ export default function BoardPage() {
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openBuckets, setOpenBuckets] = useState<Record<string, boolean>>({
-    for_verification: true,
     ready_for_billing: true,
     done: false,
   });
@@ -128,18 +118,13 @@ export default function BoardPage() {
     if (params.get("status")) setFilterStatus(params.get("status")!);
     if (params.get("priority")) setFilterPriority(params.get("priority")!);
     if (params.get("bucket")) {
-      setFilterBucket(params.get("bucket")!);
       setOpenBuckets((prev) => ({ ...prev, [params.get("bucket")!]: true }));
     }
     if (params.get("overdue") === "true") setFilterOverdue(true);
     if (params.get("escalated") === "true") setFilterEscalated(true);
   }, [searchString]);
 
-  const visibleBuckets = user?.role === "verifier"
-    ? ["for_verification", "done"] as const
-    : user?.role === "biller"
-    ? ["ready_for_billing", "done"] as const
-    : ["for_verification", "ready_for_billing", "done"] as const;
+  const visibleBuckets = ["ready_for_billing", "done"] as const;
 
   const { data: tasks, isLoading } = useQuery<TaskWithRelations[]>({
     queryKey: ["/api/tasks"],
@@ -171,7 +156,6 @@ export default function BoardPage() {
         if (t.assignedUserId?.toString() !== filterAssignedTo) return false;
       }
     }
-    if (filterBucket !== "all" && t.bucket !== filterBucket) return false;
     if (filterOverdue) {
       if (!t.dueDate || new Date(t.dueDate) >= now || t.bucket === "done") return false;
     }
@@ -197,7 +181,6 @@ export default function BoardPage() {
     sortField ? sortTasks(tasks, sortField, sortDir) : tasks;
 
   const tasksByBucket = {
-    for_verification: applySorting(filteredTasks.filter((t) => t.bucket === "for_verification")),
     ready_for_billing: applySorting(filteredTasks.filter((t) => t.bucket === "ready_for_billing")),
     done: applySorting(filteredTasks.filter((t) => t.bucket === "done")),
   };
@@ -210,7 +193,7 @@ export default function BoardPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between gap-3 p-6 pb-2 flex-wrap">
         <h1 className="text-2xl font-bold tracking-tight" data-testid="text-board-title">Task Board</h1>
-        {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner") && <CreateTaskDialog />}
+        {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "case_manager") && <CreateTaskDialog />}
       </div>
 
       <div className="flex items-center gap-2 px-6 pb-3 flex-wrap">
@@ -274,12 +257,11 @@ export default function BoardPage() {
             ))}
           </SelectContent>
         </Select>
-        {(filterBucket !== "all" || filterOverdue || filterEscalated || filterAssignedTo !== "all" || filterStatus !== "all" || filterPriority !== "all" || filterClinic !== "all") && (
+        {(filterOverdue || filterEscalated || filterAssignedTo !== "all" || filterStatus !== "all" || filterPriority !== "all" || filterClinic !== "all") && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
-              setFilterBucket("all");
               setFilterOverdue(false);
               setFilterEscalated(false);
               setFilterStatus("all");
