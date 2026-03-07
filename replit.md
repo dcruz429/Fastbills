@@ -31,6 +31,7 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Direct Messages**: Real-time 1:1 messaging between users with read receipts, unread counts in sidebar, conversation list with last message preview
 
 ## Page Layout
+- **My Tasks** (`/my-tasks`): Shows all tasks assigned to the current user across all buckets with bucket badge, filters, sorting, task detail drawer
 - **Verification** (`/verification`): Standalone page showing only "For Verification" bucket tasks with filters, sorting, task detail drawer
 - **Billing** (`/`): Shows "Ready for Billing" and "Done" buckets (no longer shows For Verification)
 
@@ -71,6 +72,7 @@ client/src/
     create-task-dialog.tsx - New task dialog
   pages/
     login.tsx          - Login page
+    my-tasks.tsx       - My Tasks page (user's assigned tasks)
     board.tsx          - Billing page (Ready for Billing + Done)
     verification.tsx   - Verification page (For Verification bucket)
     dashboard.tsx      - Supervisor dashboard
