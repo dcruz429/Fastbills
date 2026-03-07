@@ -192,7 +192,7 @@ export default function BoardPage() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between gap-3 p-6 pb-2 flex-wrap">
-        <h1 className="text-2xl font-bold tracking-tight" data-testid="text-board-title">Task Board</h1>
+        <h1 className="text-2xl font-bold tracking-tight" data-testid="text-board-title">Billing</h1>
         {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "case_manager") && <CreateTaskDialog />}
       </div>
 

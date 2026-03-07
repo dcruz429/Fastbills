@@ -32,7 +32,7 @@ A workflow management system for tracking patient tasks through insurance verifi
 
 ## Page Layout
 - **Verification** (`/verification`): Standalone page showing only "For Verification" bucket tasks with filters, sorting, task detail drawer
-- **Task Board** (`/`): Shows "Ready for Billing" and "Done" buckets (no longer shows For Verification)
+- **Billing** (`/`): Shows "Ready for Billing" and "Done" buckets (no longer shows For Verification)
 
 ## Task Workflow
 1. **For Verification**: Task created and assigned to a verifier. Verifier works on it. (Shown on Verification page)
@@ -71,7 +71,7 @@ client/src/
     create-task-dialog.tsx - New task dialog
   pages/
     login.tsx          - Login page
-    board.tsx          - Main task board (Ready for Billing + Done)
+    board.tsx          - Billing page (Ready for Billing + Done)
     verification.tsx   - Verification page (For Verification bucket)
     dashboard.tsx      - Supervisor dashboard
     workload.tsx       - Employee workload view
