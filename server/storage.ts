@@ -68,6 +68,12 @@ import {
   type InsertPosting,
   type PostingActivity,
   type InsertPostingActivity,
+  checks,
+  checkActivity,
+  type Check,
+  type InsertCheck,
+  type CheckActivity,
+  type InsertCheckActivity,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -163,6 +169,14 @@ export interface IStorage {
   createDropdownOption(data: InsertDropdownOption): Promise<DropdownOption>;
   updateDropdownOption(id: number, data: Partial<InsertDropdownOption>): Promise<DropdownOption | undefined>;
   deleteDropdownOption(id: number): Promise<void>;
+
+  getAllChecks(): Promise<Check[]>;
+  getCheck(id: number): Promise<Check | undefined>;
+  createCheck(data: InsertCheck): Promise<Check>;
+  updateCheck(id: number, data: Partial<Check>): Promise<Check | undefined>;
+  deleteCheck(id: number): Promise<void>;
+  getCheckActivity(checkId: number): Promise<any[]>;
+  createCheckActivity(data: InsertCheckActivity): Promise<CheckActivity>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -797,6 +811,55 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDropdownOption(id: number): Promise<void> {
     await db.delete(dropdownOptions).where(eq(dropdownOptions.id, id));
+  }
+
+  async getAllChecks(): Promise<Check[]> {
+    return db.select().from(checks).orderBy(desc(checks.createdAt));
+  }
+
+  async getCheck(id: number): Promise<Check | undefined> {
+    const [check] = await db.select().from(checks).where(eq(checks.id, id));
+    return check;
+  }
+
+  async createCheck(data: InsertCheck): Promise<Check> {
+    const [check] = await db.insert(checks).values(data).returning();
+    return check;
+  }
+
+  async updateCheck(id: number, data: Partial<Check>): Promise<Check | undefined> {
+    const [check] = await db.update(checks).set(data).where(eq(checks.id, id)).returning();
+    return check;
+  }
+
+  async deleteCheck(id: number): Promise<void> {
+    await db.delete(checkActivity).where(eq(checkActivity.checkId, id));
+    await db.delete(checks).where(eq(checks.id, id));
+  }
+
+  async getCheckActivity(checkId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: checkActivity.id,
+        checkId: checkActivity.checkId,
+        userId: checkActivity.userId,
+        action: checkActivity.action,
+        field: checkActivity.field,
+        oldValue: checkActivity.oldValue,
+        newValue: checkActivity.newValue,
+        timestamp: checkActivity.timestamp,
+        userName: users.fullName,
+      })
+      .from(checkActivity)
+      .leftJoin(users, eq(checkActivity.userId, users.id))
+      .where(eq(checkActivity.checkId, checkId))
+      .orderBy(desc(checkActivity.timestamp));
+    return rows;
+  }
+
+  async createCheckActivity(data: InsertCheckActivity): Promise<CheckActivity> {
+    const [activity] = await db.insert(checkActivity).values(data).returning();
+    return activity;
   }
 }
 

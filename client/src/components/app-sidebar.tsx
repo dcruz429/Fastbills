@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Scale,
   FileText,
+  FileCheck,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
@@ -50,18 +51,19 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
-  { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
-  { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
-  { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner"] },
-  { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner"] },
-  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner"] },
-  { title: "Posting", url: "/posting", icon: FileText, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
-  { title: "Collections", url: "/collections", icon: Landmark, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
-  { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
-  { title: "Arbitration", url: "/arbitration", icon: Scale, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
-  { title: "Message Board", url: "/message-board", icon: Megaphone, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
-  { title: "Messages", url: "/messages", icon: MessageCircle, roles: ["admin", "manager", "verifier", "biller", "assigner"] },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
+  { title: "Task Board", url: "/", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner", "account_manager", "case_manager"] },
+  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner", "account_manager", "case_manager"] },
+  { title: "Posting", url: "/posting", icon: FileText, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Collections", url: "/collections", icon: Landmark, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Arbitration", url: "/arbitration", icon: Scale, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Checks", url: "/checks", icon: FileCheck, roles: ["admin", "payment_specialist", "case_manager"] },
+  { title: "Message Board", url: "/message-board", icon: Megaphone, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
+  { title: "Messages", url: "/messages", icon: MessageCircle, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Suggestion Box", url: "/tickets", icon: Lightbulb, roles: ["admin"] },
 ];
 
@@ -218,7 +220,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner") && (
+        {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "case_manager") && (
           <SidebarGroup>
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -248,7 +250,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col flex-1 min-w-0">
             <span className="text-sm font-medium truncate">{user?.fullName}</span>
-            <span className="text-xs text-muted-foreground capitalize">{user?.role}</span>
+            <span className="text-xs text-muted-foreground capitalize">{user?.role === "assigner" ? "Case Coordinator" : user?.role === "payment_specialist" ? "Payment Specialist" : user?.role === "account_manager" ? "Account Manager" : user?.role === "case_manager" ? "Case Manager" : user?.role}</span>
           </div>
           <Button
             size="icon"

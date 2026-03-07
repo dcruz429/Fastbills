@@ -11,6 +11,8 @@ import { db } from "./db";
 import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, DROPDOWN_CATEGORIES } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
+const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager"];
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -305,7 +307,7 @@ export async function registerRoutes(
   app.post("/api/tasks", requireAuth, async (req, res) => {
     try {
       const creator = await storage.getUser(req.session.userId!);
-      if (!creator || (creator.role !== "admin" && creator.role !== "manager" && creator.role !== "assigner")) {
+      if (!creator || !ADMIN_ROLES.includes(creator.role)) {
         return res.status(403).json({ message: "Only admins and case coordinators can create tasks" });
       }
       const parsed = createTaskSchema.safeParse(req.body);
@@ -363,7 +365,7 @@ export async function registerRoutes(
 
       const updates = { ...req.body };
       const editor = await storage.getUser(req.session.userId!);
-      if (updates.assignedUserId !== undefined && editor && editor.role !== "admin" && editor.role !== "manager" && editor.role !== "assigner") {
+      if (updates.assignedUserId !== undefined && editor && !ADMIN_ROLES.includes(editor.role)) {
         delete updates.assignedUserId;
       }
       if (updates.resolutionDate !== undefined) {
@@ -447,7 +449,7 @@ export async function registerRoutes(
 
       if (updates.bucket === "ready_for_billing" && existing.bucket !== "ready_for_billing") {
         const allUsers = await storage.getAllUsers();
-        const adminsAndAssigners = allUsers.filter(u => u.role === "admin" || u.role === "manager" || u.role === "assigner");
+        const adminsAndAssigners = allUsers.filter(u => ADMIN_ROLES.includes(u.role));
         for (const admin of adminsAndAssigners) {
           await storage.createNotification({
             userId: admin.id,
@@ -468,7 +470,7 @@ export async function registerRoutes(
   app.delete("/api/tasks/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || (user.role !== "admin" && user.role !== "manager")) {
+      if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can delete tasks" });
       }
       const id = parseInt(req.params.id);
@@ -544,7 +546,7 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllDenials();
-      if (["admin", "manager", "assigner"].includes(user.role)) {
+      if (ADMIN_ROLES.includes(user.role)) {
         res.json(all);
       } else {
         res.json(all.filter(d => d.assignedTo === user.fullName));
@@ -690,7 +692,7 @@ export async function registerRoutes(
   app.delete("/api/denials/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can delete denials" });
       }
       await storage.deleteDenial(parseInt(req.params.id));
@@ -706,7 +708,7 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllArbitrations();
-      if (["admin", "manager", "assigner"].includes(user.role)) {
+      if (ADMIN_ROLES.includes(user.role)) {
         res.json(all);
       } else {
         res.json(all.filter(a => a.assignedTo === user.fullName));
@@ -802,7 +804,7 @@ export async function registerRoutes(
   app.delete("/api/arbitrations/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can delete arbitrations" });
       }
       await storage.deleteArbitration(parseInt(req.params.id));
@@ -818,7 +820,7 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllCollections();
-      if (["admin", "manager", "assigner"].includes(user.role)) {
+      if (ADMIN_ROLES.includes(user.role)) {
         res.json(all);
       } else {
         res.json(all.filter(c => c.assignedTo === user.fullName));
@@ -839,7 +841,7 @@ export async function registerRoutes(
   app.post("/api/collections", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can create collections" });
       }
       const data: any = { ...req.body };
@@ -868,7 +870,7 @@ export async function registerRoutes(
   app.post("/api/collections/import-csv", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can import collections" });
       }
       const { rows } = req.body;
@@ -933,7 +935,7 @@ export async function registerRoutes(
   app.patch("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can edit collections" });
       }
       const id = parseInt(req.params.id);
@@ -1064,7 +1066,7 @@ export async function registerRoutes(
   app.delete("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can delete collections" });
       }
       await storage.deleteCollection(parseInt(req.params.id));
@@ -1080,7 +1082,7 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllPostings();
-      if (["admin", "manager", "assigner"].includes(user.role)) {
+      if (ADMIN_ROLES.includes(user.role)) {
         res.json(all);
       } else {
         res.json(all.filter(p => p.assignedTo === user.fullName));
@@ -1093,7 +1095,7 @@ export async function registerRoutes(
   app.post("/api/postings", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can create postings" });
       }
       const data: any = { ...req.body };
@@ -1119,7 +1121,7 @@ export async function registerRoutes(
   app.patch("/api/postings/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can edit postings" });
       }
       const id = parseInt(req.params.id);
@@ -1188,7 +1190,7 @@ export async function registerRoutes(
   app.delete("/api/postings/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can delete postings" });
       }
       await storage.deletePosting(parseInt(req.params.id));
@@ -1228,7 +1230,7 @@ export async function registerRoutes(
         if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id) || a.authorId === user.id;
         return false;
       });
-      if (user.role === "admin" || user.role === "manager") {
+      if (["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         res.json(all);
       } else {
         res.json(visible);
@@ -1241,7 +1243,7 @@ export async function registerRoutes(
   app.post("/api/announcements", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
+      if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can create announcements" });
       }
       const { title, body, targetType, targetRoles, targetUserIds } = req.body;
@@ -1284,7 +1286,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      if (!["admin", "manager"].includes(user.role)) {
+      if (!["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can view read receipts" });
       }
       const acks = await storage.getAnnouncementAcks(parseInt(req.params.id));
@@ -1329,7 +1331,7 @@ export async function registerRoutes(
   app.post("/api/dropdown-options", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
+      if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can manage dropdown options" });
       }
       const { category, value } = req.body;
@@ -1350,7 +1352,7 @@ export async function registerRoutes(
   app.patch("/api/dropdown-options/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
+      if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can manage dropdown options" });
       }
       const { value } = req.body;
@@ -1367,7 +1369,7 @@ export async function registerRoutes(
   app.delete("/api/dropdown-options/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !["admin", "manager"].includes(user.role)) {
+      if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can manage dropdown options" });
       }
       await storage.deleteDropdownOption(parseInt(req.params.id));
@@ -1666,6 +1668,149 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only admins can access ticket activity" });
       }
       res.json(await storage.getTicketActivity(parseInt(req.params.id)));
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  const CHECKS_ROLES = ["admin", "payment_specialist", "case_manager"];
+
+  app.get("/api/checks", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      if (!CHECKS_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const all = await storage.getAllChecks();
+      if (user.role === "payment_specialist") {
+        res.json(all.filter(c => c.assignedTo === user.fullName));
+      } else {
+        res.json(all);
+      }
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/checks", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !CHECKS_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const data: any = { ...req.body };
+      const dateFields = ["checkDate", "inputDate", "scannedDate", "postedDate", "depositDate"];
+      for (const f of dateFields) {
+        if (data[f]) { data[f] = new Date(data[f]); } else { data[f] = null; }
+      }
+      const check = await storage.createCheck(data);
+      await storage.createCheckActivity({
+        checkId: check.id,
+        userId: req.session.userId!,
+        action: "Check created",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
+      res.json(check);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/checks/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !CHECKS_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getCheck(id);
+      if (!existing) return res.status(404).json({ message: "Check not found" });
+      if (user.role === "payment_specialist" && existing.assignedTo !== user.fullName) {
+        return res.status(403).json({ message: "You can only edit checks assigned to you" });
+      }
+      const data: any = { ...req.body };
+      const dateFields = ["checkDate", "inputDate", "scannedDate", "postedDate", "depositDate"];
+      for (const f of dateFields) {
+        if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
+      }
+      const trackFields = ["assignedTo", "clinic", "checkNumber", "amount", "checkDate", "inputDate", "insurance", "fileName", "scannedDate", "type", "status", "postedDate", "depositDate", "depositedBy"];
+      for (const field of trackFields) {
+        const oldVal = (existing as any)[field];
+        const newVal = data[field];
+        if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+          await storage.createCheckActivity({
+            checkId: id,
+            userId: req.session.userId!,
+            action: `Changed ${field}`,
+            field,
+            oldValue: oldVal ? String(oldVal) : null,
+            newValue: newVal ? String(newVal) : null,
+          });
+        }
+      }
+      const updated = await storage.updateCheck(id, data);
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/checks/:id/activity", requireAuth, async (req, res) => {
+    const activity = await storage.getCheckActivity(parseInt(req.params.id));
+    res.json(activity);
+  });
+
+  app.post("/api/checks/:id/notes", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { note } = req.body;
+      if (!note) return res.status(400).json({ message: "Note required" });
+      const existing = await storage.getCheck(id);
+      if (!existing) return res.status(404).json({ message: "Check not found" });
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !CHECKS_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      if (user.role === "payment_specialist" && existing.assignedTo !== user.fullName) {
+        return res.status(403).json({ message: "You can only add notes to checks assigned to you" });
+      }
+      const existingNotes = existing.notes || "";
+      const timestamp = new Date().toISOString();
+      const newNotes = existingNotes
+        ? `${existingNotes}\n\n[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`
+        : `[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`;
+      await storage.updateCheck(id, { notes: newNotes });
+      await storage.createCheckActivity({
+        checkId: id,
+        userId: req.session.userId!,
+        action: "Added note",
+        field: "notes",
+        oldValue: null,
+        newValue: note,
+      });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/checks/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !CHECKS_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      if (user.role === "payment_specialist") {
+        const existing = await storage.getCheck(parseInt(req.params.id));
+        if (!existing || existing.assignedTo !== user.fullName) {
+          return res.status(403).json({ message: "You can only delete checks assigned to you" });
+        }
+      }
+      await storage.deleteCheck(parseInt(req.params.id));
+      res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

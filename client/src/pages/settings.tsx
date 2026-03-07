@@ -395,6 +395,9 @@ function UserSettings() {
               <SelectItem value="biller">Biller</SelectItem>
               <SelectItem value="assigner">Case Coordinator</SelectItem>
               <SelectItem value="manager">Manager</SelectItem>
+              <SelectItem value="payment_specialist">Payment Specialist</SelectItem>
+              <SelectItem value="account_manager">Account Manager</SelectItem>
+              <SelectItem value="case_manager">Case Manager</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
           </Select>
@@ -457,6 +460,9 @@ function UserSettings() {
                         <SelectItem value="biller">Biller</SelectItem>
                         <SelectItem value="assigner">Case Coordinator</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="payment_specialist">Payment Specialist</SelectItem>
+                        <SelectItem value="account_manager">Account Manager</SelectItem>
+                        <SelectItem value="case_manager">Case Manager</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
@@ -498,7 +504,7 @@ function UserSettings() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{u.fullName}</span>
                   <Badge variant="secondary" className="no-default-active-elevate text-xs capitalize">
-                    {u.role === "assigner" ? "Case Coordinator" : u.role}
+                    {u.role === "assigner" ? "Case Coordinator" : u.role === "payment_specialist" ? "Payment Specialist" : u.role === "account_manager" ? "Account Manager" : u.role === "case_manager" ? "Case Manager" : u.role}
                   </Badge>
                   {!u.active && (
                     <Badge variant="secondary" className="no-default-active-elevate text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">
@@ -701,7 +707,7 @@ function DropdownSettings() {
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const showUsers = user?.role === "admin" || user?.role === "manager";
+  const showUsers = user?.role === "admin" || user?.role === "manager" || user?.role === "account_manager" || user?.role === "case_manager";
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">

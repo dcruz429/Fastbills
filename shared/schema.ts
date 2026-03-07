@@ -3,7 +3,7 @@ import { pgTable, text, varchar, integer, timestamp, boolean, pgEnum } from "dri
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const roleEnum = pgEnum("role", ["admin", "verifier", "biller", "assigner", "manager"]);
+export const roleEnum = pgEnum("role", ["admin", "verifier", "biller", "assigner", "manager", "payment_specialist", "account_manager", "case_manager"]);
 export const bucketEnum = pgEnum("bucket", ["for_verification", "ready_for_billing", "done"]);
 export const statusEnum = pgEnum("status", ["working_on_it", "billed", "done", "dropped", "assigned", "unassigned", "verified"]);
 export const priorityEnum = pgEnum("priority", ["low", "medium", "high", "critical"]);
@@ -555,6 +555,58 @@ export type InsertPosting = z.infer<typeof insertPostingSchema>;
 export type Posting = typeof postings.$inferSelect;
 export type InsertPostingActivity = z.infer<typeof insertPostingActivitySchema>;
 export type PostingActivity = typeof postingActivity.$inferSelect;
+
+export const CHECKS_TYPE_OPTIONS = ["EOB", "Payment", "Refund", "Adjustment", "Other"];
+export const CHECKS_STATUS_OPTIONS = ["Pending", "Processed", "Deposited", "Returned", "Voided"];
+
+export const checks = pgTable("checks", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  assignedTo: text("assigned_to"),
+  clinic: text("clinic"),
+  checkNumber: text("check_number"),
+  amount: text("amount"),
+  checkDate: timestamp("check_date"),
+  inputDate: timestamp("input_date").defaultNow(),
+  insurance: text("insurance"),
+  fileName: text("file_name"),
+  scannedDate: timestamp("scanned_date"),
+  type: text("check_type"),
+  status: text("check_status"),
+  postedDate: timestamp("posted_date"),
+  depositDate: timestamp("deposit_date"),
+  depositedBy: text("deposited_by"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const checkActivity = pgTable("check_activity", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  checkId: integer("check_id").notNull().references(() => checks.id),
+  userId: integer("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  field: text("field"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+export const insertCheckSchema = createInsertSchema(checks).omit({ id: true, createdAt: true });
+export const insertCheckActivitySchema = createInsertSchema(checkActivity).omit({ id: true, timestamp: true });
+export type InsertCheck = z.infer<typeof insertCheckSchema>;
+export type Check = typeof checks.$inferSelect;
+export type InsertCheckActivity = z.infer<typeof insertCheckActivitySchema>;
+export type CheckActivity = typeof checkActivity.$inferSelect;
+
+export const ROLE_LABELS: Record<string, string> = {
+  admin: "Admin",
+  verifier: "Verifier",
+  biller: "Biller",
+  assigner: "Case Coordinator",
+  manager: "Manager",
+  payment_specialist: "Payment Specialist",
+  account_manager: "Account Manager",
+  case_manager: "Case Manager",
+};
 
 export const DROPDOWN_CATEGORIES = [
   { key: "denial_type", label: "Type of Denial" },
