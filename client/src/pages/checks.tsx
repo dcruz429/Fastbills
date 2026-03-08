@@ -79,6 +79,9 @@ export default function ChecksPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterInsurance, setFilterInsurance] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterDateField, setFilterDateField] = useState("inputDate");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -231,7 +234,7 @@ export default function ChecksPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const activeFilterCount = [filterClinic, filterType, filterStatus, filterInsurance, filterAssignedTo]
+  const activeFilterCount = [filterClinic, filterType, filterStatus, filterInsurance, filterAssignedTo, filterDateFrom, filterDateTo]
     .filter(v => v && v !== "__all__").length;
 
   function clearFilters() {
@@ -240,6 +243,8 @@ export default function ChecksPage() {
     setFilterStatus("");
     setFilterInsurance("");
     setFilterAssignedTo("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
   }
 
   const filteredUnsorted = (checksList || []).filter(d => {
@@ -249,6 +254,20 @@ export default function ChecksPage() {
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
     if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
+    if (filterDateFrom || filterDateTo) {
+      const fieldVal = (d as any)[filterDateField];
+      if (!fieldVal) return false;
+      const dateVal = new Date(fieldVal);
+      if (isNaN(dateVal.getTime())) return false;
+      if (filterDateFrom) {
+        const from = new Date(filterDateFrom + "T00:00:00");
+        if (dateVal < from) return false;
+      }
+      if (filterDateTo) {
+        const to = new Date(filterDateTo + "T23:59:59.999");
+        if (dateVal > to) return false;
+      }
+    }
     return true;
   });
 
@@ -386,6 +405,29 @@ export default function ChecksPage() {
                   {assignedToOptions.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4 p-3 border rounded-lg bg-muted/30">
+            <div>
+              <Label className="text-xs mb-1 block">Date Column</Label>
+              <Select value={filterDateField} onValueChange={setFilterDateField}>
+                <SelectTrigger className="h-8 text-xs" data-testid="filter-date-field"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inputDate">Input Date</SelectItem>
+                  <SelectItem value="checkDate">Check Date</SelectItem>
+                  <SelectItem value="scannedDate">Scanned Date</SelectItem>
+                  <SelectItem value="postedDate">Posted Date</SelectItem>
+                  <SelectItem value="depositDate">Deposit Date</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">From</Label>
+              <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="h-8 text-xs" data-testid="filter-date-from" />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">To</Label>
+              <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="h-8 text-xs" data-testid="filter-date-to" />
             </div>
           </div>
         </CollapsibleContent>
