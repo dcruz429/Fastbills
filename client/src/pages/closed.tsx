@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, FileText, CreditCard, ClipboardList, ShieldAlert, Scale, Package, Archive } from "lucide-react";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager"];
 
@@ -187,6 +187,26 @@ export default function ClosedPage() {
     setFilterAssignedTo("");
   }
 
+  const SOURCE_SECTIONS = [
+    { key: "Verification/Billing", label: "BILLING / VERIFICATION TASKS", icon: FileText, color: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
+    { key: "Posting", label: "POSTINGS", icon: Package, color: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800" },
+    { key: "Collections", label: "COLLECTIONS", icon: CreditCard, color: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800" },
+    { key: "Denials", label: "DENIALS", icon: ShieldAlert, color: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800" },
+    { key: "Arbitration", label: "ARBITRATIONS", icon: Scale, color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800" },
+    { key: "Checks", label: "CHECKS", icon: ClipboardList, color: "bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800" },
+    { key: "__other__", label: "OTHER", icon: Archive, color: "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800" },
+  ];
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    SOURCE_SECTIONS.forEach(s => { initial[s.key] = true; });
+    return initial;
+  });
+
+  const toggleSection = (key: string) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const sourceOptions = Array.from(new Set((closedList || []).map(d => d.source).filter(Boolean) as string[])).sort();
 
   const filteredUnsorted = (closedList || []).filter(d => {
@@ -331,58 +351,95 @@ export default function ClosedPage() {
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
-        <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
-            <TableRow>
-              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient Name <SortIcon col="patientName" /></TableHead>
-              <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic <SortIcon col="clinic" /></TableHead>
-              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance <SortIcon col="insurance" /></TableHead>
-              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To <SortIcon col="assignedTo" /></TableHead>
-              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
-              <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount <SortIcon col="amount" /></TableHead>
-              <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("source")} data-testid="sort-source">Source <SortIcon col="source" /></TableHead>
-              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("outcome")} data-testid="sort-outcome">Outcome <SortIcon col="outcome" /></TableHead>
-              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("createdAt")} data-testid="sort-createdAt">Created <SortIcon col="createdAt" /></TableHead>
-              {isAdmin && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 10 : 9} className="text-center py-8 text-muted-foreground">
-                  No closed records found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map(d => (
-                <TableRow
-                  key={d.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => openEdit(d)}
-                  data-testid={`row-closed-${d.id}`}
+      <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar space-y-4">
+        {(() => {
+          const knownKeys = SOURCE_SECTIONS.map(s => s.key).filter(k => k !== "__other__");
+          const groupedBySource: Record<string, typeof filtered> = {};
+          for (const section of SOURCE_SECTIONS) {
+            groupedBySource[section.key] = [];
+          }
+          for (const d of filtered) {
+            const src = d.source || "";
+            const matchedKey = knownKeys.find(k => k === src);
+            if (matchedKey) {
+              groupedBySource[matchedKey].push(d);
+            } else {
+              groupedBySource["__other__"].push(d);
+            }
+          }
+
+          const sectionsToShow = filterSource && filterSource !== "__all__"
+            ? SOURCE_SECTIONS.filter(s => s.key === filterSource || (s.key === "__other__" && !knownKeys.includes(filterSource)))
+            : SOURCE_SECTIONS;
+
+          return sectionsToShow.map(section => {
+            const sectionItems = groupedBySource[section.key] || [];
+            const SectionIcon = section.icon;
+            const isOpen = openSections[section.key] ?? true;
+
+            return (
+              <div key={section.key} className={`border rounded-lg overflow-hidden ${section.color}`} data-testid={`section-${section.key}`}>
+                <button
+                  className={`w-full flex items-center gap-2 px-4 py-3 font-bold text-sm cursor-pointer select-none`}
+                  onClick={() => toggleSection(section.key)}
+                  data-testid={`toggle-section-${section.key}`}
                 >
-                  <TableCell className="text-xs font-medium">{d.patientName || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
-                  <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
-                  <TableCell className="text-xs">{d.source || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
-                  <TableCell className="text-xs">{formatDate(d.createdAt)}</TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-closed-${d.id}`}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                  <SectionIcon className="h-4 w-4" />
+                  <span>{section.label}</span>
+                  <span className="text-xs font-normal opacity-70 ml-1">({sectionItems.length})</span>
+                </button>
+                {isOpen && (
+                  <div className="bg-background">
+                    {sectionItems.length === 0 ? (
+                      <p className="text-center py-6 text-sm text-muted-foreground">No items</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="min-w-[120px] cursor-pointer select-none text-xs" onClick={() => handleSort("patientName")}>Patient <SortIcon col="patientName" /></TableHead>
+                            <TableHead className="min-w-[80px] cursor-pointer select-none text-xs" onClick={() => handleSort("clinic")}>Clinic <SortIcon col="clinic" /></TableHead>
+                            <TableHead className="min-w-[100px] cursor-pointer select-none text-xs" onClick={() => handleSort("insurance")}>Insurance <SortIcon col="insurance" /></TableHead>
+                            <TableHead className="min-w-[80px] cursor-pointer select-none text-xs" onClick={() => handleSort("amount")}>Amount <SortIcon col="amount" /></TableHead>
+                            <TableHead className="min-w-[100px] cursor-pointer select-none text-xs" onClick={() => handleSort("status")}>Status <SortIcon col="status" /></TableHead>
+                            <TableHead className="min-w-[120px] cursor-pointer select-none text-xs" onClick={() => handleSort("assignedTo")}>Assigned To <SortIcon col="assignedTo" /></TableHead>
+                            <TableHead className="min-w-[100px] cursor-pointer select-none text-xs" onClick={() => handleSort("createdAt")}>Created <SortIcon col="createdAt" /></TableHead>
+                            {isAdmin && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sectionItems.map(d => (
+                            <TableRow
+                              key={d.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => openEdit(d)}
+                              data-testid={`row-closed-${d.id}`}
+                            >
+                              <TableCell className="text-xs font-medium">{d.patientName || "-"}</TableCell>
+                              <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                              <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
+                              <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                              <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                              <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                              <TableCell className="text-xs">{formatDate(d.createdAt)}</TableCell>
+                              {isAdmin && (
+                                <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-closed-${d.id}`}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
 
       <Sheet open={drawerOpen} onOpenChange={(v) => { if (!v) { setDrawerOpen(false); setEditingId(null); setForm({ ...emptyForm }); } }}>
