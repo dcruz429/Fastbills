@@ -487,13 +487,14 @@ export default function ArbitrationPage() {
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("comment")} data-testid="sort-comment">Comment{renderSortIcon("comment")}</TableHead>
                   <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To{renderSortIcon("assignedTo")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status{renderSortIcon("status")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("activity")} data-testid="sort-activity">Action{renderSortIcon("activity")}</TableHead>
                   <TableHead className="min-w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sorted.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={24} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={25} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
@@ -533,6 +534,7 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">
                       {(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}
                     </TableCell>
+                    <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         {canDelete && (
