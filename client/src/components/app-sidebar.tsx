@@ -19,6 +19,7 @@ import {
   FileCheck,
   ShieldCheck,
   User as UserIcon,
+  CheckCircle2,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
@@ -61,6 +62,7 @@ const navItems = [
   { title: "Collections", url: "/collections", icon: Landmark, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
   { title: "Denials", url: "/denials", icon: FileX, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
   { title: "Arbitration", url: "/arbitration", icon: Scale, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
+  { title: "Closed", url: "/closed", icon: CheckCircle2, roles: ["admin", "manager", "verifier", "biller", "assigner", "account_manager", "case_manager"] },
   { title: "Checks", url: "/checks", icon: FileCheck, roles: ["admin", "payment_specialist", "case_manager"] },
   { title: "Message Board", url: "/message-board", icon: Megaphone, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Messages", url: "/messages", icon: MessageCircle, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },

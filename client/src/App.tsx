@@ -26,6 +26,7 @@ import PostingPage from "@/pages/posting";
 import ChecksPage from "@/pages/checks";
 import VerificationPage from "@/pages/verification";
 import MyTasksPage from "@/pages/my-tasks";
+import ClosedPage from "@/pages/closed";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Router() {
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/posting" component={PostingPage} />
       <Route path="/collections" component={CollectionsPage} />
       <Route path="/checks" component={ChecksPage} />
+      <Route path="/closed" component={ClosedPage} />
       <Route path="/message-board" component={MessageBoardPage} />
       <Route path="/messages" component={MessagesPage} />
       <Route component={NotFound} />
