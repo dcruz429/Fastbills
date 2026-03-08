@@ -8,8 +8,8 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db } from "./db";
-import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, collections, postings, checks, closed, closedActivity, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS } from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager"];
 
@@ -343,11 +343,56 @@ export async function registerRoutes(
 
   app.get("/api/productivity", requireAuth, async (req, res) => {
     try {
-      const activities = await storage.getAllTaskActivity();
-      const completionActions = activities.filter(a =>
-        a.field === "status" && a.newValue === "done"
-      );
-      res.json(completionActions);
+      const [taskActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
+        db.select({
+          id: taskActivity.id, userId: taskActivity.userId, action: taskActivity.action,
+          field: taskActivity.field, oldValue: taskActivity.oldValue, newValue: taskActivity.newValue,
+          timestamp: taskActivity.timestamp, userName: users.fullName,
+        }).from(taskActivity).leftJoin(users, eq(taskActivity.userId, users.id)).orderBy(desc(taskActivity.timestamp)),
+        db.select({
+          id: denialActivity.id, userId: denialActivity.userId, action: denialActivity.action,
+          field: denialActivity.field, oldValue: denialActivity.oldValue, newValue: denialActivity.newValue,
+          timestamp: denialActivity.timestamp, userName: users.fullName,
+        }).from(denialActivity).leftJoin(users, eq(denialActivity.userId, users.id)).orderBy(desc(denialActivity.timestamp)),
+        db.select({
+          id: arbitrationActivity.id, userId: arbitrationActivity.userId, action: arbitrationActivity.action,
+          field: arbitrationActivity.field, oldValue: arbitrationActivity.oldValue, newValue: arbitrationActivity.newValue,
+          timestamp: arbitrationActivity.timestamp, userName: users.fullName,
+        }).from(arbitrationActivity).leftJoin(users, eq(arbitrationActivity.userId, users.id)).orderBy(desc(arbitrationActivity.timestamp)),
+        db.select({
+          id: collectionActivity.id, userId: collectionActivity.userId, action: collectionActivity.action,
+          field: collectionActivity.field, oldValue: collectionActivity.oldValue, newValue: collectionActivity.newValue,
+          timestamp: collectionActivity.timestamp, userName: users.fullName,
+        }).from(collectionActivity).leftJoin(users, eq(collectionActivity.userId, users.id)).orderBy(desc(collectionActivity.timestamp)),
+        db.select({
+          id: postingActivity.id, userId: postingActivity.userId, action: postingActivity.action,
+          field: postingActivity.field, oldValue: postingActivity.oldValue, newValue: postingActivity.newValue,
+          timestamp: postingActivity.timestamp, userName: users.fullName,
+        }).from(postingActivity).leftJoin(users, eq(postingActivity.userId, users.id)).orderBy(desc(postingActivity.timestamp)),
+        db.select({
+          id: checkActivity.id, userId: checkActivity.userId, action: checkActivity.action,
+          field: checkActivity.field, oldValue: checkActivity.oldValue, newValue: checkActivity.newValue,
+          timestamp: checkActivity.timestamp, userName: users.fullName,
+        }).from(checkActivity).leftJoin(users, eq(checkActivity.userId, users.id)).orderBy(desc(checkActivity.timestamp)),
+        db.select({
+          id: closedActivity.id, userId: closedActivity.userId, action: closedActivity.action,
+          field: closedActivity.field, oldValue: closedActivity.oldValue, newValue: closedActivity.newValue,
+          timestamp: closedActivity.timestamp, userName: users.fullName,
+        }).from(closedActivity).leftJoin(users, eq(closedActivity.userId, users.id)).orderBy(desc(closedActivity.timestamp)),
+      ]);
+
+      const addSource = (acts: any[], source: string) => acts.map(a => ({ ...a, source }));
+      const all = [
+        ...addSource(taskActs, "Verification/Billing"),
+        ...addSource(denialActs, "Denials"),
+        ...addSource(arbActs, "Arbitration"),
+        ...addSource(collActs, "Collections"),
+        ...addSource(postActs, "Posting"),
+        ...addSource(checkActs, "Checks"),
+        ...addSource(closedActs, "Closed"),
+      ];
+
+      res.json(all);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

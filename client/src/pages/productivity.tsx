@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, FileText, ShieldAlert, Scale, CreditCard, Package, ClipboardList, Archive, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart,
   Bar,
@@ -16,12 +18,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 import type { User } from "@shared/schema";
 
 type ActivityRecord = {
   id: number;
-  taskId: number;
   userId: number;
   action: string;
   field: string;
@@ -29,10 +31,31 @@ type ActivityRecord = {
   newValue: string | null;
   timestamp: string;
   userName: string;
+  source: string;
 };
 
 type TimeRange = "day" | "week" | "month";
 type PeriodPreset = "last_7_days" | "this_month" | "last_month" | "last_3_months" | "custom" | "all_time" | "single_day";
+
+const TRACKER_SOURCES = [
+  { key: "Verification/Billing", label: "Verification / Billing", icon: FileText, color: "text-blue-600" },
+  { key: "Denials", label: "Denials", icon: ShieldAlert, color: "text-red-600" },
+  { key: "Arbitration", label: "Arbitration", icon: Scale, color: "text-green-600" },
+  { key: "Collections", label: "Collections", icon: CreditCard, color: "text-amber-600" },
+  { key: "Posting", label: "Posting", icon: Package, color: "text-purple-600" },
+  { key: "Checks", label: "Checks", icon: ClipboardList, color: "text-teal-600" },
+  { key: "Closed", label: "Closed", icon: Archive, color: "text-gray-600" },
+];
+
+const TRACKER_COLORS: Record<string, string> = {
+  "Verification/Billing": "hsl(210 70% 50%)",
+  "Denials": "hsl(0 70% 50%)",
+  "Arbitration": "hsl(140 60% 40%)",
+  "Collections": "hsl(40 80% 50%)",
+  "Posting": "hsl(270 60% 55%)",
+  "Checks": "hsl(175 60% 40%)",
+  "Closed": "hsl(0 0% 50%)",
+};
 
 function getMonthStart(year: number, month: number): Date {
   return new Date(year, month, 1);
@@ -79,17 +102,30 @@ function formatDateLabel(key: string, range: TimeRange): string {
   return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
+function isCompletedAction(a: ActivityRecord): boolean {
+  if (a.action === "Record created" || a.action === "Created") return true;
+  if (a.field === "status" && (a.newValue === "Done" || a.newValue === "done" || a.newValue === "verified" || a.newValue === "billed")) return true;
+  if (a.field === "outcome" && a.newValue) return true;
+  if (a.field === "activity" && a.newValue) return true;
+  return false;
+}
+
+function countActions(acts: ActivityRecord[]): number {
+  return acts.length;
+}
+
 export default function ProductivityPage() {
   const { user } = useAuth();
   const now = new Date();
   const [timeRange, setTimeRange] = useState<TimeRange>("day");
   const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [selectedSource, setSelectedSource] = useState<string>("all");
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("this_month");
   const [customYear, setCustomYear] = useState(now.getFullYear());
   const [customMonth, setCustomMonth] = useState(now.getMonth());
   const [singleDay, setSingleDay] = useState("");
 
-  if (!user || !["admin", "manager", "assigner"].includes(user.role)) {
+  if (!user || !["admin", "manager", "assigner", "account_manager", "case_manager"].includes(user.role)) {
     return <Redirect to="/" />;
   }
 
@@ -146,6 +182,7 @@ export default function ProductivityPage() {
 
   const filtered = (activities || []).filter(a => {
     if (selectedUser !== "all" && String(a.userId) !== selectedUser) return false;
+    if (selectedSource !== "all" && a.source !== selectedSource) return false;
     if (dateStart && dateEnd) {
       const ts = new Date(a.timestamp);
       if (ts < dateStart || ts > dateEnd) return false;
@@ -160,36 +197,44 @@ export default function ProductivityPage() {
     setPeriodPreset("custom");
   }
 
-  const userMap = new Map<number, { name: string; verified: number; billed: number; dropped: number }>();
+  const totalActions = filtered.length;
+  const totalCompleted = filtered.filter(isCompletedAction).length;
+
+  const sourceBreakdown = TRACKER_SOURCES.map(s => {
+    const sourceActs = filtered.filter(a => a.source === s.key);
+    return {
+      ...s,
+      total: sourceActs.length,
+      completed: sourceActs.filter(isCompletedAction).length,
+    };
+  }).filter(s => s.total > 0);
+
+  const userMap = new Map<number, { name: string; totals: Record<string, number>; total: number }>();
   for (const a of filtered) {
+    if (!a.userId) continue;
     if (!userMap.has(a.userId)) {
-      userMap.set(a.userId, { name: a.userName || "Unknown", verified: 0, billed: 0, dropped: 0 });
+      userMap.set(a.userId, {
+        name: a.userName || "Unknown",
+        totals: {},
+        total: 0,
+      });
     }
     const entry = userMap.get(a.userId)!;
-    if (a.newValue === "verified") entry.verified++;
-    if (a.newValue === "billed") entry.billed++;
-    if (a.newValue === "dropped") entry.dropped++;
+    entry.totals[a.source] = (entry.totals[a.source] || 0) + 1;
+    entry.total++;
   }
 
   const userSummary = Array.from(userMap.entries())
-    .map(([id, data]) => ({
-      userId: id,
-      name: data.name,
-      verified: data.verified,
-      billed: data.billed,
-      dropped: data.dropped,
-      total: data.verified + data.billed,
-    }))
+    .map(([id, data]) => ({ userId: id, ...data }))
     .sort((a, b) => b.total - a.total);
 
-  const timeMap = new Map<string, { verified: number; billed: number; dropped: number }>();
+  const timeMap = new Map<string, Record<string, number>>();
   for (const a of filtered) {
     const key = getDateKey(new Date(a.timestamp), timeRange);
-    if (!timeMap.has(key)) timeMap.set(key, { verified: 0, billed: 0, dropped: 0 });
+    if (!timeMap.has(key)) timeMap.set(key, {});
     const entry = timeMap.get(key)!;
-    if (a.newValue === "verified") entry.verified++;
-    if (a.newValue === "billed") entry.billed++;
-    if (a.newValue === "dropped") entry.dropped++;
+    entry[a.source] = (entry[a.source] || 0) + 1;
+    entry["_total"] = (entry["_total"] || 0) + 1;
   }
 
   const allTimeKeys: string[] = [];
@@ -217,29 +262,35 @@ export default function ProductivityPage() {
   }
 
   const keysToUse = allTimeKeys.length > 0 ? allTimeKeys : Array.from(timeMap.keys());
+  const activeSources = Array.from(new Set(filtered.map(a => a.source)));
   const timeData = keysToUse
     .map(key => {
-      const data = timeMap.get(key) || { verified: 0, billed: 0, dropped: 0 };
-      return {
-        date: key,
-        label: formatDateLabel(key, timeRange),
-        verified: data.verified,
-        billed: data.billed,
-        dropped: data.dropped,
-        total: data.verified + data.billed,
-      };
+      const data = timeMap.get(key) || {};
+      const entry: any = { date: key, label: formatDateLabel(key, timeRange) };
+      for (const src of activeSources) {
+        entry[src] = data[src] || 0;
+      }
+      entry.total = data["_total"] || 0;
+      return entry;
     })
     .sort((a, b) => a.date.localeCompare(b.date));
-
-  const totalVerified = filtered.filter(a => a.newValue === "verified").length;
-  const totalBilled = filtered.filter(a => a.newValue === "billed").length;
-  const totalDropped = filtered.filter(a => a.newValue === "dropped").length;
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold tracking-tight" data-testid="text-productivity-title">Productivity</h1>
         <div className="flex items-center gap-3 flex-wrap">
+          <Select value={selectedSource} onValueChange={setSelectedSource}>
+            <SelectTrigger className="w-[180px]" data-testid="select-productivity-source">
+              <SelectValue placeholder="All Trackers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Trackers</SelectItem>
+              {TRACKER_SOURCES.map(s => (
+                <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={selectedUser} onValueChange={setSelectedUser}>
             <SelectTrigger className="w-[180px]" data-testid="select-productivity-user">
               <SelectValue placeholder="All Users" />
@@ -312,93 +363,146 @@ export default function ProductivityPage() {
         <span className="text-sm text-muted-foreground ml-2">Showing: {periodLabel}</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Total Completed</p>
-            <p className="text-3xl font-bold mt-1" data-testid="text-total-completed">{totalVerified + totalBilled}</p>
+            <p className="text-sm text-muted-foreground">Total Actions</p>
+            <p className="text-3xl font-bold mt-1" data-testid="text-total-actions">{totalActions}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Verified</p>
-            <p className="text-3xl font-bold mt-1 text-emerald-600" data-testid="text-total-verified">{totalVerified}</p>
+            <p className="text-sm text-muted-foreground">Key Completions</p>
+            <p className="text-3xl font-bold mt-1 text-emerald-600" data-testid="text-total-completed">{totalCompleted}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Billed</p>
-            <p className="text-3xl font-bold mt-1 text-green-800" data-testid="text-total-billed">{totalBilled}</p>
+            <p className="text-sm text-muted-foreground">Active Employees</p>
+            <p className="text-3xl font-bold mt-1 text-blue-600" data-testid="text-active-employees">{userMap.size}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Dropped</p>
-            <p className="text-3xl font-bold mt-1 text-gray-600" data-testid="text-total-dropped">{totalDropped}</p>
+            <p className="text-sm text-muted-foreground">Trackers Active</p>
+            <p className="text-3xl font-bold mt-1 text-purple-600" data-testid="text-active-trackers">{sourceBreakdown.length}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold">Completions Over Time</h2>
-        </CardHeader>
-        <CardContent>
-          {timeData.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">No completion data yet</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={timeData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="verified" name="Verified" fill="hsl(160 70% 40%)" stackId="stack" />
-                <Bar dataKey="billed" name="Billed" fill="hsl(140 50% 25%)" stackId="stack" />
-                <Bar dataKey="dropped" name="Dropped" fill="hsl(0 0% 40%)" stackId="stack" />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {TRACKER_SOURCES.map(s => {
+          const data = sourceBreakdown.find(sb => sb.key === s.key);
+          const SIcon = s.icon;
+          return (
+            <Card key={s.key} className={`cursor-pointer transition-all ${selectedSource === s.key ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
+              onClick={() => setSelectedSource(selectedSource === s.key ? "all" : s.key)}
+              data-testid={`card-source-${s.key}`}
+            >
+              <CardContent className="p-3 text-center">
+                <SIcon className={`h-5 w-5 mx-auto mb-1 ${s.color}`} />
+                <p className="text-xs text-muted-foreground truncate">{s.label}</p>
+                <p className="text-xl font-bold mt-0.5">{data?.total || 0}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold">By Employee</h2>
-        </CardHeader>
-        <CardContent>
-          {userSummary.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">No completion data yet</p>
-          ) : (
-            <div className="space-y-2">
-              <div className="grid grid-cols-5 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
-                <span>Employee</span>
-                <span className="text-center">Verified</span>
-                <span className="text-center">Billed</span>
-                <span className="text-center">Dropped</span>
-                <span className="text-center">Total</span>
-              </div>
-              {userSummary.map((u) => (
-                <div key={u.userId} className="grid grid-cols-5 gap-2 items-center py-1.5" data-testid={`row-productivity-${u.userId}`}>
-                  <span className="text-sm font-medium truncate">{u.name}</span>
-                  <span className="text-sm text-center text-emerald-600 font-semibold">{u.verified || "-"}</span>
-                  <span className="text-sm text-center text-green-800 font-semibold">{u.billed || "-"}</span>
-                  <span className="text-sm text-center text-gray-600 font-semibold">{u.dropped || "-"}</span>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-sm font-bold">{u.total}</span>
-                    <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full"
-                        style={{ width: `${userSummary[0]?.total ? (u.total / userSummary[0].total) * 100 : 0}%` }}
+      <Tabs defaultValue="chart" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="chart" data-testid="tab-chart">Activity Over Time</TabsTrigger>
+          <TabsTrigger value="employees" data-testid="tab-employees">By Employee</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="chart">
+          <Card>
+            <CardHeader className="pb-2">
+              <h2 className="text-lg font-semibold">Actions Over Time</h2>
+            </CardHeader>
+            <CardContent>
+              {timeData.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">No activity data yet</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={timeData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Legend />
+                    {activeSources.map(src => (
+                      <Bar
+                        key={src}
+                        dataKey={src}
+                        name={TRACKER_SOURCES.find(s => s.key === src)?.label || src}
+                        fill={TRACKER_COLORS[src] || "hsl(0 0% 60%)"}
+                        stackId="stack"
                       />
-                    </div>
-                  </div>
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="employees">
+          <Card>
+            <CardHeader className="pb-2">
+              <h2 className="text-lg font-semibold">Employee Productivity</h2>
+            </CardHeader>
+            <CardContent>
+              {userSummary.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">No activity data yet</p>
+              ) : (
+                <div className="overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">Employee</TableHead>
+                        {TRACKER_SOURCES.filter(s => activeSources.includes(s.key)).map(s => (
+                          <TableHead key={s.key} className="text-center min-w-[80px] text-xs">{s.label}</TableHead>
+                        ))}
+                        <TableHead className="text-center min-w-[80px]">Total</TableHead>
+                        <TableHead className="min-w-[120px]">Progress</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userSummary.map((u) => (
+                        <TableRow key={u.userId} data-testid={`row-productivity-${u.userId}`}>
+                          <TableCell className="font-medium text-sm">{u.name}</TableCell>
+                          {TRACKER_SOURCES.filter(s => activeSources.includes(s.key)).map(s => (
+                            <TableCell key={s.key} className="text-center text-sm">
+                              <span className={u.totals[s.key] ? "font-semibold" : "text-muted-foreground"}>
+                                {u.totals[s.key] || "-"}
+                              </span>
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-center font-bold text-sm">{u.total}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-2.5 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-500 rounded-full transition-all"
+                                  style={{ width: `${userSummary[0]?.total ? (u.total / userSummary[0].total) * 100 : 0}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {userSummary[0]?.total ? Math.round((u.total / userSummary[0].total) * 100) : 0}%
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

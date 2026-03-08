@@ -26,7 +26,7 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Denials**: Track insurance denials with full spreadsheet-style table, dropdown selects for Type of Denial, Filed To, ARB Status, ARB Payment Status
 - **Arbitration**: Separate tracker mirroring Denials template for arbitration cases with same columns, CRUD, activity history
 - **Closed**: Records sent from any tracker via "Send to Closed" outcome; full CRUD, activity history, notes
-- **Productivity**: Date-filtered productivity metrics (This Month, Last Month, Last 3 Months, custom month)
+- **Productivity**: Comprehensive productivity metrics across all trackers (Verification/Billing, Denials, Arbitration, Collections, Posting, Checks, Closed); filterable by tracker, employee, and date range; stacked bar chart by source, employee leaderboard with per-tracker breakdown
 - **Suggestion Box**: Ticket system for owner→developer communication with file uploads, comments, status tracking (Open → Working on it → Done → Closed), categories (Bug, Feature Request, UI Change, Question, Other), priority levels
 - **Message Board**: Announcements with targeted delivery (all staff, by role, specific users), read receipts/acknowledgment tracking, admin/manager can post and delete
 - **Direct Messages**: Real-time 1:1 messaging between users with read receipts, unread counts in sidebar, conversation list with last message preview
