@@ -567,7 +567,7 @@ export type Posting = typeof postings.$inferSelect;
 export type InsertPostingActivity = z.infer<typeof insertPostingActivitySchema>;
 export type PostingActivity = typeof postingActivity.$inferSelect;
 
-export const CHECKS_TYPE_OPTIONS = ["EOB", "Payment", "Refund", "Adjustment", "Other"];
+export const CHECKS_TYPE_OPTIONS = ["Regular Check", "EFT", "Lien", "Arbitration", "Rent", "Medical Records"];
 export const CHECKS_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
 
 export const checks = pgTable("checks", {
