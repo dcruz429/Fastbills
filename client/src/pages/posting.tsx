@@ -90,7 +90,7 @@ export default function PostingPage() {
     enabled: !!editingId,
   });
   const { data: postingActivityOptions } = useQuery<any[]>({
-    queryKey: ["/api/dropdown-options/posting_activity"],
+    queryKey: ["/api/dropdown-options/posting_action"],
   });
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -528,9 +528,9 @@ export default function PostingPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Activity</Label>
+                <Label>Action</Label>
                 <Select value={form.activity || "__none__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger data-testid="select-posting-activity"><SelectValue placeholder="Select activity" /></SelectTrigger>
+                  <SelectTrigger data-testid="select-posting-activity"><SelectValue placeholder="Select action" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">-- None --</SelectItem>
                     {(postingActivityOptions || []).map((o: any) => (

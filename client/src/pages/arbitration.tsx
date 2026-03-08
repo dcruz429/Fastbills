@@ -113,7 +113,7 @@ export default function ArbitrationPage() {
   const { data: filedToOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "filed_to"] });
   const { data: arbStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_status"] });
   const { data: arbPaymentOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_payment_status"] });
-  const { data: arbitrationActivityOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arbitration_activity"] });
+  const { data: arbitrationActivityOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arbitration_action"] });
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -803,10 +803,10 @@ export default function ArbitrationPage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Activity</Label>
+                  <Label className="text-xs text-muted-foreground">Action</Label>
                   <Select value={form.activity || "__clear__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__clear__" ? "" : v }))}>
                     <SelectTrigger data-testid="select-arb-activity">
-                      <SelectValue placeholder="Select activity..." />
+                      <SelectValue placeholder="Select action..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__clear__">-- None --</SelectItem>

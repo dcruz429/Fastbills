@@ -106,7 +106,7 @@ export default function DenialsPage() {
   const { data: filedToOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "filed_to"] });
   const { data: arbStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_status"] });
   const { data: arbPaymentStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_payment_status"] });
-  const { data: actionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_activity"] });
+  const { data: actionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_action"] });
 
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
@@ -755,7 +755,7 @@ export default function DenialsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Activity</Label>
+                  <Label className="text-xs text-muted-foreground">Action</Label>
                   <Select value={form.action || "__clear__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__clear__" ? "" : v }))}>
                     <SelectTrigger data-testid="select-denial-action">
                       <SelectValue placeholder="Select action..." />

@@ -7,7 +7,7 @@ import { users, insurances, dropdownOptions,
 } from "@shared/schema";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
 const scryptAsync = promisify(scrypt);
 
@@ -182,34 +182,60 @@ export async function seedDropdownOptions() {
     arb_payment_status: ARB_PAYMENT_STATUS_OPTIONS,
     collection_division: COLLECTION_DIVISION_OPTIONS,
     collection_issue_type: COLLECTION_ISSUE_TYPE_OPTIONS,
-    collection_action: COLLECTION_ACTION_OPTIONS,
+    collection_action: [
+      ...COLLECTION_ACTION_OPTIONS,
+      "Send Collection Letter", "Send Final Demand Letter", "Send Balance Reminder",
+      "Request Payment Commitment", "Follow Up on Payment Promise", "Escalate to Collection Supervisor",
+    ],
     collection_outcome: COLLECTION_OUTCOME_OPTIONS,
     collection_status: COLLECTION_STATUS_OPTIONS,
-    verification_activity: [
+    verification_action: [
       "Verify Insurance Eligibility", "Verify Claim Number", "Verify Policy Details",
       "Confirm Case is Open and Billable", "Confirm Workers' Compensation Claim", "Confirm Lien Status",
       "Request Missing Insurance Information", "Follow Up with Patient", "Follow Up with Front Desk", "Follow Up with Law Office",
     ],
-    billing_activity: [
+    billing_action: [
       "Prepare Bill", "Generate Billing Statement", "Send Initial Bill",
       "Send Bill to Insurance", "Send Bill to Attorney", "Send Bill to Employer",
       "Resend Bill", "Correct Billing Information", "Submit Supporting Documents", "Submit Medical Records", "Update Claim Details",
     ],
-    posting_activity: [],
-    collections_activity: [
-      "Send Collection Letter", "Send Final Demand Letter", "Send Balance Reminder",
-      "Request Payment Commitment", "Follow Up on Payment Promise", "Escalate to Collection Supervisor",
-    ],
-    denial_activity: [
+    posting_action: [],
+    denial_action: [
       "Review Denial Reason", "Correct Billing Error", "Submit Appeal",
       "Submit Additional Documents", "Resubmit Claim", "Follow Up on Appeal", "Request Denial Letter",
     ],
-    arbitration_activity: [
+    arbitration_action: [
       "Prepare Arbitration Documents", "File Arbitration", "Follow Up Arbitration Status",
       "Await Arbitration Decision", "Process Settlement Payment",
     ],
-    checks_activity: [],
+    checks_action: [],
   };
+
+  const renameMap: Record<string, string> = {
+    verification_activity: "verification_action",
+    billing_activity: "billing_action",
+    posting_activity: "posting_action",
+    collections_activity: "collection_action",
+    denial_activity: "denial_action",
+    arbitration_activity: "arbitration_action",
+    checks_activity: "checks_action",
+  };
+
+  for (const [oldCat, newCat] of Object.entries(renameMap)) {
+    const oldRows = await db.select().from(dropdownOptions).where(eq(dropdownOptions.category, oldCat));
+    if (oldRows.length > 0) {
+      const existingNewRows = await db.select().from(dropdownOptions).where(eq(dropdownOptions.category, newCat));
+      const existingValues = new Set(existingNewRows.map(r => r.value));
+      const toMigrate = oldRows.filter(r => !existingValues.has(r.value));
+      if (toMigrate.length > 0) {
+        await db.insert(dropdownOptions).values(
+          toMigrate.map((r, i) => ({ category: newCat, value: r.value, sortOrder: existingNewRows.length + i }))
+        );
+      }
+      await db.delete(dropdownOptions).where(eq(dropdownOptions.category, oldCat));
+      console.log(`Migrated ${oldCat} → ${newCat} (${toMigrate.length} new, ${oldRows.length} removed)`);
+    }
+  }
 
   const existing = await db.select({ category: dropdownOptions.category }).from(dropdownOptions);
   const existingCategories = new Set(existing.map(e => e.category));

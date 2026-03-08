@@ -55,10 +55,10 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
     enabled: !!task?.id,
   });
   const { data: verificationActivityOptions } = useQuery<DropdownOption[]>({
-    queryKey: ["/api/dropdown-options/verification_activity"],
+    queryKey: ["/api/dropdown-options/verification_action"],
   });
   const { data: billingActivityOptions } = useQuery<DropdownOption[]>({
-    queryKey: ["/api/dropdown-options/billing_activity"],
+    queryKey: ["/api/dropdown-options/billing_action"],
   });
 
   useEffect(() => {
@@ -393,13 +393,13 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Activity</Label>
+              <Label className="text-xs text-muted-foreground">Action</Label>
               <Select
                 value={editData.activity || "none"}
                 onValueChange={(v) => setEditData({ ...editData, activity: v === "none" ? "" : v })}
               >
                 <SelectTrigger data-testid="select-task-activity">
-                  <SelectValue placeholder="Select activity" />
+                  <SelectValue placeholder="Select action" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">-- None --</SelectItem>

@@ -100,7 +100,7 @@ export default function ChecksPage() {
     enabled: !!editingId,
   });
   const { data: checksActivityOptions } = useQuery<any[]>({
-    queryKey: ["/api/dropdown-options/checks_activity"],
+    queryKey: ["/api/dropdown-options/checks_action"],
   });
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -574,9 +574,9 @@ export default function ChecksPage() {
                 <Input type="date" value={form.depositDate} onChange={e => setForm(f => ({ ...f, depositDate: e.target.value }))} data-testid="input-depositDate" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Activity</Label>
+                <Label className="text-xs">Action</Label>
                 <Select value={form.activity || "__none__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger data-testid="select-check-activity"><SelectValue placeholder="Select activity" /></SelectTrigger>
+                  <SelectTrigger data-testid="select-check-activity"><SelectValue placeholder="Select action" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">-- None --</SelectItem>
                     {(checksActivityOptions || []).map((o: any) => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
