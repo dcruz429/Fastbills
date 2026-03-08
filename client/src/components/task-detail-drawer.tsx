@@ -274,23 +274,6 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                   </div>
                 )}
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Bucket</Label>
-                <Select
-                  value={editData.bucket || "for_verification"}
-                  onValueChange={(v) => setEditData({ ...editData, bucket: v })}
-                  disabled={user?.role !== "admin" && user?.role !== "manager"}
-                >
-                  <SelectTrigger data-testid="select-task-bucket">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="for_verification">For Verification</SelectItem>
-                    <SelectItem value="ready_for_billing">Ready for Billing</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
