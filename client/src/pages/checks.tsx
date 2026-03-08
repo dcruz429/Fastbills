@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Redirect } from "wouter";
 import type { Check, User, Clinic } from "@shared/schema";
-import { CHECKS_TYPE_OPTIONS, CHECKS_STATUS_OPTIONS } from "@shared/schema";
+import { CHECKS_TYPE_OPTIONS, CHECKS_STATUS_OPTIONS, OUTCOME_OPTIONS } from "@shared/schema";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,7 @@ const emptyForm = {
   postedDate: "",
   depositDate: "",
   depositedBy: "",
+  outcome: "",
 };
 
 export default function ChecksPage() {
@@ -200,6 +201,7 @@ export default function ChecksPage() {
       postedDate: toInputDate(d.postedDate),
       depositDate: toInputDate(d.depositDate),
       depositedBy: d.depositedBy || "",
+      outcome: d.outcome || "",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -553,6 +555,16 @@ export default function ChecksPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs">Deposit Date</Label>
                 <Input type="date" value={form.depositDate} onChange={e => setForm(f => ({ ...f, depositDate: e.target.value }))} data-testid="input-depositDate" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Outcome</Label>
+                <Select value={form.outcome} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger data-testid="select-check-outcome"><SelectValue placeholder="Select outcome" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-- None --</SelectItem>
+                    {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

@@ -25,6 +25,7 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Posting**: Track scanned documents through posting workflow with File #, Clinic, Document Type, Priority, Assigned To, Status fields, slide-out drawer editing, activity history
 - **Denials**: Track insurance denials with full spreadsheet-style table, dropdown selects for Type of Denial, Filed To, ARB Status, ARB Payment Status
 - **Arbitration**: Separate tracker mirroring Denials template for arbitration cases with same columns, CRUD, activity history
+- **Closed**: Records sent from any tracker via "Send to Closed" outcome; full CRUD, activity history, notes
 - **Productivity**: Date-filtered productivity metrics (This Month, Last Month, Last 3 Months, custom month)
 - **Suggestion Box**: Ticket system for owner→developer communication with file uploads, comments, status tracking (Open → Working on it → Done → Closed), categories (Bug, Feature Request, UI Change, Question, Other), priority levels
 - **Message Board**: Announcements with targeted delivery (all staff, by role, specific users), read receipts/acknowledgment tracking, admin/manager can post and delete
@@ -35,14 +36,14 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Verification** (`/verification`): Standalone page showing only "For Verification" bucket tasks with filters, sorting, task detail drawer
 - **Billing** (`/`): Shows "Ready for Billing" and "Done" buckets (no longer shows For Verification)
 
-## Task Workflow
-1. **For Verification**: Task created and assigned to a verifier. Verifier works on it. (Shown on Verification page)
-2. **Verifier marks Done** → Task auto-moves to "Ready for Billing", status becomes "Unassigned", assignment cleared. All admins/assigners get notified to assign a biller.
-3. **Admin/Assigner assigns a biller** → Status becomes "Assigned".
-4. **Biller marks Done** → Task auto-moves to "Done" bucket.
+## Outcome-Based Workflow
+All tracker pages have an **Outcome** dropdown with 6 options:
+- Send to Billing, Send to Posting, Send to Collections, Send to Denials, Send to Arbitration, Send to Closed
+
+When an Outcome is selected, a new record is created in the target tracker with **Unassigned** status, carrying over patient name, clinic, insurance, and amount where applicable.
 
 ## Unified Status Options
-All trackers (Verification, Billing, Collections, Denials, Arbitration, Checks, Posting) use the same 4 status options:
+All trackers (Verification, Billing, Collections, Denials, Arbitration, Checks, Posting, Closed) use the same 4 status options:
 - **Unassigned**, **Assigned**, **Working on it**, **Done**
 
 ## User Roles
@@ -86,6 +87,7 @@ client/src/
     tickets.tsx        - Suggestion box / ticket system
     posting.tsx        - Posting tracker page
     checks.tsx         - Checks tracker page
+    closed.tsx         - Closed tracker page
     collections.tsx    - Collections tracker page
     message-board.tsx  - Announcements / message board
     messages.tsx       - Direct messaging
@@ -102,6 +104,6 @@ shared/
 ```
 
 ## Database Tables
-- users, tasks, task_activity, clinics, insurances, notifications, denials, arbitrations, collections, postings, posting_activity, checks, check_activity, tickets, ticket_comments, announcements, announcement_acks, direct_messages, dropdown_options
+- users, tasks, task_activity, clinics, insurances, notifications, denials, denial_activity, arbitrations, arbitration_activity, collections, collection_activity, postings, posting_activity, checks, check_activity, closed, closed_activity, tickets, ticket_comments, announcements, announcement_acks, direct_messages, dropdown_options
 - Enums: role (admin, verifier, biller, assigner, manager, payment_specialist, account_manager, case_manager), bucket, status, priority, ticket_status, ticket_priority, ticket_category
 - Denials columns: denialFileName, dateInput, intake (dropdown: active users), doa, clinic (dropdown: active clinics), patientName, insurance, dateOfLetter, typeOfDenial, effectiveDate, dosFrom, dosTo, numberOfDays (labeled "# of Visits"), amount, comments, filedTo, arbStatus, trialDate, arbPaymentStatus, amountReceived, checkedBy, comment

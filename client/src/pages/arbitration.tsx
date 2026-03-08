@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Arbitration, User, Clinic, Insurance, DropdownOption } from "@shared/schema";
-import { ARBITRATION_STATUS_OPTIONS } from "@shared/schema";
+import { ARBITRATION_STATUS_OPTIONS, OUTCOME_OPTIONS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,6 +68,7 @@ const emptyForm = {
   comment: "",
   assignedTo: "",
   status: "",
+  outcome: "",
 };
 
 export default function ArbitrationPage() {
@@ -186,6 +187,7 @@ export default function ArbitrationPage() {
       comment: arb.comment || "",
       assignedTo: arb.assignedTo || "",
       status: (arb as any).status || "",
+      outcome: (arb as any).outcome || "",
     });
     setHistoryOpen(false);
     setDrawerOpen(true);
@@ -793,6 +795,20 @@ export default function ArbitrationPage() {
                       <SelectItem value="__clear__">-- None --</SelectItem>
                       {ARBITRATION_STATUS_OPTIONS.map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Outcome</Label>
+                  <Select value={form.outcome || "__clear__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-outcome">
+                      <SelectValue placeholder="Select outcome..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {OUTCOME_OPTIONS.map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

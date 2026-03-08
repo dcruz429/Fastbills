@@ -44,6 +44,7 @@ export const tasks = pgTable("tasks", {
   notes: text("notes"),
   rtp: boolean("rtp").notNull().default(false),
   resolutionDate: timestamp("resolution_date"),
+  outcome: text("task_outcome"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -241,6 +242,7 @@ export const arbitrations = pgTable("arbitrations", {
   comment: text("comment"),
   assignedTo: text("assigned_to"),
   status: text("arbitration_status"),
+  outcome: text("arbitration_outcome"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -541,6 +543,9 @@ export const postings = pgTable("postings", {
   assignedTo: text("assigned_to"),
   status: text("posting_status"),
   amount: text("amount"),
+  outcome: text("posting_outcome"),
+  patientName: text("posting_patient_name"),
+  insurance: text("posting_insurance"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -582,6 +587,8 @@ export const checks = pgTable("checks", {
   depositDate: timestamp("deposit_date"),
   depositedBy: text("deposited_by"),
   notes: text("notes"),
+  outcome: text("check_outcome"),
+  patientName: text("check_patient_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -602,6 +609,50 @@ export type InsertCheck = z.infer<typeof insertCheckSchema>;
 export type Check = typeof checks.$inferSelect;
 export type InsertCheckActivity = z.infer<typeof insertCheckActivitySchema>;
 export type CheckActivity = typeof checkActivity.$inferSelect;
+
+export const OUTCOME_OPTIONS = [
+  "Send to Billing",
+  "Send to Posting",
+  "Send to Collections",
+  "Send to Denials",
+  "Send to Arbitration",
+  "Send to Closed",
+];
+
+export const closed = pgTable("closed", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  patientName: text("patient_name").notNull(),
+  clinic: text("clinic"),
+  insurance: text("insurance"),
+  assignedTo: text("assigned_to"),
+  status: text("closed_status"),
+  amount: text("amount"),
+  source: text("source"),
+  sourceId: integer("source_id"),
+  notes: text("notes"),
+  outcome: text("closed_outcome"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const closedActivity = pgTable("closed_activity", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  closedId: integer("closed_id").notNull().references(() => closed.id),
+  userId: integer("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  field: text("field"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+export const insertClosedSchema = createInsertSchema(closed).omit({ id: true, createdAt: true });
+export const insertClosedActivitySchema = createInsertSchema(closedActivity).omit({ id: true, timestamp: true });
+export type InsertClosed = z.infer<typeof insertClosedSchema>;
+export type Closed = typeof closed.$inferSelect;
+export type InsertClosedActivity = z.infer<typeof insertClosedActivitySchema>;
+export type ClosedActivity = typeof closedActivity.$inferSelect;
+
+export const CLOSED_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",

@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Denial, User, Clinic, Insurance, DropdownOption } from "@shared/schema";
-import { DENIAL_STATUS_OPTIONS } from "@shared/schema";
+import { DENIAL_STATUS_OPTIONS, OUTCOME_OPTIONS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,7 +107,7 @@ export default function DenialsPage() {
   const { data: arbStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_status"] });
   const { data: arbPaymentStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_payment_status"] });
   const { data: actionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_action"] });
-  const { data: outcomeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_outcome"] });
+
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -776,8 +776,8 @@ export default function DenialsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__clear__">-- None --</SelectItem>
-                      {(outcomeOpts || []).map(o => (
-                        <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                      {OUTCOME_OPTIONS.map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Redirect } from "wouter";
 import type { Posting, User, Clinic } from "@shared/schema";
-import { POSTING_DOCUMENT_TYPES, POSTING_STATUS_OPTIONS, POSTING_PRIORITY_OPTIONS } from "@shared/schema";
+import { POSTING_DOCUMENT_TYPES, POSTING_STATUS_OPTIONS, POSTING_PRIORITY_OPTIONS, OUTCOME_OPTIONS } from "@shared/schema";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,7 @@ const emptyForm = {
   assignedTo: "",
   status: "",
   amount: "",
+  outcome: "",
 };
 
 export default function PostingPage() {
@@ -164,6 +165,7 @@ export default function PostingPage() {
       assignedTo: d.assignedTo || "",
       status: d.status || "",
       amount: d.amount || "",
+      outcome: d.outcome || "",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -516,6 +518,18 @@ export default function PostingPage() {
                     <SelectItem value="__none__">-- None --</SelectItem>
                     {POSTING_STATUS_OPTIONS.map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Outcome</Label>
+                <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger data-testid="select-posting-outcome"><SelectValue placeholder="Select outcome" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-- None --</SelectItem>
+                    {OUTCOME_OPTIONS.map(o => (
+                      <SelectItem key={o} value={o}>{o}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

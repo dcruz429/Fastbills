@@ -8,7 +8,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db } from "./db";
-import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, collections, postings, checks, DROPDOWN_CATEGORIES } from "@shared/schema";
+import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, collections, postings, checks, closed, closedActivity, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager"];
@@ -32,6 +32,79 @@ async function saveUploadedFiles(files: Express.Multer.File[]): Promise<string[]
     attachments.push(`/api/files/${row.id}|${f.originalname}`);
   }
   return attachments;
+}
+
+async function handleOutcomeTransfer(
+  outcome: string,
+  source: string,
+  record: { patientName?: string; clinic?: string; insurance?: string; amount?: string | null; notes?: string | null },
+  userId: number
+) {
+  const patientName = record.patientName || "Unknown";
+  const clinic = record.clinic || null;
+  const insurance = record.insurance || null;
+  const amount = record.amount || null;
+
+  switch (outcome) {
+    case "Send to Billing":
+      await storage.createTask({
+        patientName,
+        clinicId: null,
+        insuranceId: null,
+        priority: "low",
+        status: "unassigned",
+        bucket: "ready_for_billing",
+        notes: `Transferred from ${source}`,
+        rtp: false,
+      });
+      break;
+    case "Send to Posting":
+      await storage.createPosting({
+        patientName,
+        clinic,
+        insurance,
+        status: "Unassigned",
+        amount,
+      });
+      break;
+    case "Send to Collections":
+      await storage.createCollection({
+        patientName,
+        clinic,
+        insurance,
+        status: "Unassigned",
+        amount,
+      });
+      break;
+    case "Send to Denials":
+      await storage.createDenial({
+        patientName,
+        clinic,
+        insurance,
+        status: "Unassigned",
+        amount,
+      });
+      break;
+    case "Send to Arbitration":
+      await storage.createArbitration({
+        patientName,
+        clinic,
+        insurance,
+        status: "Unassigned",
+        amount,
+      });
+      break;
+    case "Send to Closed":
+      await storage.createClosed({
+        patientName,
+        clinic,
+        insurance,
+        status: "Unassigned",
+        amount,
+        source,
+      });
+      break;
+  }
 }
 
 const scryptAsync = promisify(scrypt);
@@ -302,6 +375,7 @@ export async function registerRoutes(
     dueDate: z.string().nullable().optional(),
     ieDate: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    outcome: z.string().nullable().optional(),
   });
 
   app.post("/api/tasks", requireAuth, async (req, res) => {
@@ -383,29 +457,6 @@ export async function registerRoutes(
         }
       }
 
-      if (updates.status !== undefined && updates.status !== "dropped" && existing.status === "dropped") {
-        updates.rtp = false;
-      }
-
-      const wasDoneInVerification = updates.status === "done" && existing.bucket === "for_verification";
-      if (wasDoneInVerification) {
-        await storage.createTaskActivity({
-          taskId: id,
-          userId: req.session.userId!,
-          action: "Updated status",
-          field: "status",
-          oldValue: String(existing.status),
-          newValue: "done",
-        });
-        updates.bucket = "ready_for_billing";
-        updates.status = "unassigned";
-        updates.assignedUserId = null;
-      }
-
-      if (updates.status === "done" && existing.bucket === "ready_for_billing") {
-        updates.bucket = "done";
-      }
-
       if (updates.assignedUserId !== undefined && updates.status === undefined) {
         if (updates.assignedUserId && !existing.assignedUserId) {
           updates.status = "assigned";
@@ -414,13 +465,18 @@ export async function registerRoutes(
         }
       }
 
-      if (updates.bucket === "done" && existing.bucket !== "done") {
-        if (!updates.status || updates.status !== "done") {
-          updates.status = "done";
-        }
+      if (updates.outcome && OUTCOME_OPTIONS.includes(updates.outcome) && updates.outcome !== existing.outcome) {
+        const clinicName = existing.clinicId ? (await storage.getAllClinics()).find(c => c.id === existing.clinicId)?.name : null;
+        const insuranceName = existing.insuranceId ? (await storage.getAllInsurances()).find(i => i.id === existing.insuranceId)?.name : null;
+        await handleOutcomeTransfer(updates.outcome, "Verification/Billing", {
+          patientName: existing.patientName,
+          clinic: clinicName || null,
+          insurance: insuranceName || null,
+          amount: null,
+        }, req.session.userId!);
       }
 
-      const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate", "rtp", "resolutionDate"];
+      const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate", "rtp", "resolutionDate", "outcome"];
       for (const field of fieldsToTrack) {
         if (updates[field] !== undefined && String(updates[field]) !== String((existing as any)[field])) {
           await storage.createTaskActivity({
@@ -611,7 +667,16 @@ export async function registerRoutes(
         data.numberOfDays = data.numberOfDays ? parseInt(data.numberOfDays) : null;
       }
 
-      for (const field of denialTrackFields) {
+      if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        await handleOutcomeTransfer(data.outcome, "Denials", {
+          patientName: existing.patientName,
+          clinic: existing.clinic,
+          insurance: existing.insurance,
+          amount: existing.amount,
+        }, req.session.userId!);
+      }
+
+      for (const field of [...denialTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
           const oldVal = String((existing as any)[field] ?? "");
           const newVal = String(data[field] ?? "");
@@ -769,7 +834,16 @@ export async function registerRoutes(
       if (data.numberOfDays !== undefined) {
         data.numberOfDays = data.numberOfDays ? parseInt(data.numberOfDays) : null;
       }
-      for (const field of arbTrackFields) {
+      if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        await handleOutcomeTransfer(data.outcome, "Arbitration", {
+          patientName: existing.patientName,
+          clinic: existing.clinic,
+          insurance: existing.insurance,
+          amount: existing.amount,
+        }, req.session.userId!);
+      }
+
+      for (const field of [...arbTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
           const oldVal = String((existing as any)[field] ?? "");
           const newVal = String(data[field] ?? "");
@@ -945,7 +1019,16 @@ export async function registerRoutes(
       if (data.numberOfVisits !== undefined) {
         data.numberOfVisits = data.numberOfVisits ? parseInt(data.numberOfVisits) : null;
       }
-      for (const field of collectionTrackFields) {
+      if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        await handleOutcomeTransfer(data.outcome, "Collections", {
+          patientName: existing.patientName,
+          clinic: existing.clinic,
+          insurance: existing.insurance,
+          amount: existing.amount,
+        }, req.session.userId!);
+      }
+
+      for (const field of [...collectionTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
           const oldVal = String((existing as any)[field] ?? "");
           const newVal = String(data[field] ?? "");
@@ -1128,7 +1211,16 @@ export async function registerRoutes(
       for (const f of dateFields) {
         if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
       }
-      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount"];
+      if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        await handleOutcomeTransfer(data.outcome, "Posting", {
+          patientName: existing.patientName || undefined,
+          clinic: existing.clinic,
+          insurance: existing.insurance || undefined,
+          amount: existing.amount,
+        }, req.session.userId!);
+      }
+
+      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount", "outcome"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];
@@ -1732,7 +1824,16 @@ export async function registerRoutes(
       for (const f of dateFields) {
         if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
       }
-      const trackFields = ["assignedTo", "clinic", "checkNumber", "amount", "checkDate", "inputDate", "insurance", "fileName", "scannedDate", "type", "status", "postedDate", "depositDate", "depositedBy"];
+      if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        await handleOutcomeTransfer(data.outcome, "Checks", {
+          patientName: existing.patientName || undefined,
+          clinic: existing.clinic,
+          insurance: existing.insurance,
+          amount: existing.amount,
+        }, req.session.userId!);
+      }
+
+      const trackFields = ["assignedTo", "clinic", "checkNumber", "amount", "checkDate", "inputDate", "insurance", "fileName", "scannedDate", "type", "status", "postedDate", "depositDate", "depositedBy", "outcome"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];
@@ -1806,6 +1907,118 @@ export async function registerRoutes(
         }
       }
       await storage.deleteCheck(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/closed", requireAuth, async (req, res) => {
+    try {
+      res.json(await storage.getAllClosed());
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/closed", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const record = await storage.createClosed(req.body);
+      await storage.createClosedActivity({
+        closedId: record.id,
+        userId: req.session.userId!,
+        action: "Record created",
+        field: null,
+        oldValue: null,
+        newValue: null,
+      });
+      res.json(record);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/closed/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await storage.getClosed(id);
+      if (!existing) return res.status(404).json({ message: "Record not found" });
+      const data: any = { ...req.body };
+
+      if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        await handleOutcomeTransfer(data.outcome, "Closed", {
+          patientName: existing.patientName,
+          clinic: existing.clinic,
+          insurance: existing.insurance,
+          amount: existing.amount,
+        }, req.session.userId!);
+      }
+
+      const trackFields = ["patientName", "clinic", "insurance", "assignedTo", "status", "amount", "notes", "outcome"];
+      for (const field of trackFields) {
+        const oldVal = (existing as any)[field];
+        const newVal = data[field];
+        if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+          await storage.createClosedActivity({
+            closedId: id,
+            userId: req.session.userId!,
+            action: `Changed ${field}`,
+            field,
+            oldValue: oldVal ? String(oldVal) : null,
+            newValue: newVal ? String(newVal) : null,
+          });
+        }
+      }
+      const updated = await storage.updateClosed(id, data);
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/closed/:id/activity", requireAuth, async (req, res) => {
+    res.json(await storage.getClosedActivity(parseInt(req.params.id)));
+  });
+
+  app.delete("/api/closed/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      await storage.deleteClosed(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/closed/:id/notes", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await storage.getClosed(id);
+      if (!existing) return res.status(404).json({ message: "Record not found" });
+      const { note } = req.body;
+      if (!note) return res.status(400).json({ message: "Note is required" });
+      const user = await storage.getUser(req.session.userId!);
+      const existingNotes = existing.notes || "";
+      const timestamp = new Date().toISOString();
+      const newNotes = existingNotes
+        ? `${existingNotes}\n\n[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`
+        : `[${user?.fullName || "Unknown"} - ${timestamp}]\n${note}`;
+      await storage.updateClosed(id, { notes: newNotes });
+      await storage.createClosedActivity({
+        closedId: id,
+        userId: req.session.userId!,
+        action: "Added note",
+        field: "notes",
+        oldValue: null,
+        newValue: note,
+      });
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });

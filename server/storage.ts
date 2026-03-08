@@ -74,6 +74,12 @@ import {
   type InsertCheck,
   type CheckActivity,
   type InsertCheckActivity,
+  closed,
+  closedActivity,
+  type Closed,
+  type InsertClosed,
+  type ClosedActivity,
+  type InsertClosedActivity,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -177,6 +183,14 @@ export interface IStorage {
   deleteCheck(id: number): Promise<void>;
   getCheckActivity(checkId: number): Promise<any[]>;
   createCheckActivity(data: InsertCheckActivity): Promise<CheckActivity>;
+
+  getAllClosed(): Promise<Closed[]>;
+  getClosed(id: number): Promise<Closed | undefined>;
+  createClosed(data: InsertClosed): Promise<Closed>;
+  updateClosed(id: number, data: Partial<Closed>): Promise<Closed | undefined>;
+  deleteClosed(id: number): Promise<void>;
+  getClosedActivity(closedId: number): Promise<any[]>;
+  createClosedActivity(data: InsertClosedActivity): Promise<ClosedActivity>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -859,6 +873,55 @@ export class DatabaseStorage implements IStorage {
 
   async createCheckActivity(data: InsertCheckActivity): Promise<CheckActivity> {
     const [activity] = await db.insert(checkActivity).values(data).returning();
+    return activity;
+  }
+
+  async getAllClosed(): Promise<Closed[]> {
+    return db.select().from(closed).orderBy(desc(closed.createdAt));
+  }
+
+  async getClosed(id: number): Promise<Closed | undefined> {
+    const [record] = await db.select().from(closed).where(eq(closed.id, id));
+    return record;
+  }
+
+  async createClosed(data: InsertClosed): Promise<Closed> {
+    const [record] = await db.insert(closed).values(data).returning();
+    return record;
+  }
+
+  async updateClosed(id: number, data: Partial<Closed>): Promise<Closed | undefined> {
+    const [record] = await db.update(closed).set(data).where(eq(closed.id, id)).returning();
+    return record;
+  }
+
+  async deleteClosed(id: number): Promise<void> {
+    await db.delete(closedActivity).where(eq(closedActivity.closedId, id));
+    await db.delete(closed).where(eq(closed.id, id));
+  }
+
+  async getClosedActivity(closedId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: closedActivity.id,
+        closedId: closedActivity.closedId,
+        userId: closedActivity.userId,
+        action: closedActivity.action,
+        field: closedActivity.field,
+        oldValue: closedActivity.oldValue,
+        newValue: closedActivity.newValue,
+        timestamp: closedActivity.timestamp,
+        userName: users.fullName,
+      })
+      .from(closedActivity)
+      .leftJoin(users, eq(closedActivity.userId, users.id))
+      .where(eq(closedActivity.closedId, closedId))
+      .orderBy(desc(closedActivity.timestamp));
+    return rows;
+  }
+
+  async createClosedActivity(data: InsertClosedActivity): Promise<ClosedActivity> {
+    const [activity] = await db.insert(closedActivity).values(data).returning();
     return activity;
   }
 }
