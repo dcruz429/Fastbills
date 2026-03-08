@@ -457,6 +457,10 @@ export async function registerRoutes(
         }
       }
 
+      if (updates.status === "billed" && existing.bucket === "ready_for_billing") {
+        updates.bucket = "done";
+      }
+
       if (updates.assignedUserId !== undefined && updates.status === undefined) {
         if (updates.assignedUserId && !existing.assignedUserId) {
           updates.status = "assigned";
