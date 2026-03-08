@@ -188,6 +188,30 @@ export async function seedDropdownOptions() {
     collection_action: COLLECTION_ACTION_OPTIONS,
     collection_outcome: COLLECTION_OUTCOME_OPTIONS,
     collection_status: COLLECTION_STATUS_OPTIONS,
+    verification_activity: [
+      "Verify Insurance Eligibility", "Verify Claim Number", "Verify Policy Details",
+      "Confirm Case is Open and Billable", "Confirm Workers' Compensation Claim", "Confirm Lien Status",
+      "Request Missing Insurance Information", "Follow Up with Patient", "Follow Up with Front Desk", "Follow Up with Law Office",
+    ],
+    billing_activity: [
+      "Prepare Bill", "Generate Billing Statement", "Send Initial Bill",
+      "Send Bill to Insurance", "Send Bill to Attorney", "Send Bill to Employer",
+      "Resend Bill", "Correct Billing Information", "Submit Supporting Documents", "Submit Medical Records", "Update Claim Details",
+    ],
+    posting_activity: [],
+    collections_activity: [
+      "Send Collection Letter", "Send Final Demand Letter", "Send Balance Reminder",
+      "Request Payment Commitment", "Follow Up on Payment Promise", "Escalate to Collection Supervisor",
+    ],
+    denial_activity: [
+      "Review Denial Reason", "Correct Billing Error", "Submit Appeal",
+      "Submit Additional Documents", "Resubmit Claim", "Follow Up on Appeal", "Request Denial Letter",
+    ],
+    arbitration_activity: [
+      "Prepare Arbitration Documents", "File Arbitration", "Follow Up Arbitration Status",
+      "Await Arbitration Decision", "Process Settlement Payment",
+    ],
+    checks_activity: [],
   };
 
   const rows: { category: string; value: string; sortOrder: number }[] = [];

@@ -58,6 +58,7 @@ const emptyForm = {
   depositDate: "",
   depositedBy: "",
   outcome: "",
+  activity: "",
 };
 
 export default function ChecksPage() {
@@ -97,6 +98,9 @@ export default function ChecksPage() {
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
     queryKey: ["/api/checks", editingId, "activity"],
     enabled: !!editingId,
+  });
+  const { data: checksActivityOptions } = useQuery<any[]>({
+    queryKey: ["/api/dropdown-options/checks_activity"],
   });
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -204,6 +208,7 @@ export default function ChecksPage() {
       depositDate: toInputDate(d.depositDate),
       depositedBy: d.depositedBy || "",
       outcome: d.outcome || "",
+      activity: (d as any).activity || "",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -578,6 +583,16 @@ export default function ChecksPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Activity</Label>
+              <Select value={form.activity || "__none__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__none__" ? "" : v }))}>
+                <SelectTrigger data-testid="select-check-activity"><SelectValue placeholder="Select activity" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">-- None --</SelectItem>
+                  {(checksActivityOptions || []).map((o: any) => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
             <Separator />

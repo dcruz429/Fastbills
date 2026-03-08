@@ -53,6 +53,7 @@ const emptyForm = {
   status: "",
   amount: "",
   outcome: "",
+  activity: "",
 };
 
 export default function PostingPage() {
@@ -87,6 +88,9 @@ export default function PostingPage() {
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
     queryKey: ["/api/postings", editingId, "activity"],
     enabled: !!editingId,
+  });
+  const { data: postingActivityOptions } = useQuery<any[]>({
+    queryKey: ["/api/dropdown-options/posting_activity"],
   });
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -166,6 +170,7 @@ export default function PostingPage() {
       status: d.status || "",
       amount: d.amount || "",
       outcome: d.outcome || "",
+      activity: (d as any).activity || "",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -530,6 +535,18 @@ export default function PostingPage() {
                     <SelectItem value="__none__">-- None --</SelectItem>
                     {OUTCOME_OPTIONS.map(o => (
                       <SelectItem key={o} value={o}>{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Activity</Label>
+                <Select value={form.activity || "__none__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger data-testid="select-posting-activity"><SelectValue placeholder="Select activity" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-- None --</SelectItem>
+                    {(postingActivityOptions || []).map((o: any) => (
+                      <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

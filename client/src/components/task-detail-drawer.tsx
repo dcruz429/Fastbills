@@ -33,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { OUTCOME_OPTIONS } from "@shared/schema";
-import type { TaskWithRelations, User, Clinic, Insurance, TaskActivity } from "@shared/schema";
+import type { TaskWithRelations, User, Clinic, Insurance, TaskActivity, DropdownOption } from "@shared/schema";
 
 type Props = {
   task: TaskWithRelations | null;
@@ -53,6 +53,12 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
   const { data: activity } = useQuery<TaskActivity[]>({
     queryKey: ["/api/tasks", task?.id, "activity"],
     enabled: !!task?.id,
+  });
+  const { data: verificationActivityOptions } = useQuery<DropdownOption[]>({
+    queryKey: ["/api/dropdown-options/verification_activity"],
+  });
+  const { data: billingActivityOptions } = useQuery<DropdownOption[]>({
+    queryKey: ["/api/dropdown-options/billing_activity"],
   });
 
   useEffect(() => {
@@ -76,6 +82,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
         rtp: task.rtp || false,
         resolutionDate: task.resolutionDate ? formatEST(new Date(task.resolutionDate), "yyyy-MM-dd") : "",
         outcome: task.outcome || "",
+        activity: task.activity || "",
       });
     }
   }, [task]);
@@ -140,6 +147,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
       updates.resolutionDate = editData.resolutionDate || null;
     }
     if ((editData.outcome || "") !== (task?.outcome || "")) updates.outcome = editData.outcome || null;
+    if ((editData.activity || "") !== (task?.activity || "")) updates.activity = editData.activity || null;
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates);
@@ -397,6 +405,24 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                   <SelectItem value="none">-- None --</SelectItem>
                   {OUTCOME_OPTIONS.map((opt) => (
                     <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Activity</Label>
+              <Select
+                value={editData.activity || "none"}
+                onValueChange={(v) => setEditData({ ...editData, activity: v === "none" ? "" : v })}
+              >
+                <SelectTrigger data-testid="select-task-activity">
+                  <SelectValue placeholder="Select activity" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">-- None --</SelectItem>
+                  {(task?.bucket === "for_verification" ? verificationActivityOptions : billingActivityOptions)?.map((opt) => (
+                    <SelectItem key={opt.id} value={opt.value}>{opt.value}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

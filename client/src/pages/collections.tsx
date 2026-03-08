@@ -138,7 +138,7 @@ export default function CollectionsPage() {
   const { data: denialTypeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "denial_type"] });
   const { data: divisionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_division"] });
   const { data: issueTypeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_issue_type"] });
-  const { data: actionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_action"] });
+  const { data: actionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options/collections_activity"] });
   const { data: statusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_status"] });
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
@@ -869,9 +869,9 @@ export default function CollectionsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Action</Label>
+                  <Label className="text-xs text-muted-foreground">Activity</Label>
                   <Select value={form.action || "__none__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__none__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-collection-action"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectTrigger data-testid="select-collection-activity"><SelectValue placeholder="Select..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">-- None --</SelectItem>
                       {(actionOpts || []).map(o => o.value).map(o => (

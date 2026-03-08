@@ -69,6 +69,7 @@ const emptyForm = {
   assignedTo: "",
   status: "",
   outcome: "",
+  activity: "",
 };
 
 export default function ArbitrationPage() {
@@ -112,6 +113,7 @@ export default function ArbitrationPage() {
   const { data: filedToOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "filed_to"] });
   const { data: arbStatusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_status"] });
   const { data: arbPaymentOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arb_payment_status"] });
+  const { data: arbitrationActivityOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "arbitration_activity"] });
   const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
@@ -188,6 +190,7 @@ export default function ArbitrationPage() {
       assignedTo: arb.assignedTo || "",
       status: (arb as any).status || "",
       outcome: (arb as any).outcome || "",
+      activity: (arb as any).activity || "",
     });
     setHistoryOpen(false);
     setDrawerOpen(true);
@@ -809,6 +812,23 @@ export default function ArbitrationPage() {
                       <SelectItem value="__clear__">-- None --</SelectItem>
                       {OUTCOME_OPTIONS.map(o => (
                         <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Activity</Label>
+                  <Select value={form.activity || "__clear__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-activity">
+                      <SelectValue placeholder="Select activity..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(arbitrationActivityOpts || []).map(o => (
+                        <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

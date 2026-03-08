@@ -480,7 +480,7 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
-      const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate", "rtp", "resolutionDate", "outcome"];
+      const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate", "rtp", "resolutionDate", "outcome", "activity"];
       for (const field of fieldsToTrack) {
         if (updates[field] !== undefined && String(updates[field]) !== String((existing as any)[field])) {
           await storage.createTaskActivity({
@@ -620,6 +620,7 @@ export async function registerRoutes(
     comments: "Comments", filedTo: "Filed To", arbStatus: "ARB Status", trialDate: "Trial Date",
     arbPaymentStatus: "ARB Payment Status", amountReceived: "Amount Received",
     checkedBy: "Checked By", comment: "Comment", assignedTo: "Assigned To",
+    action: "Activity",
   };
 
   const denialTrackFields = Object.keys(denialFieldLabels);
@@ -791,6 +792,7 @@ export async function registerRoutes(
     comments: "Comments", filedTo: "Filed To", arbStatus: "ARB Status", trialDate: "Trial Date",
     arbPaymentStatus: "ARB Payment Status", amountReceived: "Amount Received",
     checkedBy: "Checked By", comment: "Comment", assignedTo: "Assigned To",
+    activity: "Activity",
   };
   const arbTrackFields = Object.keys(arbFieldLabels);
 
@@ -907,7 +909,7 @@ export async function registerRoutes(
   const collectionFieldLabels: Record<string, string> = {
     patientName: "Patient's Name", inputDate: "Input Date", clinic: "Clinic", division: "Division",
     insurance: "Insurance", dosFrom: "DOS From", dosTo: "DOS To", numberOfVisits: "# of Visits",
-    amount: "Amount", issueType: "Issue Type", typeOfDenial: "Type of Denial", action: "Action",
+    amount: "Amount", issueType: "Issue Type", typeOfDenial: "Type of Denial", action: "Activity",
     outcome: "Outcome", priority: "Priority", assignedTo: "Assigned to", status: "Status",
   };
   const collectionTrackFields = Object.keys(collectionFieldLabels);
@@ -1224,7 +1226,7 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
-      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount", "outcome"];
+      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount", "outcome", "activity"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];
@@ -1837,7 +1839,7 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
-      const trackFields = ["assignedTo", "clinic", "checkNumber", "amount", "checkDate", "inputDate", "insurance", "fileName", "scannedDate", "type", "status", "postedDate", "depositDate", "depositedBy", "outcome"];
+      const trackFields = ["assignedTo", "clinic", "checkNumber", "amount", "checkDate", "inputDate", "insurance", "fileName", "scannedDate", "type", "status", "postedDate", "depositDate", "depositedBy", "outcome", "activity"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];
@@ -1962,7 +1964,7 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
-      const trackFields = ["patientName", "clinic", "insurance", "assignedTo", "status", "amount", "notes", "outcome"];
+      const trackFields = ["patientName", "clinic", "insurance", "assignedTo", "status", "amount", "notes", "outcome", "activity"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];

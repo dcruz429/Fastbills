@@ -45,6 +45,7 @@ export const tasks = pgTable("tasks", {
   rtp: boolean("rtp").notNull().default(false),
   resolutionDate: timestamp("resolution_date"),
   outcome: text("task_outcome"),
+  activity: text("task_activity"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -243,6 +244,7 @@ export const arbitrations = pgTable("arbitrations", {
   assignedTo: text("assigned_to"),
   status: text("arbitration_status"),
   outcome: text("arbitration_outcome"),
+  activity: text("arbitration_activity"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -544,6 +546,7 @@ export const postings = pgTable("postings", {
   status: text("posting_status"),
   amount: text("amount"),
   outcome: text("posting_outcome"),
+  activity: text("posting_activity"),
   patientName: text("posting_patient_name"),
   insurance: text("posting_insurance"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -588,6 +591,7 @@ export const checks = pgTable("checks", {
   depositedBy: text("deposited_by"),
   notes: text("notes"),
   outcome: text("check_outcome"),
+  activity: text("check_activity"),
   patientName: text("check_patient_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -677,4 +681,11 @@ export const DROPDOWN_CATEGORIES = [
   { key: "collection_action", label: "Collection Action" },
   { key: "collection_outcome", label: "Collection Outcome" },
   { key: "collection_status", label: "Collection Status" },
+  { key: "verification_activity", label: "Verification Activity" },
+  { key: "billing_activity", label: "Billing Activity" },
+  { key: "posting_activity", label: "Posting Activity" },
+  { key: "collections_activity", label: "Collections Activity" },
+  { key: "denial_activity", label: "Denial Activity" },
+  { key: "arbitration_activity", label: "Arbitration Activity" },
+  { key: "checks_activity", label: "Checks Activity" },
 ] as const;
