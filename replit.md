@@ -37,20 +37,19 @@ A workflow management system for tracking patient tasks through insurance verifi
 
 ## Task Workflow
 1. **For Verification**: Task created and assigned to a verifier. Verifier works on it. (Shown on Verification page)
-2. **Verifier marks Verified** → Task auto-moves to "Ready for Billing", status becomes "Unassigned", assignment cleared. All admins/assigners get notified to assign a biller.
+2. **Verifier marks Done** → Task auto-moves to "Ready for Billing", status becomes "Unassigned", assignment cleared. All admins/assigners get notified to assign a biller.
 3. **Admin/Assigner assigns a biller** → Status becomes "Assigned".
-4. **Biller marks Billed** → Task auto-moves to "Done" bucket.
+4. **Biller marks Done** → Task auto-moves to "Done" bucket.
 
-Status options are role-restricted:
-- Verifier: Assigned, Working on it, Verified, Dropped
-- Biller: Assigned, Working on it, Billed
-- Admin/Case Coordinator: All statuses
+## Unified Status Options
+All trackers (Verification, Billing, Collections, Denials, Arbitration, Checks, Posting) use the same 4 status options:
+- **Unassigned**, **Assigned**, **Working on it**, **Done**
 
 ## User Roles
 - **Admin**: Full access, override workflow, manage settings, manage users
 - **Manager**: Same as Admin, but cannot edit/delete/deactivate existing users
 - **Verifier**: Verify insurance, move to Ready for Billing
-- **Biller**: Bill verified patients, mark Billed/Done/Dropped
+- **Biller**: Bill verified patients, mark Done
 - **Case Coordinator** (db value: "assigner"): Create tasks, assign staff, set priorities, full access to all tracker pages
 - **Payment Specialist** (db value: "payment_specialist"): Access to Checks page only (plus Dashboard, Messages, Message Board); sees only their assigned checks
 - **Account Manager** (db value: "account_manager"): Same as Manager but NO access to Checks page

@@ -250,38 +250,10 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner") ? (
-                      <>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        <SelectItem value="assigned">Assigned</SelectItem>
-                        <SelectItem value="working_on_it">Working on it</SelectItem>
-                        <SelectItem value="verified">Verified</SelectItem>
-                        <SelectItem value="billed">Billed</SelectItem>
-                        <SelectItem value="dropped">Dropped</SelectItem>
-                      </>
-                    ) : user?.role === "verifier" ? (
-                      <>
-                        <SelectItem value="assigned">Assigned</SelectItem>
-                        <SelectItem value="working_on_it">Working on it</SelectItem>
-                        <SelectItem value="verified">Verified</SelectItem>
-                        <SelectItem value="dropped">Dropped</SelectItem>
-                      </>
-                    ) : user?.role === "biller" ? (
-                      <>
-                        <SelectItem value="assigned">Assigned</SelectItem>
-                        <SelectItem value="working_on_it">Working on it</SelectItem>
-                        <SelectItem value="billed">Billed</SelectItem>
-                      </>
-                    ) : (
-                      <>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        <SelectItem value="assigned">Assigned</SelectItem>
-                        <SelectItem value="working_on_it">Working on it</SelectItem>
-                        <SelectItem value="verified">Verified</SelectItem>
-                        <SelectItem value="billed">Billed</SelectItem>
-                        <SelectItem value="dropped">Dropped</SelectItem>
-                      </>
-                    )}
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="working_on_it">Working on it</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
                   </SelectContent>
                 </Select>
                 {(editData.status === "dropped" || task.status === "dropped") && (

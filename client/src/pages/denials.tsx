@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Denial, User, Clinic, Insurance, DropdownOption } from "@shared/schema";
+import { DENIAL_STATUS_OPTIONS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +62,7 @@ const emptyForm = {
   action: "",
   outcome: "",
   assignedTo: "",
+  status: "",
 };
 
 export default function DenialsPage() {
@@ -186,6 +188,7 @@ export default function DenialsPage() {
       action: denial.action || "",
       outcome: denial.outcome || "",
       assignedTo: denial.assignedTo || "",
+      status: (denial as any).status || "",
     });
     setDrawerOpen(true);
   }
@@ -477,6 +480,7 @@ export default function DenialsPage() {
                     { key: "outcome", label: "Outcome", minW: "100px" },
                     { key: "comment", label: "Comment", minW: "120px" },
                     { key: "assignedTo", label: "Assigned To", minW: "110px" },
+                    { key: "status", label: "Status", minW: "100px" },
                   ].map(col => (
                     <TableHead
                       key={col.key}
@@ -497,7 +501,7 @@ export default function DenialsPage() {
               <TableBody>
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={19} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={20} className="text-center py-8 text-muted-foreground">
                       No denials found
                     </TableCell>
                   </TableRow>
@@ -529,6 +533,9 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                    <TableCell className="text-xs">
+                      {(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600" onClick={() => setSendToArbId(d.id)} title="Send to Arbitration" data-testid={`button-send-arb-${d.id}`}>
@@ -727,6 +734,20 @@ export default function DenialsPage() {
                           <SelectItem key={name} value={name}>{name}</SelectItem>
                         ));
                       })()}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={form.status || "__clear__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-status">
+                      <SelectValue placeholder="Select status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {DENIAL_STATUS_OPTIONS.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

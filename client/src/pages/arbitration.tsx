@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Arbitration, User, Clinic, Insurance, DropdownOption } from "@shared/schema";
+import { ARBITRATION_STATUS_OPTIONS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +67,7 @@ const emptyForm = {
   checkedBy: "",
   comment: "",
   assignedTo: "",
+  status: "",
 };
 
 export default function ArbitrationPage() {
@@ -183,6 +185,7 @@ export default function ArbitrationPage() {
       checkedBy: arb.checkedBy || "",
       comment: arb.comment || "",
       assignedTo: arb.assignedTo || "",
+      status: (arb as any).status || "",
     });
     setHistoryOpen(false);
     setDrawerOpen(true);
@@ -478,13 +481,14 @@ export default function ArbitrationPage() {
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("checkedBy")} data-testid="sort-checkedBy">Checked By{renderSortIcon("checkedBy")}</TableHead>
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("comment")} data-testid="sort-comment">Comment{renderSortIcon("comment")}</TableHead>
                   <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To{renderSortIcon("assignedTo")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status{renderSortIcon("status")}</TableHead>
                   <TableHead className="min-w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sorted.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={23} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={24} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
@@ -521,6 +525,9 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                    <TableCell className="text-xs">
+                      {(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         {canDelete && (
@@ -773,6 +780,20 @@ export default function ArbitrationPage() {
                           <SelectItem key={name} value={name}>{name}</SelectItem>
                         ));
                       })()}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={form.status || "__clear__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-status-field">
+                      <SelectValue placeholder="Select status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {ARBITRATION_STATUS_OPTIONS.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

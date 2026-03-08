@@ -94,8 +94,11 @@ export const denials = pgTable("denials", {
   action: text("action"),
   outcome: text("outcome"),
   assignedTo: text("assigned_to"),
+  status: text("denial_status"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const DENIAL_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
 
 export const denialActivity = pgTable("denial_activity", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -237,8 +240,11 @@ export const arbitrations = pgTable("arbitrations", {
   checkedBy: text("checked_by"),
   comment: text("comment"),
   assignedTo: text("assigned_to"),
+  status: text("arbitration_status"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const ARBITRATION_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
 
 export const arbitrationActivity = pgTable("arbitration_activity", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -294,7 +300,7 @@ export const COLLECTION_ACTION_OPTIONS = [
 ];
 export const COLLECTION_OUTCOME_OPTIONS = ["For Arbitration", "Loss", "Paid", "Pending", "RTP"];
 export const COLLECTION_PRIORITY_OPTIONS = ["Low <10 days", "Medium <20 Days", "High <30 Days", "Critical >30 Days"];
-export const COLLECTION_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done", "Denials", "Arbitration"];
+export const COLLECTION_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
 
 export const ticketStatusEnum = pgEnum("ticket_status", ["open", "working_on_it", "done", "closed"]);
 export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high", "urgent"]);
@@ -557,7 +563,7 @@ export type InsertPostingActivity = z.infer<typeof insertPostingActivitySchema>;
 export type PostingActivity = typeof postingActivity.$inferSelect;
 
 export const CHECKS_TYPE_OPTIONS = ["EOB", "Payment", "Refund", "Adjustment", "Other"];
-export const CHECKS_STATUS_OPTIONS = ["Pending", "Processed", "Deposited", "Returned", "Voided"];
+export const CHECKS_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
 
 export const checks = pgTable("checks", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),

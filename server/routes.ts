@@ -272,7 +272,7 @@ export async function registerRoutes(
     try {
       const activities = await storage.getAllTaskActivity();
       const completionActions = activities.filter(a =>
-        a.field === "status" && (a.newValue === "verified" || a.newValue === "billed" || a.newValue === "dropped")
+        a.field === "status" && a.newValue === "done"
       );
       res.json(completionActions);
     } catch (e: any) {
@@ -297,7 +297,7 @@ export async function registerRoutes(
     insuranceId: z.number().nullable().optional(),
     assignedUserId: z.number().nullable().optional(),
     priority: z.enum(["low", "medium", "high", "critical"]).default("low"),
-    status: z.enum(["working_on_it", "billed", "done", "dropped", "assigned", "unassigned"]).optional(),
+    status: z.enum(["working_on_it", "billed", "done", "dropped", "assigned", "unassigned", "verified"]).optional(),
     bucket: z.enum(["for_verification", "ready_for_billing", "done"]).default("for_verification"),
     dueDate: z.string().nullable().optional(),
     ieDate: z.string().nullable().optional(),
@@ -387,26 +387,22 @@ export async function registerRoutes(
         updates.rtp = false;
       }
 
-      const wasVerified = updates.status === "verified" && existing.bucket === "for_verification";
-      if (wasVerified) {
+      const wasDoneInVerification = updates.status === "done" && existing.bucket === "for_verification";
+      if (wasDoneInVerification) {
         await storage.createTaskActivity({
           taskId: id,
           userId: req.session.userId!,
           action: "Updated status",
           field: "status",
           oldValue: String(existing.status),
-          newValue: "verified",
+          newValue: "done",
         });
         updates.bucket = "ready_for_billing";
         updates.status = "unassigned";
         updates.assignedUserId = null;
       }
 
-      if (updates.status === "billed" && existing.bucket === "ready_for_billing") {
-        updates.bucket = "done";
-      }
-
-      if (updates.status === "dropped") {
+      if (updates.status === "done" && existing.bucket === "ready_for_billing") {
         updates.bucket = "done";
       }
 
@@ -418,9 +414,9 @@ export async function registerRoutes(
         }
       }
 
-      if (updates.bucket === "done" && existing.bucket !== "done" && updates.status !== "billed") {
-        if (!updates.status || (updates.status !== "billed" && updates.status !== "dropped")) {
-          updates.status = "billed";
+      if (updates.bucket === "done" && existing.bucket !== "done") {
+        if (!updates.status || updates.status !== "done") {
+          updates.status = "done";
         }
       }
 

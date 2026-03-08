@@ -175,8 +175,7 @@ export default function VerificationPage() {
             <SelectItem value="unassigned">Unassigned</SelectItem>
             <SelectItem value="assigned">Assigned</SelectItem>
             <SelectItem value="working_on_it">Working on it</SelectItem>
-            <SelectItem value="verified">Verified</SelectItem>
-            <SelectItem value="dropped">Dropped</SelectItem>
+            <SelectItem value="done">Done</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterPriority} onValueChange={setFilterPriority}>
