@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -499,7 +500,7 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
                     <TableCell className="text-xs">
-                      {d.typeOfDenial ? <Badge variant="outline" className="text-xs whitespace-nowrap">{d.typeOfDenial}</Badge> : "-"}
+                      {d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
@@ -507,14 +508,14 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                     <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                     <TableCell className="text-xs">
-                      {d.filedTo ? <Badge variant="secondary" className="text-xs">{d.filedTo}</Badge> : "-"}
+                      {d.filedTo ? <TrackerStatusBadge status={d.filedTo} /> : "-"}
                     </TableCell>
                     <TableCell className="text-xs">
-                      {d.arbStatus ? <Badge variant="outline" className="text-xs">{d.arbStatus}</Badge> : "-"}
+                      {d.arbStatus ? <TrackerStatusBadge status={d.arbStatus} /> : "-"}
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(d.trialDate)}</TableCell>
                     <TableCell className="text-xs">
-                      {d.arbPaymentStatus ? <Badge variant="secondary" className="text-xs">{d.arbPaymentStatus}</Badge> : "-"}
+                      {d.arbPaymentStatus ? <TrackerStatusBadge status={d.arbPaymentStatus} /> : "-"}
                     </TableCell>
                     <TableCell className="text-xs">{d.amountReceived ? (() => { const n = parseFloat(d.amountReceived.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amountReceived : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                     <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>

@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock } from "lucide-react";
@@ -40,25 +41,6 @@ function toInputDate(d: string | Date | null | undefined) {
   return date.toISOString().split("T")[0];
 }
 
-function priorityColor(p: string) {
-  switch (p) {
-    case "Low": return "bg-green-100 text-green-800";
-    case "Medium": return "bg-yellow-100 text-yellow-800";
-    case "High": return "bg-orange-100 text-orange-800";
-    case "Critical": return "bg-red-100 text-red-800";
-    default: return "bg-gray-100 text-gray-800";
-  }
-}
-
-function statusColor(s: string) {
-  switch (s) {
-    case "Unassigned": return "bg-gray-100 text-gray-800";
-    case "Assigned": return "bg-blue-100 text-blue-800";
-    case "Working on it": return "bg-yellow-100 text-yellow-800";
-    case "Done": return "bg-green-100 text-green-800";
-    default: return "bg-gray-100 text-gray-800";
-  }
-}
 
 const emptyForm = {
   fileNumber: "",
@@ -423,10 +405,10 @@ export default function PostingPage() {
                   <TableCell className="text-xs">{formatDate(d.scannedDate)}</TableCell>
                   <TableCell className="text-xs">{d.documentType || "-"}</TableCell>
                   <TableCell className="text-xs">{formatDate(d.postedDate)}</TableCell>
-                  <TableCell className="text-xs">{d.priority ? <Badge className={`text-xs ${priorityColor(d.priority)}`}>{d.priority}</Badge> : "-"}</TableCell>
+                  <TableCell className="text-xs">{d.priority ? <TrackerPriorityBadge priority={d.priority} /> : "-"}</TableCell>
                   <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                   <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
-                  <TableCell className="text-xs">{d.status ? <Badge className={`text-xs ${statusColor(d.status)}`}>{d.status}</Badge> : "-"}</TableCell>
+                  <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                   {canEdit && (
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-posting-${d.id}`}>

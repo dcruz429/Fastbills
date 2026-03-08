@@ -17,6 +17,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDown, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
@@ -517,7 +518,7 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
                     <TableCell className="text-xs">
-                      {d.typeOfDenial ? <Badge variant="outline" className="text-xs whitespace-nowrap">{d.typeOfDenial}</Badge> : "-"}
+                      {d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>

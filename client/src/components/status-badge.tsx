@@ -64,6 +64,68 @@ export function PriorityBadge({ priority }: { priority: string }) {
   );
 }
 
+export function TrackerStatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    "Unassigned": "bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-200",
+    "Assigned": "bg-blue-500 text-white dark:bg-blue-600",
+    "Working on it": "bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-amber-950",
+    "Done": "bg-green-800 text-white dark:bg-green-700",
+    "Pending": "bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-amber-950",
+    "Processed": "bg-blue-500 text-white dark:bg-blue-600",
+    "Deposited": "bg-green-800 text-white dark:bg-green-700",
+    "Returned": "bg-red-600 text-white dark:bg-red-700",
+    "Voided": "bg-gray-700 text-white dark:bg-gray-800",
+    "Posted": "bg-emerald-500 text-white dark:bg-emerald-600",
+    "In Progress": "bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-amber-950",
+    "Open": "bg-blue-500 text-white dark:bg-blue-600",
+    "Closed": "bg-gray-700 text-white dark:bg-gray-800",
+    "Approved": "bg-green-800 text-white dark:bg-green-700",
+    "Denied": "bg-red-600 text-white dark:bg-red-700",
+    "Paid": "bg-emerald-500 text-white dark:bg-emerald-600",
+    "Unpaid": "bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-200",
+    "Partially Paid": "bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-amber-950",
+  };
+
+  return (
+    <Badge
+      className={cn(
+        "no-default-active-elevate text-xs font-medium whitespace-nowrap",
+        colors[status] || "bg-muted text-muted-foreground"
+      )}
+      data-testid={`badge-tracker-status-${status}`}
+    >
+      {status || "-"}
+    </Badge>
+  );
+}
+
+export function TrackerPriorityBadge({ priority }: { priority: string }) {
+  const normalized = priority?.toLowerCase() || "";
+  const isCritical = normalized.startsWith("critical");
+
+  const colors: Record<string, string> = {
+    low: "bg-green-500 text-white dark:bg-green-600",
+    medium: "bg-yellow-400 text-yellow-900 dark:bg-yellow-500 dark:text-yellow-950",
+    high: "bg-orange-500 text-white dark:bg-orange-600",
+    critical: "bg-red-600 text-white dark:bg-red-700",
+  };
+
+  const matchedKey = Object.keys(colors).find((k) => normalized.startsWith(k));
+
+  return (
+    <Badge
+      className={cn(
+        "no-default-active-elevate text-xs font-medium whitespace-nowrap",
+        matchedKey ? colors[matchedKey] : "bg-muted text-muted-foreground",
+        isCritical && "animate-pulse"
+      )}
+      data-testid={`badge-tracker-priority-${priority}`}
+    >
+      {priority || "-"}
+    </Badge>
+  );
+}
+
 export function BucketBadge({ bucket }: { bucket: string }) {
   const colors: Record<string, string> = {
     for_verification: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",

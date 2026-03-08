@@ -19,6 +19,7 @@ import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Uplo
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-badge";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -62,12 +63,6 @@ const emptyForm = {
   status: "",
 };
 
-function priorityColor(p: string) {
-  if (p.startsWith("Critical")) return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
-  if (p.startsWith("High")) return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300";
-  if (p.startsWith("Medium")) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
-  return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
-}
 
 function computePriority(inputDate: string | Date | null | undefined): string {
   if (!inputDate) return "";
@@ -97,14 +92,6 @@ function computeAgeing(inputDate: string | Date | null | undefined): number | nu
   return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function statusColor(s: string) {
-  if (s === "Done") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
-  if (s === "Working on it") return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
-  if (s === "Assigned") return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
-  if (s === "Arbitration") return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
-  if (s === "Denials") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
-  return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300";
-}
 
 export default function CollectionsPage() {
   const { user } = useAuth();
@@ -733,10 +720,10 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
                   <TableCell className="text-xs">{d.action || "-"}</TableCell>
                   <TableCell className="text-xs">{d.outcome ? <Badge variant="secondary" className="text-xs">{d.outcome}</Badge> : "-"}</TableCell>
-                  <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <Badge className={`text-xs ${priorityColor(p)}`}>{p}</Badge> : "-"; })()}</TableCell>
+                  <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <TrackerPriorityBadge priority={p} /> : "-"; })()}</TableCell>
                   <TableCell className="text-xs font-medium" data-testid={`text-ageing-${d.id}`}>{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
                   <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.status ? <Badge className={`text-xs ${statusColor(d.status)}`}>{d.status}</Badge> : "-"}</TableCell>
+                  <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-${d.id}`}>
@@ -911,7 +898,7 @@ export default function CollectionsPage() {
                   <Label className="text-xs text-muted-foreground">Priority (auto)</Label>
                   <div className="flex items-center h-9 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-priority">
                     {form.inputDate ? (
-                      <Badge className={`text-xs ${priorityColor(computePriority(form.inputDate))}`}>{computePriority(form.inputDate)}</Badge>
+                      <TrackerPriorityBadge priority={computePriority(form.inputDate)} />
                     ) : (
                       <span className="text-xs text-muted-foreground">Set Input Date</span>
                     )}

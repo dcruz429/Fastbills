@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock } from "lucide-react";
@@ -40,16 +41,6 @@ function toInputDate(d: string | Date | null | undefined) {
   return date.toISOString().split("T")[0];
 }
 
-function statusColor(s: string) {
-  switch (s) {
-    case "Pending": return "bg-yellow-100 text-yellow-800";
-    case "Processed": return "bg-blue-100 text-blue-800";
-    case "Deposited": return "bg-green-100 text-green-800";
-    case "Returned": return "bg-red-100 text-red-800";
-    case "Voided": return "bg-gray-100 text-gray-800";
-    default: return "bg-gray-100 text-gray-800";
-  }
-}
 
 const emptyForm = {
   assignedTo: "",
@@ -446,7 +437,7 @@ export default function ChecksPage() {
                 <TableCell className="text-xs">{d.fileName || "-"}</TableCell>
                 <TableCell className="text-xs">{formatDate(d.scannedDate)}</TableCell>
                 <TableCell className="text-xs">{d.type || "-"}</TableCell>
-                <TableCell className="text-xs">{d.status ? <Badge className={`text-xs ${statusColor(d.status)}`}>{d.status}</Badge> : "-"}</TableCell>
+                <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                 <TableCell className="text-xs">{formatDate(d.postedDate)}</TableCell>
                 <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
                 <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
