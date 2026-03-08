@@ -803,23 +803,6 @@ export default function ArbitrationPage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Outcome</Label>
-                  <Select value={form.outcome || "__clear__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__clear__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-arb-outcome">
-                      <SelectValue placeholder="Select outcome..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__clear__">-- None --</SelectItem>
-                      {OUTCOME_OPTIONS.map(o => (
-                        <SelectItem key={o} value={o}>{o}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Activity</Label>
                   <Select value={form.activity || "__clear__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__clear__" ? "" : v }))}>
                     <SelectTrigger data-testid="select-arb-activity">
@@ -829,6 +812,20 @@ export default function ArbitrationPage() {
                       <SelectItem value="__clear__">-- None --</SelectItem>
                       {(arbitrationActivityOpts || []).map(o => (
                         <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Outcome</Label>
+                  <Select value={form.outcome || "__clear__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-arb-outcome">
+                      <SelectValue placeholder="Select outcome..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {OUTCOME_OPTIONS.map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

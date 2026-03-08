@@ -393,24 +393,6 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Outcome</Label>
-              <Select
-                value={editData.outcome || "none"}
-                onValueChange={(v) => setEditData({ ...editData, outcome: v === "none" ? "" : v })}
-              >
-                <SelectTrigger data-testid="select-task-outcome">
-                  <SelectValue placeholder="Select outcome" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">-- None --</SelectItem>
-                  {OUTCOME_OPTIONS.map((opt) => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Activity</Label>
               <Select
                 value={editData.activity || "none"}
@@ -423,6 +405,24 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                   <SelectItem value="none">-- None --</SelectItem>
                   {(task?.bucket === "for_verification" ? verificationActivityOptions : billingActivityOptions)?.map((opt) => (
                     <SelectItem key={opt.id} value={opt.value}>{opt.value}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Outcome</Label>
+              <Select
+                value={editData.outcome || "none"}
+                onValueChange={(v) => setEditData({ ...editData, outcome: v === "none" ? "" : v })}
+              >
+                <SelectTrigger data-testid="select-task-outcome">
+                  <SelectValue placeholder="Select outcome" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">-- None --</SelectItem>
+                  {OUTCOME_OPTIONS.map((opt) => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

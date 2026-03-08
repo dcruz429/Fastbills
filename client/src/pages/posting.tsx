@@ -528,18 +528,6 @@ export default function PostingPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Outcome</Label>
-                <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger data-testid="select-posting-outcome"><SelectValue placeholder="Select outcome" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">-- None --</SelectItem>
-                    {OUTCOME_OPTIONS.map(o => (
-                      <SelectItem key={o} value={o}>{o}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
                 <Label>Activity</Label>
                 <Select value={form.activity || "__none__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__none__" ? "" : v }))}>
                   <SelectTrigger data-testid="select-posting-activity"><SelectValue placeholder="Select activity" /></SelectTrigger>
@@ -547,6 +535,18 @@ export default function PostingPage() {
                     <SelectItem value="__none__">-- None --</SelectItem>
                     {(postingActivityOptions || []).map((o: any) => (
                       <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Outcome</Label>
+                <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger data-testid="select-posting-outcome"><SelectValue placeholder="Select outcome" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-- None --</SelectItem>
+                    {OUTCOME_OPTIONS.map(o => (
+                      <SelectItem key={o} value={o}>{o}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

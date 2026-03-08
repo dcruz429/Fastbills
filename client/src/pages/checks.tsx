@@ -574,6 +574,16 @@ export default function ChecksPage() {
                 <Input type="date" value={form.depositDate} onChange={e => setForm(f => ({ ...f, depositDate: e.target.value }))} data-testid="input-depositDate" />
               </div>
               <div className="space-y-1.5">
+                <Label className="text-xs">Activity</Label>
+                <Select value={form.activity || "__none__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger data-testid="select-check-activity"><SelectValue placeholder="Select activity" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-- None --</SelectItem>
+                    {(checksActivityOptions || []).map((o: any) => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-xs">Outcome</Label>
                 <Select value={form.outcome} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
                   <SelectTrigger data-testid="select-check-outcome"><SelectValue placeholder="Select outcome" /></SelectTrigger>
@@ -583,16 +593,6 @@ export default function ChecksPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Activity</Label>
-              <Select value={form.activity || "__none__"} onValueChange={v => setForm(f => ({ ...f, activity: v === "__none__" ? "" : v }))}>
-                <SelectTrigger data-testid="select-check-activity"><SelectValue placeholder="Select activity" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- None --</SelectItem>
-                  {(checksActivityOptions || []).map((o: any) => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
-                </SelectContent>
-              </Select>
             </div>
 
             <Separator />
