@@ -8,7 +8,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db } from "./db";
-import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, DROPDOWN_CATEGORIES } from "@shared/schema";
+import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, collections, postings, checks, DROPDOWN_CATEGORIES } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager"];
@@ -1811,6 +1811,43 @@ export async function registerRoutes(
       }
       await storage.deleteCheck(parseInt(req.params.id));
       res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/my-assignments", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const fullName = user.fullName;
+
+      const allTasks = await storage.getAllTasks();
+      const myTasks = allTasks.filter((t: any) => t.assignedUserId === user.id);
+
+      const allChecks = await db.select().from(checks);
+      const myChecks = allChecks.filter((c: any) => c.assignedTo === fullName);
+
+      const allPostings = await db.select().from(postings);
+      const myPostings = allPostings.filter((p: any) => p.assignedTo === fullName);
+
+      const allCollections = await db.select().from(collections);
+      const myCollections = allCollections.filter((c: any) => c.assignedTo === fullName);
+
+      const allDenials = await db.select().from(denials);
+      const myDenials = allDenials.filter((d: any) => d.assignedTo === fullName);
+
+      const allArbitrations = await db.select().from(arbitrations);
+      const myArbitrations = allArbitrations.filter((a: any) => a.assignedTo === fullName);
+
+      res.json({
+        tasks: myTasks,
+        checks: myChecks,
+        postings: myPostings,
+        collections: myCollections,
+        denials: myDenials,
+        arbitrations: myArbitrations,
+      });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
