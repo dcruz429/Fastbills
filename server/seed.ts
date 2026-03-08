@@ -175,10 +175,7 @@ export async function seed() {
 }
 
 export async function seedDropdownOptions() {
-  const existing = await db.select({ id: dropdownOptions.id }).from(dropdownOptions).limit(1);
-  if (existing.length > 0) return;
-
-  const categoryMap: Record<string, string[]> = {
+  const allCategories: Record<string, string[]> = {
     denial_type: DENIAL_TYPE_OPTIONS,
     filed_to: FILED_TO_OPTIONS,
     arb_status: ARB_STATUS_OPTIONS,
@@ -214,12 +211,19 @@ export async function seedDropdownOptions() {
     checks_activity: [],
   };
 
+  const existing = await db.select({ category: dropdownOptions.category }).from(dropdownOptions);
+  const existingCategories = new Set(existing.map(e => e.category));
+
   const rows: { category: string; value: string; sortOrder: number }[] = [];
-  for (const [category, values] of Object.entries(categoryMap)) {
+  for (const [category, values] of Object.entries(allCategories)) {
+    if (existingCategories.has(category)) continue;
     values.forEach((value, i) => {
       rows.push({ category, value, sortOrder: i });
     });
   }
-  await db.insert(dropdownOptions).values(rows);
-  console.log(`Seeded ${rows.length} dropdown options`);
+
+  if (rows.length > 0) {
+    await db.insert(dropdownOptions).values(rows);
+    console.log(`Seeded ${rows.length} dropdown options for new categories`);
+  }
 }
