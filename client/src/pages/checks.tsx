@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Redirect } from "wouter";
-import type { Check, User, Clinic } from "@shared/schema";
+import type { Check, User, Clinic, Insurance } from "@shared/schema";
 import { CHECKS_TYPE_OPTIONS, CHECKS_STATUS_OPTIONS, OUTCOME_OPTIONS } from "@shared/schema";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -93,6 +93,7 @@ export default function ChecksPage() {
   const { data: checksList, isLoading } = useQuery<Check[]>({ queryKey: ["/api/checks"] });
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
+  const { data: allInsurances } = useQuery<Insurance[]>({ queryKey: ["/api/insurances"] });
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
     queryKey: ["/api/checks", editingId, "activity"],
     enabled: !!editingId,
@@ -119,6 +120,7 @@ export default function ChecksPage() {
 
   const insuranceOptions = (() => {
     const set = new Set<string>();
+    (allInsurances || []).filter(i => i.isActive !== false).forEach(i => set.add(i.name));
     (checksList || []).forEach(d => { if (d.insurance) set.add(d.insurance); });
     return Array.from(set).sort();
   })();
@@ -484,7 +486,17 @@ export default function ChecksPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Insurance</Label>
-                <Input value={form.insurance} onChange={e => setForm(f => ({ ...f, insurance: e.target.value }))} data-testid="input-insurance" />
+                <Select value={form.insurance || "__clear__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__clear__" ? "" : v }))}>
+                  <SelectTrigger data-testid="select-insurance">
+                    <SelectValue placeholder="Select insurance..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__clear__">-- None --</SelectItem>
+                    {(allInsurances || []).filter(i => i.isActive !== false).map(i => (
+                      <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
