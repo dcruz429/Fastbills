@@ -405,27 +405,28 @@ export default function ChecksPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To <SortIcon col="assignedTo" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic <SortIcon col="clinic" /></TableHead>
+              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("inputDate")} data-testid="sort-inputDate">Input Date <SortIcon col="inputDate" /></TableHead>
+              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("checkDate")} data-testid="sort-checkDate">Check Date <SortIcon col="checkDate" /></TableHead>
+              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance <SortIcon col="insurance" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("checkNumber")} data-testid="sort-checkNumber">Check No. <SortIcon col="checkNumber" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount <SortIcon col="amount" /></TableHead>
-              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("checkDate")} data-testid="sort-checkDate">Check Date <SortIcon col="checkDate" /></TableHead>
-              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("inputDate")} data-testid="sort-inputDate">Input Date <SortIcon col="inputDate" /></TableHead>
-              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance <SortIcon col="insurance" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("fileName")} data-testid="sort-fileName">File Name <SortIcon col="fileName" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("scannedDate")} data-testid="sort-scannedDate">Scanned Date <SortIcon col="scannedDate" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("type")} data-testid="sort-type">Type <SortIcon col="type" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("postedDate")} data-testid="sort-postedDate">Posted Date <SortIcon col="postedDate" /></TableHead>
+              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To <SortIcon col="assignedTo" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("depositDate")} data-testid="sort-depositDate">Deposit Date <SortIcon col="depositDate" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("depositedBy")} data-testid="sort-depositedBy">Deposited By <SortIcon col="depositedBy" /></TableHead>
+              <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("activity")} data-testid="sort-activity">Action <SortIcon col="activity" /></TableHead>
               {canEdit && <TableHead className="text-xs text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 15 : 14} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 16 : 15} className="text-center text-sm text-muted-foreground py-8">
                   No checks found
                 </TableCell>
               </TableRow>
@@ -436,20 +437,21 @@ export default function ChecksPage() {
                 onClick={() => canEdit && openEdit(d)}
                 data-testid={`row-check-${d.id}`}
               >
-                <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                 <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
+                <TableCell className="text-xs">{formatDate(d.checkDate)}</TableCell>
+                <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                 <TableCell className="text-xs">{d.checkNumber || "-"}</TableCell>
                 <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
-                <TableCell className="text-xs">{formatDate(d.checkDate)}</TableCell>
-                <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
-                <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                 <TableCell className="text-xs">{d.fileName || "-"}</TableCell>
                 <TableCell className="text-xs">{formatDate(d.scannedDate)}</TableCell>
                 <TableCell className="text-xs">{d.type || "-"}</TableCell>
                 <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                 <TableCell className="text-xs">{formatDate(d.postedDate)}</TableCell>
+                <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                 <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
                 <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
+                <TableCell className="text-xs">{d.activity || "-"}</TableCell>
                 {canEdit && (
                   <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-check-${d.id}`}>
