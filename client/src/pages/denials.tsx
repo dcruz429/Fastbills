@@ -84,6 +84,7 @@ export default function DenialsPage() {
   const [filterArbStatus, setFilterArbStatus] = useState("");
   const [filterArbPaymentStatus, setFilterArbPaymentStatus] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterOutcome, setFilterOutcome] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -235,7 +236,7 @@ export default function DenialsPage() {
 
   const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner";
 
-  const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo].filter(v => v && v !== "__all__").length;
+  const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo, filterOutcome].filter(v => v && v !== "__all__").length;
 
   function clearFilters() {
     setFilterClinic("");
@@ -245,6 +246,7 @@ export default function DenialsPage() {
     setFilterArbStatus("");
     setFilterArbPaymentStatus("");
     setFilterAssignedTo("");
+    setFilterOutcome("");
   }
 
   const filteredUnsorted = (denials || []).filter(d => {
@@ -256,6 +258,7 @@ export default function DenialsPage() {
     if (filterArbStatus && filterArbStatus !== "__all__" && d.arbStatus !== filterArbStatus) return false;
     if (filterArbPaymentStatus && filterArbPaymentStatus !== "__all__" && d.arbPaymentStatus !== filterArbPaymentStatus) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
+    if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -438,6 +441,20 @@ export default function DenialsPage() {
                 <SelectItem value="__all__">All</SelectItem>
                 {[...new Map([...(denials || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Outcome</Label>
+            <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-outcome">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {OUTCOME_OPTIONS.map(o => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

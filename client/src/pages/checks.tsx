@@ -79,6 +79,7 @@ export default function ChecksPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterInsurance, setFilterInsurance] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterOutcome, setFilterOutcome] = useState("");
   const [filterDateField, setFilterDateField] = useState("inputDate");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
@@ -234,7 +235,7 @@ export default function ChecksPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const activeFilterCount = [filterClinic, filterType, filterStatus, filterInsurance, filterAssignedTo, filterDateFrom, filterDateTo]
+  const activeFilterCount = [filterClinic, filterType, filterStatus, filterInsurance, filterAssignedTo, filterOutcome, filterDateFrom, filterDateTo]
     .filter(v => v && v !== "__all__").length;
 
   function clearFilters() {
@@ -243,6 +244,7 @@ export default function ChecksPage() {
     setFilterStatus("");
     setFilterInsurance("");
     setFilterAssignedTo("");
+    setFilterOutcome("");
     setFilterDateFrom("");
     setFilterDateTo("");
   }
@@ -254,6 +256,7 @@ export default function ChecksPage() {
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
     if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
+    if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
     if (filterDateFrom || filterDateTo) {
       const fieldVal = (d as any)[filterDateField];
       if (!fieldVal) return false;
@@ -403,6 +406,16 @@ export default function ChecksPage() {
                 <SelectContent>
                   <SelectItem value="__all__">All</SelectItem>
                   {assignedToOptions.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Outcome</Label>
+              <Select value={filterOutcome} onValueChange={setFilterOutcome}>
+                <SelectTrigger className="h-8 text-xs" data-testid="filter-outcome"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

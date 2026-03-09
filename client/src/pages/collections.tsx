@@ -117,6 +117,7 @@ export default function CollectionsPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
+  const [filterOutcome, setFilterOutcome] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -386,7 +387,7 @@ export default function CollectionsPage() {
     }
   };
 
-  const activeFilterCount = [filterClinic, filterDivision, filterInsurance, filterIssueType, filterStatus, filterAssignedTo, filterPriority].filter(v => v && v !== "__all__").length;
+  const activeFilterCount = [filterClinic, filterDivision, filterInsurance, filterIssueType, filterStatus, filterAssignedTo, filterPriority, filterOutcome].filter(v => v && v !== "__all__").length;
 
   const clearAllFilters = () => {
     setFilterClinic("");
@@ -396,6 +397,7 @@ export default function CollectionsPage() {
     setFilterStatus("");
     setFilterAssignedTo("");
     setFilterPriority("");
+    setFilterOutcome("");
   };
 
   const q = searchQuery.toLowerCase();
@@ -413,6 +415,7 @@ export default function CollectionsPage() {
     if (filterIssueType && filterIssueType !== "__all__" && d.issueType !== filterIssueType) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
+    if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
     if (filterPriority && filterPriority !== "__all__") {
       const rowPriority = computePriority(d.inputDate);
       if (rowPriority !== filterPriority) return false;
@@ -657,6 +660,20 @@ export default function CollectionsPage() {
                 <SelectItem value="Medium <20 Days">Medium</SelectItem>
                 <SelectItem value="High <30 Days">High</SelectItem>
                 <SelectItem value="Critical >30 Days">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Outcome</Label>
+            <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)} data-testid="filter-outcome">
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-outcome">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {OUTCOME_OPTIONS.map(o => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

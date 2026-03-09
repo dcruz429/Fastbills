@@ -74,6 +74,7 @@ export default function PostingPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterOutcome, setFilterOutcome] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -193,7 +194,7 @@ export default function PostingPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const activeFilterCount = [filterClinic, filterDocumentType, filterStatus, filterPriority, filterAssignedTo]
+  const activeFilterCount = [filterClinic, filterDocumentType, filterStatus, filterPriority, filterAssignedTo, filterOutcome]
     .filter(v => v && v !== "__all__").length;
 
   function clearFilters() {
@@ -202,6 +203,7 @@ export default function PostingPage() {
     setFilterStatus("");
     setFilterPriority("");
     setFilterAssignedTo("");
+    setFilterOutcome("");
   }
 
   const filteredUnsorted = (postingList || []).filter(d => {
@@ -211,6 +213,7 @@ export default function PostingPage() {
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
     if (filterPriority && filterPriority !== "__all__" && d.priority !== filterPriority) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
+    if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
     return true;
   });
 
@@ -359,6 +362,20 @@ export default function PostingPage() {
                 <SelectItem value="__all__">All</SelectItem>
                 {[...new Map([...(postingList || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Outcome</Label>
+            <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)}>
+              <SelectTrigger className="h-9 text-xs" data-testid="filter-outcome">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All</SelectItem>
+                {OUTCOME_OPTIONS.map(o => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
