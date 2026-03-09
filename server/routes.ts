@@ -37,85 +37,166 @@ async function saveUploadedFiles(files: Express.Multer.File[]): Promise<string[]
 async function handleOutcomeTransfer(
   outcome: string,
   source: string,
-  record: { patientName?: string; clinic?: string; insurance?: string; amount?: string | null; notes?: string | null },
+  record: { patientName?: string; clinic?: string; insurance?: string; amount?: string | null; notes?: string | null; comments?: string | null; activityHistory?: { field: string; oldValue: string | null; newValue: string | null; action: string; timestamp: Date }[] },
   userId: number
 ) {
   const patientName = record.patientName || "Unknown";
   const clinic = record.clinic || null;
   const insurance = record.insurance || null;
   const amount = record.amount || null;
+  const existingNotes = record.notes || record.comments || null;
+
+  const transferHeader = `[Transferred from ${source} - ${new Date().toISOString()}]`;
+  const combinedNotes = existingNotes
+    ? `${transferHeader}\nTransferred from ${source}\n\n${existingNotes}`
+    : `${transferHeader}\nTransferred from ${source}`;
+
+  const allClinics = await storage.getAllClinics();
+  const allInsurances = await storage.getAllInsurances();
+  const clinicId = clinic ? (allClinics.find(c => c.name === clinic)?.id ?? null) : null;
+  const insuranceId = insurance ? (allInsurances.find(i => i.name === insurance)?.id ?? null) : null;
+
+  let newRecordId: number | null = null;
+  let targetType: string | null = null;
 
   switch (outcome) {
-    case "Send to Verification":
-      await storage.createTask({
+    case "Send to Verification": {
+      const task = await storage.createTask({
         patientName,
-        clinicId: null,
-        insuranceId: null,
+        clinicId,
+        insuranceId,
         priority: "low",
         status: "unassigned",
         bucket: "for_verification",
-        notes: `Transferred from ${source}`,
+        notes: combinedNotes,
         rtp: false,
       });
+      newRecordId = task.id;
+      targetType = "task";
       break;
-    case "Send to Billing":
-      await storage.createTask({
+    }
+    case "Send to Billing": {
+      const task = await storage.createTask({
         patientName,
-        clinicId: null,
-        insuranceId: null,
+        clinicId,
+        insuranceId,
         priority: "low",
         status: "unassigned",
         bucket: "ready_for_billing",
-        notes: `Transferred from ${source}`,
+        notes: combinedNotes,
         rtp: false,
       });
+      newRecordId = task.id;
+      targetType = "task";
       break;
-    case "Send to Posting":
-      await storage.createPosting({
+    }
+    case "Send to Posting": {
+      const posting = await storage.createPosting({
         patientName,
         clinic,
         insurance,
         status: "Unassigned",
         amount,
       });
+      newRecordId = posting.id;
+      targetType = "posting";
       break;
-    case "Send to Collections":
-      await storage.createCollection({
+    }
+    case "Send to Collections": {
+      const collection = await storage.createCollection({
         patientName,
         clinic,
         insurance,
         status: "Unassigned",
         amount,
+        notes: combinedNotes,
       });
+      newRecordId = collection.id;
+      targetType = "collection";
       break;
-    case "Send to Denials":
-      await storage.createDenial({
+    }
+    case "Send to Denials": {
+      const denial = await storage.createDenial({
         patientName,
         clinic,
         insurance,
         status: "Unassigned",
         amount,
+        comments: combinedNotes,
       });
+      newRecordId = denial.id;
+      targetType = "denial";
       break;
-    case "Send to Arbitration":
-      await storage.createArbitration({
+    }
+    case "Send to Arbitration": {
+      const arb = await storage.createArbitration({
         patientName,
         clinic,
         insurance,
         status: "Unassigned",
         amount,
+        comments: combinedNotes,
       });
+      newRecordId = arb.id;
+      targetType = "arbitration";
       break;
-    case "Send to Closed":
-      await storage.createClosed({
+    }
+    case "Send to Closed": {
+      const closed = await storage.createClosed({
         patientName,
         clinic,
         insurance,
         status: "Unassigned",
         amount,
         source,
+        notes: combinedNotes,
       });
+      newRecordId = closed.id;
+      targetType = "closed";
       break;
+    }
+  }
+
+  if (newRecordId && targetType && record.activityHistory && record.activityHistory.length > 0) {
+    const transferNote = `Transferred from ${source}`;
+    switch (targetType) {
+      case "task":
+        await storage.createTaskActivity({ taskId: newRecordId, userId, action: transferNote, field: "source", oldValue: source, newValue: outcome });
+        for (const entry of record.activityHistory) {
+          await storage.createTaskActivity({ taskId: newRecordId, userId, action: `[${source}] ${entry.action}`, field: entry.field, oldValue: entry.oldValue, newValue: entry.newValue });
+        }
+        break;
+      case "denial":
+        await storage.createDenialActivity({ denialId: newRecordId, userId, action: transferNote, field: "source", oldValue: source, newValue: outcome });
+        for (const entry of record.activityHistory) {
+          await storage.createDenialActivity({ denialId: newRecordId, userId, action: `[${source}] ${entry.action}`, field: entry.field, oldValue: entry.oldValue, newValue: entry.newValue });
+        }
+        break;
+      case "arbitration":
+        await storage.createArbitrationActivity({ arbitrationId: newRecordId, userId, action: transferNote, field: "source", oldValue: source, newValue: outcome });
+        for (const entry of record.activityHistory) {
+          await storage.createArbitrationActivity({ arbitrationId: newRecordId, userId, action: `[${source}] ${entry.action}`, field: entry.field, oldValue: entry.oldValue, newValue: entry.newValue });
+        }
+        break;
+      case "collection":
+        await storage.createCollectionActivity({ collectionId: newRecordId, userId, action: transferNote, field: "source", oldValue: source, newValue: outcome });
+        for (const entry of record.activityHistory) {
+          await storage.createCollectionActivity({ collectionId: newRecordId, userId, action: `[${source}] ${entry.action}`, field: entry.field, oldValue: entry.oldValue, newValue: entry.newValue });
+        }
+        break;
+      case "posting":
+        await storage.createPostingActivity({ postingId: newRecordId, userId, action: transferNote, field: "source", oldValue: source, newValue: outcome });
+        for (const entry of record.activityHistory) {
+          await storage.createPostingActivity({ postingId: newRecordId, userId, action: `[${source}] ${entry.action}`, field: entry.field, oldValue: entry.oldValue, newValue: entry.newValue });
+        }
+        break;
+      case "closed":
+        await storage.createClosedActivity({ closedId: newRecordId, userId, action: transferNote, field: "source", oldValue: source, newValue: outcome });
+        for (const entry of record.activityHistory) {
+          await storage.createClosedActivity({ closedId: newRecordId, userId, action: `[${source}] ${entry.action}`, field: entry.field, oldValue: entry.oldValue, newValue: entry.newValue });
+        }
+        break;
+    }
   }
 }
 
@@ -529,11 +610,14 @@ export async function registerRoutes(
       if (updates.outcome && OUTCOME_OPTIONS.includes(updates.outcome) && updates.outcome !== existing.outcome) {
         const clinicName = existing.clinicId ? (await storage.getAllClinics()).find(c => c.id === existing.clinicId)?.name : null;
         const insuranceName = existing.insuranceId ? (await storage.getAllInsurances()).find(i => i.id === existing.insuranceId)?.name : null;
+        const taskActivityHistory = await storage.getTaskActivity(id);
         await handleOutcomeTransfer(updates.outcome, "Verification/Billing", {
           patientName: existing.patientName,
           clinic: clinicName || null,
           insurance: insuranceName || null,
           amount: null,
+          notes: existing.notes,
+          activityHistory: taskActivityHistory.map(a => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
 
@@ -730,11 +814,14 @@ export async function registerRoutes(
       }
 
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        const denialActivityHistory = await storage.getDenialActivity(id);
         await handleOutcomeTransfer(data.outcome, "Denials", {
           patientName: existing.patientName,
           clinic: existing.clinic,
           insurance: existing.insurance,
           amount: existing.amount,
+          comments: existing.comments,
+          activityHistory: denialActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
 
@@ -898,11 +985,14 @@ export async function registerRoutes(
         data.numberOfDays = data.numberOfDays ? parseInt(data.numberOfDays) : null;
       }
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        const arbActivityHistory = await storage.getArbitrationActivity(id);
         await handleOutcomeTransfer(data.outcome, "Arbitration", {
           patientName: existing.patientName,
           clinic: existing.clinic,
           insurance: existing.insurance,
           amount: existing.amount,
+          comments: existing.comments,
+          activityHistory: arbActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
 
@@ -1083,11 +1173,14 @@ export async function registerRoutes(
         data.numberOfVisits = data.numberOfVisits ? parseInt(data.numberOfVisits) : null;
       }
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        const collActivityHistory = await storage.getCollectionActivity(id);
         await handleOutcomeTransfer(data.outcome, "Collections", {
           patientName: existing.patientName,
           clinic: existing.clinic,
           insurance: existing.insurance,
           amount: existing.amount,
+          notes: existing.notes,
+          activityHistory: collActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
 
@@ -1275,11 +1368,13 @@ export async function registerRoutes(
         if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
       }
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        const postingActivityHistory = await storage.getPostingActivity(id);
         await handleOutcomeTransfer(data.outcome, "Posting", {
           patientName: existing.patientName || undefined,
           clinic: existing.clinic,
           insurance: existing.insurance || undefined,
           amount: existing.amount,
+          activityHistory: postingActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
 
@@ -1888,11 +1983,14 @@ export async function registerRoutes(
         if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
       }
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        const checkActivityHistory = await storage.getCheckActivity(id);
         await handleOutcomeTransfer(data.outcome, "Checks", {
           patientName: existing.patientName || undefined,
           clinic: existing.clinic,
           insurance: existing.insurance,
           amount: existing.amount,
+          notes: existing.notes,
+          activityHistory: checkActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
 
@@ -2013,11 +2111,14 @@ export async function registerRoutes(
       const data: any = { ...req.body };
 
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
+        const closedActivityHistory = await storage.getClosedActivity(id);
         await handleOutcomeTransfer(data.outcome, "Closed", {
           patientName: existing.patientName,
           clinic: existing.clinic,
           insurance: existing.insurance,
           amount: existing.amount,
+          notes: existing.notes,
+          activityHistory: closedActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
 
