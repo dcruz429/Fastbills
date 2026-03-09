@@ -155,6 +155,20 @@ async function handleOutcomeTransfer(
       targetType = "closed";
       break;
     }
+    case "RTP": {
+      const closed = await storage.createClosed({
+        patientName,
+        clinic,
+        insurance,
+        status: "Unassigned",
+        amount,
+        source: `RTP - ${source}`,
+        notes: combinedNotes,
+      });
+      newRecordId = closed.id;
+      targetType = "closed";
+      break;
+    }
   }
 
   if (newRecordId && targetType && record.activityHistory && record.activityHistory.length > 0) {

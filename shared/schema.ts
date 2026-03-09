@@ -622,6 +622,9 @@ export const OUTCOME_OPTIONS = [
   "Send to Denials",
   "Send to Arbitration",
   "Send to Closed",
+  "Paid",
+  "Loss",
+  "RTP",
 ];
 
 export const closed = pgTable("closed", {

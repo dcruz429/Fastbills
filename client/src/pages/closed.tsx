@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, FileText, CreditCard, ClipboardList, ShieldAlert, Scale, Package, Archive } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, FileText, CreditCard, ClipboardList, ShieldAlert, Scale, Package, Archive, RotateCcw } from "lucide-react";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager"];
 
@@ -190,6 +190,7 @@ export default function ClosedPage() {
   }
 
   const SOURCE_SECTIONS = [
+    { key: "__rtp__", label: "RTP (RETURN TO PROVIDER)", icon: RotateCcw, color: "bg-orange-200 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200 border-orange-400 dark:border-orange-600 border-2 ring-2 ring-orange-300 dark:ring-orange-700" },
     { key: "Verification/Billing", label: "BILLING / VERIFICATION TASKS", icon: FileText, color: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
     { key: "Posting", label: "POSTINGS", icon: Package, color: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800" },
     { key: "Collections", label: "COLLECTIONS", icon: CreditCard, color: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800" },
@@ -214,7 +215,11 @@ export default function ClosedPage() {
   const filteredUnsorted = (closedList || []).filter(d => {
     if (searchQuery && !Object.values(d).some(v => v && String(v).toLowerCase().includes(searchQuery.toLowerCase()))) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
-    if (filterSource && filterSource !== "__all__" && d.source !== filterSource) return false;
+    if (filterSource && filterSource !== "__all__") {
+      if (filterSource === "__rtp__") {
+        if (!(d.source || "").startsWith("RTP")) return false;
+      } else if (d.source !== filterSource) return false;
+    }
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
     if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
     return true;
@@ -321,7 +326,8 @@ export default function ClosedPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
-                {sourceOptions.map(s => (
+                <SelectItem value="__rtp__">RTP (Return to Provider)</SelectItem>
+                {sourceOptions.filter(s => !s.startsWith("RTP")).map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
               </SelectContent>
@@ -370,18 +376,22 @@ export default function ClosedPage() {
 
       <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar space-y-4">
         {(() => {
-          const knownKeys = SOURCE_SECTIONS.map(s => s.key).filter(k => k !== "__other__");
+          const knownKeys = SOURCE_SECTIONS.map(s => s.key).filter(k => k !== "__other__" && k !== "__rtp__");
           const groupedBySource: Record<string, typeof filtered> = {};
           for (const section of SOURCE_SECTIONS) {
             groupedBySource[section.key] = [];
           }
           for (const d of filtered) {
             const src = d.source || "";
-            const matchedKey = knownKeys.find(k => k === src);
-            if (matchedKey) {
-              groupedBySource[matchedKey].push(d);
+            if (src.startsWith("RTP - ") || src === "RTP") {
+              groupedBySource["__rtp__"].push(d);
             } else {
-              groupedBySource["__other__"].push(d);
+              const matchedKey = knownKeys.find(k => k === src);
+              if (matchedKey) {
+                groupedBySource[matchedKey].push(d);
+              } else {
+                groupedBySource["__other__"].push(d);
+              }
             }
           }
 
@@ -425,14 +435,19 @@ export default function ClosedPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {sectionItems.map(d => (
+                          {sectionItems.map(d => {
+                            const isRtp = (d.source || "").startsWith("RTP");
+                            return (
                             <TableRow
                               key={d.id}
-                              className="cursor-pointer hover:bg-muted/50"
+                              className={`cursor-pointer hover:bg-muted/50 ${isRtp ? "bg-orange-50 dark:bg-orange-950/40 border-l-4 border-l-orange-500" : ""}`}
                               onClick={() => openEdit(d)}
                               data-testid={`row-closed-${d.id}`}
                             >
-                              <TableCell className="text-xs font-medium">{d.patientName || "-"}</TableCell>
+                              <TableCell className="text-xs font-medium">
+                                {isRtp && <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0 mr-1.5 animate-pulse" data-testid={`badge-rtp-${d.id}`}>RTP</Badge>}
+                                {d.patientName || "-"}
+                              </TableCell>
                               <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                               <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                               <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
@@ -447,7 +462,8 @@ export default function ClosedPage() {
                                 </TableCell>
                               )}
                             </TableRow>
-                          ))}
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     )}

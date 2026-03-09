@@ -37,10 +37,13 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Billing** (`/`): Shows "Ready for Billing" and "Done" buckets (no longer shows For Verification)
 
 ## Outcome-Based Workflow
-All tracker pages have an **Outcome** dropdown with 7 options:
-- Send to Verification, Send to Billing, Send to Posting, Send to Collections, Send to Denials, Send to Arbitration, Send to Closed
+All tracker pages have an **Outcome** dropdown with 10 options:
+- Send to Verification, Send to Billing, Send to Posting, Send to Collections, Send to Denials, Send to Arbitration, Send to Closed, Paid, Loss, RTP
 
-When an Outcome is selected, a new record is created in the target tracker with **Unassigned** status, carrying over patient name, clinic, insurance, and amount where applicable.
+When an Outcome is selected:
+- **Send to X**: A new record is created in the target tracker with **Unassigned** status, carrying over patient name, clinic, insurance, amount, notes/comments, and activity history.
+- **Paid / Loss**: No automation, just marks the outcome.
+- **RTP**: Creates a new record in the Closed tracker with source "RTP - [SourceTracker]". RTP records are visually highlighted on the Closed page with an orange pulsing badge, orange left border, and their own collapsible section at the top.
 
 ## Unified Status Options
 All trackers (Verification, Billing, Collections, Denials, Arbitration, Checks, Posting, Closed) use the same 4 status options:
