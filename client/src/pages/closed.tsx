@@ -190,7 +190,7 @@ export default function ClosedPage() {
   }
 
   const SOURCE_SECTIONS = [
-    { key: "__rtp__", label: "RTP (RETURN TO PROVIDER)", icon: RotateCcw, color: "bg-orange-200 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200 border-orange-400 dark:border-orange-600 border-2 ring-2 ring-orange-300 dark:ring-orange-700" },
+    { key: "__rtp__", label: "RTP (RETURN TO PARTNER)", icon: RotateCcw, color: "bg-orange-200 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200 border-orange-400 dark:border-orange-600 border-2 ring-2 ring-orange-300 dark:ring-orange-700" },
     { key: "Verification/Billing", label: "BILLING / VERIFICATION TASKS", icon: FileText, color: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
     { key: "Posting", label: "POSTINGS", icon: Package, color: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800" },
     { key: "Collections", label: "COLLECTIONS", icon: CreditCard, color: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800" },
@@ -326,7 +326,7 @@ export default function ClosedPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
-                <SelectItem value="__rtp__">RTP (Return to Provider)</SelectItem>
+                <SelectItem value="__rtp__">RTP (Return to Partner)</SelectItem>
                 {sourceOptions.filter(s => !s.startsWith("RTP")).map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
