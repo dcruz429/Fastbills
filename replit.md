@@ -37,8 +37,8 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Billing** (`/`): Shows "Ready for Billing" and "Done" buckets (no longer shows For Verification)
 
 ## Outcome-Based Workflow
-All tracker pages have an **Outcome** dropdown with 6 options:
-- Send to Billing, Send to Posting, Send to Collections, Send to Denials, Send to Arbitration, Send to Closed
+All tracker pages have an **Outcome** dropdown with 7 options:
+- Send to Verification, Send to Billing, Send to Posting, Send to Collections, Send to Denials, Send to Arbitration, Send to Closed
 
 When an Outcome is selected, a new record is created in the target tracker with **Unassigned** status, carrying over patient name, clinic, insurance, and amount where applicable.
 

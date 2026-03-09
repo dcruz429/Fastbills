@@ -615,6 +615,7 @@ export type InsertCheckActivity = z.infer<typeof insertCheckActivitySchema>;
 export type CheckActivity = typeof checkActivity.$inferSelect;
 
 export const OUTCOME_OPTIONS = [
+  "Send to Verification",
   "Send to Billing",
   "Send to Posting",
   "Send to Collections",

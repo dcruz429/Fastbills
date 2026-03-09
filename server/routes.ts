@@ -46,6 +46,18 @@ async function handleOutcomeTransfer(
   const amount = record.amount || null;
 
   switch (outcome) {
+    case "Send to Verification":
+      await storage.createTask({
+        patientName,
+        clinicId: null,
+        insuranceId: null,
+        priority: "low",
+        status: "unassigned",
+        bucket: "for_verification",
+        notes: `Transferred from ${source}`,
+        rtp: false,
+      });
+      break;
     case "Send to Billing":
       await storage.createTask({
         patientName,
