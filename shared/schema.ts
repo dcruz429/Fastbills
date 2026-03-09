@@ -625,6 +625,7 @@ export const OUTCOME_OPTIONS = [
   "Paid",
   "Loss",
   "RTP",
+  "Billed",
 ];
 
 export const closed = pgTable("closed", {
