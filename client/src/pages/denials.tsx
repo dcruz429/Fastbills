@@ -540,10 +540,12 @@ export default function DenialsPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {filtered.map(d => (
+                {filtered.map(d => {
+                  const isTransferred = (d.comments || "").startsWith("[Transferred from");
+                  return (
                   <TableRow
                     key={d.id}
-                    className="cursor-pointer"
+                    className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`}
                     onClick={() => openEdit(d)}
                     data-testid={`row-denial-${d.id}`}
                   >
@@ -583,7 +585,8 @@ export default function DenialsPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

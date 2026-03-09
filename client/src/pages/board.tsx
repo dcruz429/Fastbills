@@ -371,6 +371,7 @@ export default function BoardPage() {
                                   task.dueDate &&
                                   new Date(task.dueDate) < new Date() &&
                                   task.bucket !== "done";
+                                const isTransferred = (task.notes || "").startsWith("[Transferred from");
                                 return (
                                   <tr
                                     key={task.id}
@@ -378,7 +379,8 @@ export default function BoardPage() {
                                       "border-b last:border-0 cursor-pointer transition-colors duration-150",
                                       isOverdue
                                         ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30"
-                                        : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10"
+                                        : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10",
+                                      isTransferred && "text-blue-600 dark:text-blue-400"
                                     )}
                                     onClick={() => {
                                       setSelectedTask(task);

@@ -722,8 +722,10 @@ export default function CollectionsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map(d => (
-                <TableRow key={d.id} data-testid={`row-collection-${d.id}`} className="cursor-pointer" onClick={() => handleEdit(d)}>
+              filtered.map(d => {
+                const isTransferred = (d.notes || "").startsWith("[Transferred from");
+                return (
+                <TableRow key={d.id} data-testid={`row-collection-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
                   <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                   <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
                   <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
@@ -749,7 +751,8 @@ export default function CollectionsPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

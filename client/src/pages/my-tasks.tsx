@@ -413,6 +413,7 @@ function TasksSection({
                   <tbody>
                     {sorted.map((task) => {
                       const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.bucket !== "done";
+                      const isTransferred = (task.notes || "").startsWith("[Transferred from");
                       const BucketIcon = bucketIcons[task.bucket] || FileCheck;
                       return (
                         <tr
@@ -421,7 +422,8 @@ function TasksSection({
                             "border-b last:border-0 cursor-pointer transition-colors duration-150",
                             isOverdue
                               ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30"
-                              : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10"
+                              : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10",
+                            isTransferred && "text-blue-600 dark:text-blue-400"
                           )}
                           onClick={() => onSelectTask(task)}
                           data-testid={`task-row-${task.id}`}

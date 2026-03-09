@@ -437,10 +437,11 @@ export default function ClosedPage() {
                         <TableBody>
                           {sectionItems.map(d => {
                             const isRtp = (d.source || "").startsWith("RTP");
+                            const isTransferred = !isRtp && (d.notes || "").startsWith("[Transferred from");
                             return (
                             <TableRow
                               key={d.id}
-                              className={`cursor-pointer hover:bg-muted/50 ${isRtp ? "bg-orange-50 dark:bg-orange-950/40 border-l-4 border-l-orange-500" : ""}`}
+                              className={`cursor-pointer hover:bg-muted/50 ${isRtp ? "bg-orange-50 dark:bg-orange-950/40 border-l-4 border-l-orange-500" : ""} ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`}
                               onClick={() => openEdit(d)}
                               data-testid={`row-closed-${d.id}`}
                             >

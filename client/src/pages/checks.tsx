@@ -485,10 +485,12 @@ export default function ChecksPage() {
                   No checks found
                 </TableCell>
               </TableRow>
-            ) : filtered.map(d => (
+            ) : filtered.map(d => {
+              const isTransferred = (d.notes || "").startsWith("[Transferred from");
+              return (
               <TableRow
                 key={d.id}
-                className={canEdit ? "cursor-pointer hover:bg-muted/50" : ""}
+                className={`${canEdit ? "cursor-pointer hover:bg-muted/50" : ""} ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`}
                 onClick={() => canEdit && openEdit(d)}
                 data-testid={`row-check-${d.id}`}
               >
@@ -515,7 +517,8 @@ export default function ChecksPage() {
                   </TableCell>
                 )}
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>

@@ -533,8 +533,10 @@ export default function ArbitrationPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {sorted.map(d => (
-                  <TableRow key={d.id} className="cursor-pointer" onClick={() => openEdit(d)} data-testid={`row-arbitration-${d.id}`}>
+                {sorted.map(d => {
+                  const isTransferred = (d.comments || "").startsWith("[Transferred from");
+                  return (
+                  <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-${d.id}`}>
                     <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                     <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
@@ -579,7 +581,8 @@ export default function ArbitrationPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
