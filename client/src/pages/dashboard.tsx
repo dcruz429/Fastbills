@@ -195,7 +195,7 @@ export default function DashboardPage() {
     );
   }
 
-  const isStaffView = currentUser?.role === "verifier" || currentUser?.role === "biller" || currentUser?.role === "payment_specialist";
+  const isStaffView = currentUser?.role === "verifier" || currentUser?.role === "biller";
   const allTasks = (tasks || []).filter(t => isStaffView ? t.assignedUserId === currentUser?.id : true);
   const allDenials = denials || [];
   const allCollections = collections || [];
