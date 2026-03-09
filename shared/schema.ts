@@ -304,7 +304,7 @@ export const COLLECTION_ACTION_OPTIONS = [
 ];
 export const COLLECTION_OUTCOME_OPTIONS = ["For Arbitration", "Loss", "Paid", "Pending", "RTP"];
 export const COLLECTION_PRIORITY_OPTIONS = ["Low <10 days", "Medium <20 Days", "High <30 Days", "Critical >30 Days"];
-export const COLLECTION_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done", "Denials", "Arbitration"];
+export const COLLECTION_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
 
 export const ticketStatusEnum = pgEnum("ticket_status", ["open", "working_on_it", "done", "closed"]);
 export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high", "urgent"]);
