@@ -711,7 +711,7 @@ export default function CollectionsPage() {
               <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("ageing")} data-testid="sort-ageing">Ageing <SortIcon col="ageing" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned to <SortIcon col="assignedTo" /></TableHead>
               <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
-              <TableHead className="min-w-[100px] text-right">Actions</TableHead>
+              {user?.role === "admin" && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -743,6 +743,7 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs font-medium" data-testid={`text-ageing-${d.id}`}>{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
                   <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                   <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                  {user?.role === "admin" && (
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-${d.id}`}>
@@ -750,6 +751,7 @@ export default function CollectionsPage() {
                       </Button>
                     </div>
                   </TableCell>
+                  )}
                 </TableRow>
                 );
               })
@@ -977,7 +979,7 @@ export default function CollectionsPage() {
                 {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
               </Button>
 
-              {editingId && (
+              {editingId && user?.role === "admin" && (
                 <Button
                   variant="destructive"
                   className="w-full"

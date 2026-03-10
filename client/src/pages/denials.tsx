@@ -212,7 +212,7 @@ export default function DenialsPage() {
     }
   }
 
-  const canDelete = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "payment_specialist";
+  const canDelete = user?.role === "admin";
 
   const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo"]);
   const numberColumns = new Set(["numberOfDays"]);
@@ -529,7 +529,7 @@ export default function DenialsPage() {
                       </div>
                     </TableHead>
                   ))}
-                  <TableHead className="min-w-[80px]">Actions</TableHead>
+                  {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>

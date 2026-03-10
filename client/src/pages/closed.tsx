@@ -431,7 +431,7 @@ export default function ClosedPage() {
                             <TableHead className="min-w-[100px] cursor-pointer select-none text-xs" onClick={() => handleSort("status")}>Status <SortIcon col="status" /></TableHead>
                             <TableHead className="min-w-[120px] cursor-pointer select-none text-xs" onClick={() => handleSort("assignedTo")}>Assigned To <SortIcon col="assignedTo" /></TableHead>
                             <TableHead className="min-w-[100px] cursor-pointer select-none text-xs" onClick={() => handleSort("createdAt")}>Created <SortIcon col="createdAt" /></TableHead>
-                            {isAdmin && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
+                            {user.role === "admin" && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -455,7 +455,7 @@ export default function ClosedPage() {
                               <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                               <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                               <TableCell className="text-xs">{formatDate(d.createdAt)}</TableCell>
-                              {isAdmin && (
+                              {user.role === "admin" && (
                                 <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                                   <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-closed-${d.id}`}>
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -560,7 +560,7 @@ export default function ClosedPage() {
               <Button variant="outline" onClick={() => { setDrawerOpen(false); setEditingId(null); setForm({ ...emptyForm }); }} data-testid="button-cancel-closed">
                 Cancel
               </Button>
-              {editingId && isAdmin && (
+              {editingId && user.role === "admin" && (
                 <Button variant="destructive" onClick={() => setDeleteConfirmId(editingId)} data-testid="button-delete-closed-drawer">
                   <Trash2 className="h-4 w-4 mr-1" /> Delete
                 </Button>

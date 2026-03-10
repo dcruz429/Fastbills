@@ -475,13 +475,13 @@ export default function ChecksPage() {
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("depositDate")} data-testid="sort-depositDate">Deposit Date <SortIcon col="depositDate" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("depositedBy")} data-testid="sort-depositedBy">Deposited By <SortIcon col="depositedBy" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("activity")} data-testid="sort-activity">Action <SortIcon col="activity" /></TableHead>
-              {canEdit && <TableHead className="text-xs text-right">Actions</TableHead>}
+              {user.role === "admin" && <TableHead className="text-xs text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 16 : 15} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={user.role === "admin" ? 16 : 15} className="text-center text-sm text-muted-foreground py-8">
                   No checks found
                 </TableCell>
               </TableRow>
@@ -509,7 +509,7 @@ export default function ChecksPage() {
                 <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
                 <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
                 <TableCell className="text-xs">{d.activity || "-"}</TableCell>
-                {canEdit && (
+                {user.role === "admin" && (
                   <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-check-${d.id}`}>
                       <Trash2 className="h-4 w-4" />

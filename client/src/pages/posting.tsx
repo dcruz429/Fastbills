@@ -407,13 +407,13 @@ export default function PostingPage() {
               <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount <SortIcon col="amount" /></TableHead>
               <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
               <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("activity")} data-testid="sort-activity">Action <SortIcon col="activity" /></TableHead>
-              {canEdit && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
+              {user.role === "admin" && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 11 : 10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={user.role === "admin" ? 11 : 10} className="text-center py-8 text-muted-foreground">
                   No postings found
                 </TableCell>
               </TableRow>
@@ -435,7 +435,7 @@ export default function PostingPage() {
                   <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                   <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                   <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
-                  {canEdit && (
+                  {user.role === "admin" && (
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-posting-${d.id}`}>
                         <Trash2 className="h-3.5 w-3.5" />
@@ -576,7 +576,7 @@ export default function PostingPage() {
               <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-posting">
                 {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingId ? "Save Changes" : "Create"}
               </Button>
-              {editingId && canEdit && (
+              {editingId && user.role === "admin" && (
                 <Button variant="destructive" className="w-full" onClick={() => setDeleteConfirmId(editingId)} data-testid="button-delete-posting-drawer">
                   <Trash2 className="h-4 w-4 mr-2" /> Delete Posting
                 </Button>

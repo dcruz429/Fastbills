@@ -215,7 +215,7 @@ export default function ArbitrationPage() {
     }
   }
 
-  const canDelete = user?.role === "admin" || user?.role === "manager" || user?.role === "account_manager" || user?.role === "payment_specialist";
+  const canDelete = user?.role === "admin";
 
   const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
   const numberColumns = new Set(["numberOfDays"]);
@@ -522,7 +522,7 @@ export default function ArbitrationPage() {
                   <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To{renderSortIcon("assignedTo")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status{renderSortIcon("status")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("activity")} data-testid="sort-activity">Action{renderSortIcon("activity")}</TableHead>
-                  <TableHead className="min-w-[80px]">Actions</TableHead>
+                  {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
