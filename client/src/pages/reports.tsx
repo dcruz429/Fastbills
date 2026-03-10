@@ -13,8 +13,14 @@ import { useState } from "react";
 import { Download, BarChart3 } from "lucide-react";
 import { formatEST } from "@/lib/date-utils";
 import type { TaskWithRelations, Clinic } from "@shared/schema";
+import { useAuth } from "@/lib/auth";
+import { Redirect } from "wouter";
 
 export default function ReportsPage() {
+  const { user } = useAuth();
+  if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
+    return <Redirect to="/" />;
+  }
   const [filterClinic, setFilterClinic] = useState("all");
   const [filterBucket, setFilterBucket] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");

@@ -69,8 +69,8 @@ const navItems = [
   { title: "Suggestion Box", url: "/tickets", icon: Lightbulb, roles: ["admin"] },
   { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
-  { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "assigner", "payment_specialist", "account_manager", "case_manager"] },
-  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "assigner", "payment_specialist", "account_manager", "case_manager"] },
+  { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "account_manager", "case_manager"] },
+  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager", "account_manager", "case_manager"] },
 ];
 
 const adminItems = [
@@ -226,7 +226,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {(user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "case_manager") && (
+        {(user?.role === "admin" || user?.role === "manager" || user?.role === "account_manager" || user?.role === "case_manager") && (
           <SidebarGroup>
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>

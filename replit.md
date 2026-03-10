@@ -54,10 +54,11 @@ All trackers (Verification, Billing, Collections, Denials, Arbitration, Checks, 
 - **Manager**: Same as Admin, but cannot edit/delete/deactivate existing users
 - **Verifier**: Verify insurance, move to Ready for Billing
 - **Biller**: Bill verified patients, mark Done
-- **Case Coordinator** (db value: "assigner"): Create tasks, assign staff, set priorities, full access to all tracker pages
-- **Payment Specialist** (db value: "payment_specialist"): Full access to all pages including Checks
+- **Case Coordinator** (db value: "assigner"): Create tasks, assign staff, set priorities, access to all tracker pages; NO access to Checks, Productivity, Reports, Settings
+- **Payment Specialist** (db value: "payment_specialist"): Full access to all tracker pages including Checks; NO access to Productivity, Reports, Settings
 - **Account Manager** (db value: "account_manager"): Same as Manager WITH access to Checks page
 - **Case Manager** (db value: "case_manager"): Same as Manager but NO access to Checks page
+- **Delete**: Only Admin role can delete records across all trackers (frontend + backend enforced)
 
 ## Default Login
 - Admin: `admin` / `admin123`

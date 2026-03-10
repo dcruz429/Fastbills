@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { Redirect } from "wouter";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -707,7 +708,10 @@ function DropdownSettings() {
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const showUsers = user?.role === "admin" || user?.role === "manager" || user?.role === "account_manager" || user?.role === "case_manager";
+  if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
+    return <Redirect to="/" />;
+  }
+  const showUsers = user.role === "admin" || user.role === "manager" || user.role === "account_manager" || user.role === "case_manager";
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">

@@ -450,6 +450,10 @@ export async function registerRoutes(
 
   app.get("/api/productivity", requireAuth, async (req, res) => {
     try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || ["payment_specialist", "assigner"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       const [taskActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
         db.select({
           id: taskActivity.id, userId: taskActivity.userId, action: taskActivity.action,

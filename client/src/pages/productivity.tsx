@@ -125,7 +125,7 @@ export default function ProductivityPage() {
   const [customMonth, setCustomMonth] = useState(now.getMonth());
   const [singleDay, setSingleDay] = useState("");
 
-  if (!user || !["admin", "manager", "assigner", "account_manager", "case_manager"].includes(user.role)) {
+  if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
     return <Redirect to="/" />;
   }
 
