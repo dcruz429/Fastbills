@@ -88,7 +88,7 @@ export default function ChecksPage() {
     return <Redirect to="/" />;
   }
 
-  const CHECKS_ROLES = ["admin", "payment_specialist", "case_manager"];
+  const CHECKS_ROLES = ["admin", "payment_specialist", "account_manager"];
   if (!CHECKS_ROLES.includes(user.role)) {
     return <Redirect to="/" />;
   }

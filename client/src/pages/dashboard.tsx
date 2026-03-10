@@ -173,7 +173,7 @@ export default function DashboardPage() {
   const { data: closed, isLoading: closedLoading } = useQuery<any[]>({ queryKey: ["/api/closed"] });
   const { data: productivity } = useQuery<any[]>({ queryKey: ["/api/productivity"] });
 
-  const canSeeChecks = currentUser && ["admin", "payment_specialist", "case_manager"].includes(currentUser.role);
+  const canSeeChecks = currentUser && ["admin", "payment_specialist", "account_manager"].includes(currentUser.role);
   const { data: checks, isLoading: checksLoading } = useQuery<any[]>({
     queryKey: ["/api/checks"],
     enabled: !!canSeeChecks,

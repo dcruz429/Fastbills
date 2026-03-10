@@ -56,8 +56,8 @@ All trackers (Verification, Billing, Collections, Denials, Arbitration, Checks, 
 - **Biller**: Bill verified patients, mark Done
 - **Case Coordinator** (db value: "assigner"): Create tasks, assign staff, set priorities, full access to all tracker pages
 - **Payment Specialist** (db value: "payment_specialist"): Full access to all pages including Checks
-- **Account Manager** (db value: "account_manager"): Same as Manager but NO access to Checks page
-- **Case Manager** (db value: "case_manager"): Same as Manager WITH access to Checks page
+- **Account Manager** (db value: "account_manager"): Same as Manager WITH access to Checks page
+- **Case Manager** (db value: "case_manager"): Same as Manager but NO access to Checks page
 
 ## Default Login
 - Admin: `admin` / `admin123`

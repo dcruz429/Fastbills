@@ -1933,7 +1933,7 @@ export async function registerRoutes(
     }
   });
 
-  const CHECKS_ROLES = ["admin", "payment_specialist", "case_manager"];
+  const CHECKS_ROLES = ["admin", "payment_specialist", "account_manager"];
 
   app.get("/api/checks", requireAuth, async (req, res) => {
     try {
