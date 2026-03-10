@@ -1943,11 +1943,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Access denied" });
       }
       const all = await storage.getAllChecks();
-      if (user.role === "payment_specialist") {
-        res.json(all.filter(c => c.assignedTo === user.fullName));
-      } else {
-        res.json(all);
-      }
+      res.json(all);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
