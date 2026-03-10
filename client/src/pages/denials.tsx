@@ -212,7 +212,7 @@ export default function DenialsPage() {
     }
   }
 
-  const canDelete = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner";
+  const canDelete = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager";
 
   const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo"]);
   const numberColumns = new Set(["numberOfDays"]);
@@ -235,7 +235,7 @@ export default function DenialsPage() {
     return <ArrowDown className="h-3 w-3 ml-1" />;
   }
 
-  const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner";
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager";
 
   const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo, filterStatus, filterOutcome].filter(v => v && v !== "__all__").length;
 

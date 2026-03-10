@@ -215,7 +215,7 @@ export default function ArbitrationPage() {
     }
   }
 
-  const canDelete = user?.role === "admin" || user?.role === "manager";
+  const canDelete = user?.role === "admin" || user?.role === "manager" || user?.role === "account_manager";
 
   const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
   const numberColumns = new Set(["numberOfDays"]);
@@ -238,7 +238,7 @@ export default function ArbitrationPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   }
 
-  const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner";
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager";
 
   const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo, filterStatus, filterOutcome].filter(f => f && f !== "__all__").length;
 

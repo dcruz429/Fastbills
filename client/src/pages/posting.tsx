@@ -80,7 +80,7 @@ export default function PostingPage() {
     return <Redirect to="/" />;
   }
 
-  const isAdminOrManager = user.role === "admin" || user.role === "manager";
+  const isAdminOrManager = user.role === "admin" || user.role === "manager" || user.role === "account_manager";
   const canEdit = isAdminOrManager || user.role === "assigner";
 
   const { data: postingList, isLoading } = useQuery<Posting[]>({ queryKey: ["/api/postings"] });
