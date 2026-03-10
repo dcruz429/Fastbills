@@ -253,16 +253,4 @@ export async function seedDropdownOptions() {
     console.log(`Seeded ${rows.length} dropdown options for new categories`);
   }
 
-  for (const [category, allowedValues] of Object.entries(allCategories)) {
-    if (allowedValues.length === 0) continue;
-    const currentRows = await db.select().from(dropdownOptions).where(eq(dropdownOptions.category, category));
-    const allowed = new Set(allowedValues);
-    const toRemove = currentRows.filter(r => !allowed.has(r.value));
-    if (toRemove.length > 0) {
-      for (const r of toRemove) {
-        await db.delete(dropdownOptions).where(eq(dropdownOptions.id, r.id));
-      }
-      console.log(`Removed ${toRemove.length} invalid options from ${category}: ${toRemove.map(r => r.value).join(", ")}`);
-    }
-  }
 }
