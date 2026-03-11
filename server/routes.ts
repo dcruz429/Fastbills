@@ -11,7 +11,7 @@ import { db } from "./db";
 import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
-const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager"];
+const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
 const upload = multer({
   storage: multer.memoryStorage(),
