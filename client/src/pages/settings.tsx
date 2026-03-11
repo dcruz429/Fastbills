@@ -711,7 +711,7 @@ export default function SettingsPage() {
   if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
     return <Redirect to="/" />;
   }
-  const showUsers = user.role === "admin" || user.role === "manager" || user.role === "account_manager" || user.role === "case_manager";
+  const showUsers = user.role === "admin" || user.role === "manager";
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">

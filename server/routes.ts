@@ -326,7 +326,7 @@ export async function registerRoutes(
   app.post("/api/users", requireAuth, async (req, res) => {
     try {
       const requestingUser = await storage.getUser(req.session.userId!);
-      if (!requestingUser || !["admin", "manager", "account_manager", "case_manager"].includes(requestingUser.role)) {
+      if (!requestingUser || !["admin", "manager"].includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       const { username, password, fullName, role } = req.body;
@@ -349,7 +349,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id", requireAuth, async (req, res) => {
     try {
       const requestingUser = await storage.getUser(req.session.userId!);
-      if (!requestingUser || !["admin", "manager", "account_manager", "case_manager"].includes(requestingUser.role)) {
+      if (!requestingUser || !["admin", "manager"].includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       const id = parseInt(req.params.id);
@@ -375,7 +375,7 @@ export async function registerRoutes(
   app.delete("/api/users/:id", requireAuth, async (req, res) => {
     try {
       const requestingUser = await storage.getUser(req.session.userId!);
-      if (!requestingUser || !["admin", "manager", "account_manager", "case_manager"].includes(requestingUser.role)) {
+      if (!requestingUser || !["admin", "manager"].includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       const id = parseInt(req.params.id);
