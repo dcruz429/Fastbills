@@ -94,6 +94,8 @@ function computeAgeing(inputDate: string | Date | null | undefined): number | nu
 }
 
 
+const EDIT_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
+
 export default function CollectionsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -122,6 +124,8 @@ export default function CollectionsPage() {
   if (!user) {
     return <Redirect to="/" />;
   }
+
+  const canEdit = EDIT_ROLES.includes(user.role);
 
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
     queryKey: ["/api/collections", editingId, "activity"],
@@ -349,6 +353,7 @@ export default function CollectionsPage() {
   }
 
   const handleEdit = (c: Collection) => {
+    if (!canEdit) return;
     setEditingId(c.id);
     const nameParts = (c.patientName || "").split(",").map(s => s.trim());
     setForm({
@@ -530,9 +535,11 @@ export default function CollectionsPage() {
           <Button variant="outline" onClick={() => { setCsvDialogOpen(true); setCsvPreview([]); setCsvFileName(""); }} data-testid="button-import-csv">
             <Upload className="h-4 w-4 mr-1" /> Import CSV
           </Button>
+          {canEdit && (
           <Button onClick={() => { setEditingId(null); setForm({ ...emptyForm }); setDialogOpen(true); }} data-testid="button-create-collection">
             <Plus className="h-4 w-4 mr-1" /> New Collection
           </Button>
+          )}
         </div>
       </div>
 
@@ -970,6 +977,7 @@ export default function CollectionsPage() {
                 </div>
               </div>
 
+              {canEdit && (
               <Button
                 className="w-full"
                 onClick={handleSubmit}
@@ -978,6 +986,7 @@ export default function CollectionsPage() {
               >
                 {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
               </Button>
+              )}
 
               {editingId && user?.role === "admin" && (
                 <Button

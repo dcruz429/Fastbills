@@ -235,7 +235,7 @@ export default function DenialsPage() {
     return <ArrowDown className="h-3 w-3 ml-1" />;
   }
 
-  const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "payment_specialist";
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "payment_specialist" || user?.role === "case_manager";
 
   const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo, filterStatus, filterOutcome].filter(v => v && v !== "__all__").length;
 

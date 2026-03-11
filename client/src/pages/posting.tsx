@@ -80,8 +80,8 @@ export default function PostingPage() {
     return <Redirect to="/" />;
   }
 
-  const isAdminOrManager = user.role === "admin" || user.role === "manager" || user.role === "account_manager" || user.role === "payment_specialist";
-  const canEdit = isAdminOrManager || user.role === "assigner";
+  const isAdminOrManager = user.role === "admin" || user.role === "manager" || user.role === "assigner" || user.role === "account_manager" || user.role === "case_manager" || user.role === "payment_specialist";
+  const canEdit = isAdminOrManager;
 
   const { data: postingList, isLoading } = useQuery<Posting[]>({ queryKey: ["/api/postings"] });
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
