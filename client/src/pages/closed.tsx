@@ -60,7 +60,7 @@ function getColSpecs(sectionKey: string): ColSpec[] {
         status, assignedTo, date];
     case "Posting":
       return [patient, clinic,
-        { header: "File #", renderCell: (_, rec) => rec.fileNo || "-" },
+        { header: "File #", renderCell: (_, rec) => rec.fileNumber || "-" },
         { header: "Doc Type", renderCell: (_, rec) => rec.documentType || "-" },
         { header: "Priority", renderCell: (_, rec) => rec.priority || "-" },
         status, assignedTo, date];
@@ -76,12 +76,80 @@ function getColSpecs(sectionKey: string): ColSpec[] {
         amount, date];
     case "Checks":
       return [patient, clinic, insurance,
-        { header: "Check #", renderCell: (_, rec) => rec.checkNo || "-" },
+        { header: "Check #", renderCell: (_, rec) => rec.checkNumber || "-" },
         amount,
         { header: "Type", renderCell: (_, rec) => rec.type || "-" },
         status, date];
     default:
       return [patient, clinic, insurance, amount, status, assignedTo, date];
+  }
+}
+
+function getSourceDetailFields(source: string, rec: any): { label: string; value: string | null | undefined }[] {
+  const d = (v: any) => v ? formatDate(v) : null;
+  switch (source) {
+    case "Denials":
+    case "Arbitration":
+      return [
+        { label: "File Name", value: rec.denialFileName },
+        { label: "Date Input", value: d(rec.dateInput) },
+        { label: "Intake", value: rec.intake },
+        { label: "DOA", value: d(rec.doa) },
+        { label: "Date of Letter", value: d(rec.dateOfLetter) },
+        { label: "Type of Denial", value: rec.typeOfDenial },
+        { label: "Effective Date", value: d(rec.effectiveDate) },
+        { label: "DOS From", value: d(rec.dosFrom) },
+        { label: "DOS To", value: d(rec.dosTo) },
+        { label: "# of Days", value: rec.numberOfDays != null ? String(rec.numberOfDays) : null },
+        { label: "Filed To", value: rec.filedTo },
+        { label: "ARB Status", value: rec.arbStatus },
+        { label: "Trial Date", value: d(rec.trialDate) },
+        { label: "ARB Payment Status", value: rec.arbPaymentStatus },
+        { label: "Amount Received", value: rec.amountReceived },
+        { label: "Assigned To", value: rec.assignedTo },
+        { label: "Comments", value: rec.comments },
+      ];
+    case "Posting":
+      return [
+        { label: "File Number", value: rec.fileNumber },
+        { label: "Document Type", value: rec.documentType },
+        { label: "Priority", value: rec.priority },
+        { label: "Scanned Date", value: d(rec.scannedDate) },
+        { label: "Posted Date", value: d(rec.postedDate) },
+        { label: "Deposit Date", value: d(rec.depositDate) },
+        { label: "Deposited By", value: rec.depositedBy },
+        { label: "Assigned To", value: rec.assignedTo },
+      ];
+    case "Checks":
+      return [
+        { label: "Check Number", value: rec.checkNumber },
+        { label: "Check Date", value: d(rec.checkDate) },
+        { label: "Input Date", value: d(rec.inputDate) },
+        { label: "File Name", value: rec.fileName },
+        { label: "Type", value: rec.type },
+        { label: "Scanned Date", value: d(rec.scannedDate) },
+        { label: "Posted Date", value: d(rec.postedDate) },
+        { label: "Deposit Date", value: d(rec.depositDate) },
+        { label: "Deposited By", value: rec.depositedBy },
+        { label: "Assigned To", value: rec.assignedTo },
+      ];
+    case "Verification/Billing":
+      return [
+        { label: "Priority", value: rec.priority },
+        { label: "Bucket", value: rec.bucket },
+        { label: "IE Date", value: d(rec.ieDate) },
+        { label: "Due Date", value: d(rec.dueDate) },
+        { label: "Chart Number", value: rec.chartNumber },
+      ];
+    case "Collections":
+      return [
+        { label: "Assigned To", value: rec.assignedTo },
+        { label: "Priority", value: rec.priority },
+        { label: "DOS From", value: d(rec.dosFrom) },
+        { label: "DOS To", value: d(rec.dosTo) },
+      ];
+    default:
+      return [];
   }
 }
 
@@ -129,6 +197,10 @@ export default function ClosedPage() {
   });
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+  const editingRecord = editingId ? (closedList || []).find(d => d.id === editingId) : null;
+  let sourceRec: any = {};
+  try { if (editingRecord?.recordData) sourceRec = JSON.parse(editingRecord.recordData); } catch {}
 
   const createMutation = useMutation({
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/closed", data),
@@ -591,6 +663,27 @@ export default function ClosedPage() {
                 <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="resize-none" data-testid="textarea-closed-notes" />
               </div>
             </div>
+
+            {editingId && editingRecord?.recordData && (() => {
+              const fields = getSourceDetailFields(form.source, sourceRec).filter(f => f.value != null && f.value !== "");
+              if (fields.length === 0) return null;
+              return (
+                <div className="mb-4" data-testid="source-record-details">
+                  <Separator className="mb-3" />
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    Source Record Details ({form.source})
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {fields.map(f => (
+                      <div key={f.label} className="space-y-0.5">
+                        <p className="text-[11px] text-muted-foreground">{f.label}</p>
+                        <p className="text-xs font-medium">{f.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="flex gap-2 pb-4">
               <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-closed">
