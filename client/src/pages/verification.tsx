@@ -407,9 +407,9 @@ export default function VerificationPage() {
             </Card>
 
             {doneSorted.length > 0 && (
-              <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border rounded-lg shrink-0">
+              <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">
                 <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors rounded-lg font-semibold text-sm text-muted-foreground" data-testid="toggle-done-section">
+                  <button className="w-full flex items-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 transition-colors rounded-lg font-semibold text-sm text-emerald-700 dark:text-emerald-400" data-testid="toggle-done-section">
                     <ChevronDown className={cn("h-4 w-4 transition-transform", doneOpen ? "" : "-rotate-90")} />
                     <CheckCircle2 className="h-4 w-4" />
                     <span>DONE</span>
