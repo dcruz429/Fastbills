@@ -210,7 +210,7 @@ export default function PostingPage() {
     setFilterOutcome("");
   }
 
-  const canSeePaymentDocs = user.role === "payment_specialist" || user.role === "account_manager";
+  const canSeePaymentDocs = user.role === "admin" || user.role === "payment_specialist" || user.role === "account_manager";
 
   const filteredUnsorted = (postingList || []).filter(d => {
     if (!canSeePaymentDocs && (d.documentType || "").toLowerCase() === "payment") return false;
