@@ -643,6 +643,7 @@ export const closed = pgTable("closed", {
   notes: text("notes"),
   outcome: text("closed_outcome"),
   recordData: text("record_data"),
+  dateExported: timestamp("date_exported"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

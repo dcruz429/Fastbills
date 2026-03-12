@@ -20,7 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, FileText, CreditCard, ClipboardList, ShieldAlert, Scale, Package, Archive, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, FileText, CreditCard, ClipboardList, ShieldAlert, Scale, Package, Archive, RotateCcw, Download, CheckSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -182,6 +183,7 @@ export default function ClosedPage() {
   const [filterSource, setFilterSource] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   if (!user) {
     return <Redirect to="/" />;
@@ -235,6 +237,85 @@ export default function ClosedPage() {
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
+
+  const exportMutation = useMutation({
+    mutationFn: (ids: number[]) => apiRequest("POST", "/api/closed/export", { ids }),
+    onSuccess: (data: any, ids: number[]) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/closed"] });
+      setSelectedIds(new Set());
+      toast({ title: `Exported ${ids.length} record${ids.length !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Export failed", description: e.message, variant: "destructive" }),
+  });
+
+  function buildCsvRow(d: any): string[] {
+    let rec: any = {};
+    try { if (d.recordData) rec = JSON.parse(d.recordData); } catch {}
+    const fmtD = (v: any) => v ? formatDate(v) : "";
+    const base = [
+      d.id,
+      d.source || "",
+      d.patientName || rec.patientName || "",
+      d.clinic || rec.clinic || "",
+      d.insurance || rec.insurance || "",
+      d.amount || rec.amount || "",
+      d.status || "",
+      d.assignedTo || "",
+      d.outcome || "",
+      fmtD(d.createdAt),
+      fmtD(d.dateExported),
+    ];
+    const sourceFields: string[] = [];
+    if (d.source === "Denials" || d.source === "Arbitration") {
+      sourceFields.push(rec.denialFileName || "", fmtD(rec.dateInput), rec.intake || "", fmtD(rec.doa), rec.typeOfDenial || "", rec.filedTo || "", rec.arbStatus || "", fmtD(rec.trialDate), rec.arbPaymentStatus || "", rec.amountReceived || "");
+    } else if (d.source === "Posting") {
+      sourceFields.push(rec.fileNumber || "", rec.documentType || "", rec.priority || "", fmtD(rec.scannedDate), fmtD(rec.postedDate), fmtD(rec.depositDate), rec.depositedBy || "");
+    } else if (d.source === "Checks") {
+      sourceFields.push(rec.checkNumber || "", rec.type || "", fmtD(rec.checkDate), fmtD(rec.inputDate), rec.fileName || "", fmtD(rec.scannedDate), fmtD(rec.postedDate), fmtD(rec.depositDate), rec.depositedBy || "");
+    } else if (d.source === "Collections") {
+      sourceFields.push(rec.priority || "", fmtD(rec.dosFrom), fmtD(rec.dosTo), rec.typeOfDenial || "", rec.comments || "");
+    } else if (d.source === "Verification/Billing") {
+      sourceFields.push(rec.priority || "", rec.bucket || "", fmtD(rec.ieDate), fmtD(rec.dueDate), rec.chartNumber || "");
+    }
+    return [...base.map(String), ...sourceFields];
+  }
+
+  function handleExport() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const allRecords = closedList || [];
+    const toExport = allRecords.filter(d => ids.includes(d.id));
+    const headers = ["ID", "Source", "Patient Name", "Clinic", "Insurance", "Amount", "Status", "Assigned To", "Outcome", "Date Created", "Date Exported", "Source-Specific Fields..."];
+    const rows = [headers, ...toExport.map(buildCsvRow)];
+    const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rtp-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    exportMutation.mutate(ids);
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll(items: any[]) {
+    const ids = items.map((d: any) => d.id);
+    const allSelected = ids.every((id: number) => selectedIds.has(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) ids.forEach((id: number) => next.delete(id));
+      else ids.forEach((id: number) => next.add(id));
+      return next;
+    });
+  }
 
   const addNoteMutation = useMutation({
     mutationFn: (note: string) => apiRequest("POST", `/api/closed/${editingId}/notes`, { note }),
@@ -341,7 +422,7 @@ export default function ClosedPage() {
     return true;
   });
 
-  const dateColumns = new Set(["createdAt"]);
+  const dateColumns = new Set(["createdAt", "dateExported"]);
   const numberColumns = new Set(["amount"]);
 
   const filtered = [...filteredUnsorted].sort((a, b) => {
@@ -379,6 +460,18 @@ export default function ClosedPage() {
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <h1 className="text-2xl font-bold" data-testid="text-closed-title">RTP (Return to Partner)</h1>
         <div className="flex items-center gap-2">
+          {user.role === "admin" && selectedIds.size > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={exportMutation.isPending}
+              data-testid="button-export-selected"
+              className="border-green-500 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30"
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Export {selectedIds.size} Selected
+            </Button>
+          )}
           {isAdmin && (
             <Button onClick={openCreate} data-testid="button-create-closed">
               <Plus className="h-4 w-4 mr-1" /> New RTP Record
@@ -537,6 +630,15 @@ export default function ClosedPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              {user.role === "admin" && (
+                                <TableHead className="w-10 text-xs" onClick={e => e.stopPropagation()}>
+                                  <Checkbox
+                                    checked={sectionItems.length > 0 && sectionItems.every(d => selectedIds.has(d.id))}
+                                    onCheckedChange={() => toggleSelectAll(sectionItems)}
+                                    data-testid={`checkbox-select-all-${section.key}`}
+                                  />
+                                </TableHead>
+                              )}
                               {cols.map(col => (
                                 <TableHead
                                   key={col.header}
@@ -546,6 +648,9 @@ export default function ClosedPage() {
                                   {col.header} {col.sort && <SortIcon col={col.sort} />}
                                 </TableHead>
                               ))}
+                              <TableHead className="min-w-[100px] text-xs select-none cursor-pointer" onClick={() => handleSort("dateExported")}>
+                                Date Exported <SortIcon col="dateExported" />
+                              </TableHead>
                               {user.role === "admin" && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
                             </TableRow>
                           </TableHeader>
@@ -560,11 +665,23 @@ export default function ClosedPage() {
                                   onClick={() => openEdit(d)}
                                   data-testid={`row-closed-${d.id}`}
                                 >
+                                  {user.role === "admin" && (
+                                    <TableCell onClick={e => e.stopPropagation()}>
+                                      <Checkbox
+                                        checked={selectedIds.has(d.id)}
+                                        onCheckedChange={() => toggleSelect(d.id)}
+                                        data-testid={`checkbox-select-${d.id}`}
+                                      />
+                                    </TableCell>
+                                  )}
                                   {cols.map(col => (
                                     <TableCell key={col.header} className="text-xs">
                                       {col.renderCell(d, rec)}
                                     </TableCell>
                                   ))}
+                                  <TableCell className="text-xs text-muted-foreground">
+                                    {(d as any).dateExported ? formatDate((d as any).dateExported) : "-"}
+                                  </TableCell>
                                   {user.role === "admin" && (
                                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                                       <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-closed-${d.id}`}>
@@ -761,6 +878,12 @@ export default function ClosedPage() {
                     <Label className="text-xs">Notes</Label>
                     <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="resize-none text-xs min-h-[80px]" data-testid="textarea-closed-notes" />
                   </div>
+                  {editingRecord && (editingRecord as any).dateExported && (
+                    <div className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded px-3 py-2">
+                      <Download className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                      <span>Exported on <strong>{formatDate((editingRecord as any).dateExported)}</strong></span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -826,6 +949,12 @@ export default function ClosedPage() {
                   <Label>Notes</Label>
                   <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="resize-none" data-testid="textarea-closed-notes" />
                 </div>
+                {editingRecord && (editingRecord as any).dateExported && (
+                  <div className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded px-3 py-2">
+                    <Download className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                    <span>Exported on <strong>{formatDate((editingRecord as any).dateExported)}</strong></span>
+                  </div>
+                )}
               </div>
             )}
 

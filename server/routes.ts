@@ -2140,6 +2140,28 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/closed/export", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin only" });
+      }
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No IDs provided" });
+      }
+      const now = new Date();
+      const records: any[] = [];
+      for (const id of ids) {
+        const updated = await storage.updateClosed(Number(id), { dateExported: now });
+        if (updated) records.push(updated);
+      }
+      res.json({ ok: true, exportedAt: now.toISOString(), records });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.patch("/api/closed/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
