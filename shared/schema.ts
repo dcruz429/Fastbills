@@ -623,10 +623,9 @@ export const OUTCOME_OPTIONS = [
   "Send to Collections",
   "Send to Denials",
   "Send to Arbitration",
-  "Send to Closed",
+  "Send to RTP",
   "Paid",
   "Loss",
-  "RTP",
   "Billed",
   "Done",
 ];
@@ -643,6 +642,7 @@ export const closed = pgTable("closed", {
   sourceId: integer("source_id"),
   notes: text("notes"),
   outcome: text("closed_outcome"),
+  recordData: text("record_data"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

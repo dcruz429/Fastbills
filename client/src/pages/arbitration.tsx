@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -93,6 +93,7 @@ export default function ArbitrationPage() {
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [doneOpen, setDoneOpen] = useState(false);
 
   if (!user) {
     return <Redirect to="/" />;
@@ -295,6 +296,9 @@ export default function ArbitrationPage() {
     return sortDir === "desc" ? -cmp : cmp;
   }) : filtered;
 
+  const activeRecords = sorted.filter(d => ((d as any).status || "").toLowerCase() !== "done");
+  const doneRecords = sorted.filter(d => ((d as any).status || "").toLowerCase() === "done");
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4">
@@ -492,6 +496,7 @@ export default function ArbitrationPage() {
         </div>
       </div>
 
+      <div className="flex-1 flex flex-col min-h-0 gap-2">
       <Card className="flex-1 min-h-0 flex flex-col">
         <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
           <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar">
@@ -526,14 +531,14 @@ export default function ArbitrationPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.length === 0 && (
+                {activeRecords.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={25} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
                 )}
-                {sorted.map(d => {
+                {activeRecords.map(d => {
                   const isTransferred = (d.comments || "").startsWith("[Transferred from");
                   return (
                   <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-${d.id}`}>
@@ -588,6 +593,95 @@ export default function ArbitrationPage() {
           </div>
         </CardContent>
       </Card>
+
+      {doneRecords.length > 0 && (
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border rounded-lg shrink-0">
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-lg text-sm font-semibold transition-colors" data-testid="collapsible-done-section">
+              <span>Done ({doneRecords.length})</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="overflow-auto max-h-80 border-t">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="min-w-[130px]">Patient Name</TableHead>
+                    <TableHead className="min-w-[120px]">File Name</TableHead>
+                    <TableHead className="min-w-[90px]">Date Input</TableHead>
+                    <TableHead className="min-w-[80px]">Intake</TableHead>
+                    <TableHead className="min-w-[90px]">DOA</TableHead>
+                    <TableHead className="min-w-[100px]">Clinic</TableHead>
+                    <TableHead className="min-w-[100px]">Insurance</TableHead>
+                    <TableHead className="min-w-[100px]">Date of Letter</TableHead>
+                    <TableHead className="min-w-[120px]">Type of Denial</TableHead>
+                    <TableHead className="min-w-[100px]">Effective Date</TableHead>
+                    <TableHead className="min-w-[90px]">DOS From</TableHead>
+                    <TableHead className="min-w-[90px]">DOS To</TableHead>
+                    <TableHead className="min-w-[60px]"># Visits</TableHead>
+                    <TableHead className="min-w-[80px]">Amount</TableHead>
+                    <TableHead className="min-w-[80px]">Filed To</TableHead>
+                    <TableHead className="min-w-[90px]">ARB Status</TableHead>
+                    <TableHead className="min-w-[90px]">Trial Date</TableHead>
+                    <TableHead className="min-w-[110px]">ARB Payment</TableHead>
+                    <TableHead className="min-w-[90px]">Amt Received</TableHead>
+                    <TableHead className="min-w-[90px]">Checked By</TableHead>
+                    <TableHead className="min-w-[120px]">Comment</TableHead>
+                    <TableHead className="min-w-[110px]">Assigned To</TableHead>
+                    <TableHead className="min-w-[100px]">Status</TableHead>
+                    <TableHead className="min-w-[100px]">Action</TableHead>
+                    {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {doneRecords.map(d => {
+                    const isTransferred = (d.comments || "").startsWith("[Transferred from");
+                    return (
+                    <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-done-${d.id}`}>
+                      <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                      <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
+                      <TableCell className="text-xs">{d.intake || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
+                      <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
+                      <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
+                      <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.filedTo ? <TrackerStatusBadge status={d.filedTo} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.arbStatus ? <TrackerStatusBadge status={d.arbStatus} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.trialDate)}</TableCell>
+                      <TableCell className="text-xs">{d.arbPaymentStatus ? <TrackerStatusBadge status={d.arbPaymentStatus} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.amountReceived ? (() => { const n = parseFloat(d.amountReceived.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amountReceived : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
+                      <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-xs">{(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {canDelete && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(d.id); }} data-testid={`button-delete-arbitration-done-${d.id}`}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+      </div>
 
       <Sheet open={drawerOpen} onOpenChange={(v) => { if (!v) { setDrawerOpen(false); setEditingId(null); setForm({ ...emptyForm }); } }}>
         <SheetContent

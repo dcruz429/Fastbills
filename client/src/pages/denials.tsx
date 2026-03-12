@@ -16,7 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDown, Filter } from "lucide-react";
+import { Plus, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDown, Filter, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -86,6 +87,7 @@ export default function DenialsPage() {
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [doneOpen, setDoneOpen] = useState(false);
 
   if (!user) {
     return <Redirect to="/" />;
@@ -292,6 +294,9 @@ export default function DenialsPage() {
     return sortDir === "asc" ? cmp : -cmp;
   });
 
+  const activeRecords = filtered.filter(d => ((d as any).status || "").toLowerCase() !== "done");
+  const doneRecords = filtered.filter(d => ((d as any).status || "").toLowerCase() === "done");
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4">
@@ -489,6 +494,7 @@ export default function DenialsPage() {
         </div>
       </div>
 
+      <div className="flex-1 flex flex-col min-h-0 gap-2">
       <Card className="flex-1 min-h-0 flex flex-col">
         <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
           <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar">
@@ -533,14 +539,14 @@ export default function DenialsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 && (
+                {activeRecords.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={20} className="text-center py-8 text-muted-foreground">
                       No denials found
                     </TableCell>
                   </TableRow>
                 )}
-                {filtered.map(d => {
+                {activeRecords.map(d => {
                   const isTransferred = (d.comments || "").startsWith("[Transferred from");
                   return (
                   <TableRow
@@ -592,6 +598,89 @@ export default function DenialsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {doneRecords.length > 0 && (
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border rounded-lg shrink-0">
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-lg text-sm font-semibold transition-colors" data-testid="collapsible-done-section">
+              <span>Done ({doneRecords.length})</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="overflow-auto max-h-80 border-t">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    {[
+                      { key: "patientName", label: "Patient Name", minW: "130px" },
+                      { key: "denialFileName", label: "File Name", minW: "120px" },
+                      { key: "dateInput", label: "Date Input", minW: "90px" },
+                      { key: "intake", label: "Intake", minW: "80px" },
+                      { key: "doa", label: "DOA", minW: "90px" },
+                      { key: "clinic", label: "Clinic", minW: "100px" },
+                      { key: "insurance", label: "Insurance", minW: "100px" },
+                      { key: "dateOfLetter", label: "Date of Letter", minW: "100px" },
+                      { key: "typeOfDenial", label: "Type of Denial", minW: "120px" },
+                      { key: "effectiveDate", label: "Effective Date", minW: "100px" },
+                      { key: "dosFrom", label: "DOS From", minW: "90px" },
+                      { key: "dosTo", label: "DOS To", minW: "90px" },
+                      { key: "numberOfDays", label: "# Visits", minW: "60px" },
+                      { key: "amount", label: "Amount", minW: "80px" },
+                      { key: "action", label: "Action", minW: "120px" },
+                      { key: "outcome", label: "Outcome", minW: "100px" },
+                      { key: "comment", label: "Comment", minW: "120px" },
+                      { key: "assignedTo", label: "Assigned To", minW: "110px" },
+                      { key: "status", label: "Status", minW: "100px" },
+                    ].map(col => (
+                      <TableHead key={col.key} style={{ minWidth: col.minW }}>{col.label}</TableHead>
+                    ))}
+                    {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {doneRecords.map(d => {
+                    const isTransferred = (d.comments || "").startsWith("[Transferred from");
+                    return (
+                    <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-denial-done-${d.id}`}>
+                      <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                      <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
+                      <TableCell className="text-xs">{d.intake || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
+                      <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
+                      <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
+                      <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.action || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
+                      <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-xs">{(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                          {canDelete && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-denial-done-${d.id}`}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+      </div>
 
       <Sheet open={drawerOpen} onOpenChange={(v) => {
         if (!v) {

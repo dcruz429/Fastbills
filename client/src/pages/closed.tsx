@@ -36,6 +36,55 @@ function formatDate(d: string | Date | null | undefined) {
   return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()}`;
 }
 
+function fmtAmt(v: string | null | undefined) {
+  if (!v) return "-";
+  const n = parseFloat(v.replace(/[^0-9.\-]/g, ""));
+  return isNaN(n) ? v : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+type ColSpec = { header: string; sort?: string; renderCell: (d: any, rec: any) => JSX.Element | string | null };
+
+function getColSpecs(sectionKey: string): ColSpec[] {
+  const patient: ColSpec = { header: "Patient", sort: "patientName", renderCell: (d, rec) => <span className="font-medium">{rec.patientName || d.patientName || "-"}</span> };
+  const clinic: ColSpec = { header: "Clinic", sort: "clinic", renderCell: (d, rec) => rec.clinic || d.clinic || "-" };
+  const insurance: ColSpec = { header: "Insurance", sort: "insurance", renderCell: (d, rec) => rec.insurance || d.insurance || "-" };
+  const amount: ColSpec = { header: "Amount", sort: "amount", renderCell: (d, rec) => fmtAmt(rec.amount || d.amount) };
+  const status: ColSpec = { header: "Status", sort: "status", renderCell: (d, rec) => { const s = rec.status || d.status; return s ? <TrackerStatusBadge status={s} /> : "-"; } };
+  const assignedTo: ColSpec = { header: "Assigned To", sort: "assignedTo", renderCell: (d, rec) => rec.assignedTo || d.assignedTo || "-" };
+  const date: ColSpec = { header: "Date", sort: "createdAt", renderCell: (d) => formatDate(d.createdAt) };
+
+  switch (sectionKey) {
+    case "Verification/Billing":
+      return [patient, clinic, insurance, amount,
+        { header: "Priority", sort: "priority", renderCell: (d, rec) => rec.priority || "-" },
+        status, assignedTo, date];
+    case "Posting":
+      return [patient, clinic,
+        { header: "File #", renderCell: (_, rec) => rec.fileNo || "-" },
+        { header: "Doc Type", renderCell: (_, rec) => rec.documentType || "-" },
+        { header: "Priority", renderCell: (_, rec) => rec.priority || "-" },
+        status, assignedTo, date];
+    case "Collections":
+      return [patient, clinic, insurance, amount, status, assignedTo, date];
+    case "Denials":
+    case "Arbitration":
+      return [patient, clinic, insurance,
+        { header: "DOA", renderCell: (_, rec) => rec.doa ? formatDate(rec.doa) : "-" },
+        { header: "Type", renderCell: (_, rec) => rec.typeOfDenial || "-" },
+        { header: "Filed To", renderCell: (_, rec) => rec.filedTo || "-" },
+        { header: "ARB Status", renderCell: (_, rec) => rec.arbStatus || "-" },
+        amount, date];
+    case "Checks":
+      return [patient, clinic, insurance,
+        { header: "Check #", renderCell: (_, rec) => rec.checkNo || "-" },
+        amount,
+        { header: "Type", renderCell: (_, rec) => rec.type || "-" },
+        status, date];
+    default:
+      return [patient, clinic, insurance, amount, status, assignedTo, date];
+  }
+}
+
 const emptyForm = {
   patientName: "",
   clinic: "",
@@ -190,14 +239,13 @@ export default function ClosedPage() {
   }
 
   const SOURCE_SECTIONS = [
-    { key: "__rtp__", label: "RTP (RETURN TO PARTNER)", icon: RotateCcw, color: "bg-orange-200 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200 border-orange-400 dark:border-orange-600 border-2 ring-2 ring-orange-300 dark:ring-orange-700" },
     { key: "Verification/Billing", label: "BILLING / VERIFICATION TASKS", icon: FileText, color: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
     { key: "Posting", label: "POSTINGS", icon: Package, color: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800" },
     { key: "Collections", label: "COLLECTIONS", icon: CreditCard, color: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800" },
     { key: "Denials", label: "DENIALS", icon: ShieldAlert, color: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800" },
     { key: "Arbitration", label: "ARBITRATIONS", icon: Scale, color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800" },
     { key: "Checks", label: "CHECKS", icon: ClipboardList, color: "bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800" },
-    { key: "__other__", label: "OTHER", icon: Archive, color: "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800" },
+    { key: "__other__", label: "OTHER / LEGACY", icon: Archive, color: "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800" },
   ];
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
@@ -215,11 +263,7 @@ export default function ClosedPage() {
   const filteredUnsorted = (closedList || []).filter(d => {
     if (searchQuery && !Object.values(d).some(v => v && String(v).toLowerCase().includes(searchQuery.toLowerCase()))) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
-    if (filterSource && filterSource !== "__all__") {
-      if (filterSource === "__rtp__") {
-        if (!(d.source || "").startsWith("RTP")) return false;
-      } else if (d.source !== filterSource) return false;
-    }
+    if (filterSource && filterSource !== "__all__" && d.source !== filterSource) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
     if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
     return true;
@@ -261,11 +305,11 @@ export default function ClosedPage() {
   return (
     <div className="p-6 flex flex-col h-[calc(100vh-64px)] animate-fade-in">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <h1 className="text-2xl font-bold" data-testid="text-closed-title">Closed</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-closed-title">RTP (Return to Partner)</h1>
         <div className="flex items-center gap-2">
           {isAdmin && (
             <Button onClick={openCreate} data-testid="button-create-closed">
-              <Plus className="h-4 w-4 mr-1" /> New Closed Record
+              <Plus className="h-4 w-4 mr-1" /> New RTP Record
             </Button>
           )}
         </div>
@@ -274,7 +318,7 @@ export default function ClosedPage() {
       <div className="relative max-w-sm mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search closed records..."
+          placeholder="Search RTP records..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="pl-9"
@@ -326,8 +370,7 @@ export default function ClosedPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All</SelectItem>
-                <SelectItem value="__rtp__">RTP (Return to Partner)</SelectItem>
-                {sourceOptions.filter(s => !s.startsWith("RTP")).map(s => (
+                {sourceOptions.map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
               </SelectContent>
@@ -376,22 +419,18 @@ export default function ClosedPage() {
 
       <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar space-y-4">
         {(() => {
-          const knownKeys = SOURCE_SECTIONS.map(s => s.key).filter(k => k !== "__other__" && k !== "__rtp__");
+          const knownKeys = SOURCE_SECTIONS.map(s => s.key).filter(k => k !== "__other__");
           const groupedBySource: Record<string, typeof filtered> = {};
           for (const section of SOURCE_SECTIONS) {
             groupedBySource[section.key] = [];
           }
           for (const d of filtered) {
             const src = d.source || "";
-            if (src.startsWith("RTP - ") || src === "RTP") {
-              groupedBySource["__rtp__"].push(d);
+            const matchedKey = knownKeys.find(k => k === src);
+            if (matchedKey) {
+              groupedBySource[matchedKey].push(d);
             } else {
-              const matchedKey = knownKeys.find(k => k === src);
-              if (matchedKey) {
-                groupedBySource[matchedKey].push(d);
-              } else {
-                groupedBySource["__other__"].push(d);
-              }
+              groupedBySource["__other__"].push(d);
             }
           }
 
@@ -420,54 +459,54 @@ export default function ClosedPage() {
                   <div className="bg-background">
                     {sectionItems.length === 0 ? (
                       <p className="text-center py-6 text-sm text-muted-foreground">No items</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="min-w-[120px] cursor-pointer select-none text-xs" onClick={() => handleSort("patientName")}>Patient <SortIcon col="patientName" /></TableHead>
-                            <TableHead className="min-w-[80px] cursor-pointer select-none text-xs" onClick={() => handleSort("clinic")}>Clinic <SortIcon col="clinic" /></TableHead>
-                            <TableHead className="min-w-[100px] cursor-pointer select-none text-xs" onClick={() => handleSort("insurance")}>Insurance <SortIcon col="insurance" /></TableHead>
-                            <TableHead className="min-w-[80px] cursor-pointer select-none text-xs" onClick={() => handleSort("amount")}>Amount <SortIcon col="amount" /></TableHead>
-                            <TableHead className="min-w-[100px] cursor-pointer select-none text-xs" onClick={() => handleSort("status")}>Status <SortIcon col="status" /></TableHead>
-                            <TableHead className="min-w-[120px] cursor-pointer select-none text-xs" onClick={() => handleSort("assignedTo")}>Assigned To <SortIcon col="assignedTo" /></TableHead>
-                            <TableHead className="min-w-[100px] cursor-pointer select-none text-xs" onClick={() => handleSort("createdAt")}>Created <SortIcon col="createdAt" /></TableHead>
-                            {user.role === "admin" && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {sectionItems.map(d => {
-                            const isRtp = (d.source || "").startsWith("RTP");
-                            const isTransferred = !isRtp && (d.notes || "").startsWith("[Transferred from");
-                            return (
-                            <TableRow
-                              key={d.id}
-                              className={`cursor-pointer hover:bg-muted/50 ${isRtp ? "bg-orange-50 dark:bg-orange-950/40 border-l-4 border-l-orange-500" : ""} ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`}
-                              onClick={() => openEdit(d)}
-                              data-testid={`row-closed-${d.id}`}
-                            >
-                              <TableCell className="text-xs font-medium">
-                                {isRtp && <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0 mr-1.5 animate-pulse" data-testid={`badge-rtp-${d.id}`}>RTP</Badge>}
-                                {d.patientName || "-"}
-                              </TableCell>
-                              <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
-                              <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
-                              <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
-                              <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
-                              <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                              <TableCell className="text-xs">{formatDate(d.createdAt)}</TableCell>
-                              {user.role === "admin" && (
-                                <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-closed-${d.id}`}>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </TableCell>
-                              )}
+                    ) : (() => {
+                      const cols = getColSpecs(section.key);
+                      return (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {cols.map(col => (
+                                <TableHead
+                                  key={col.header}
+                                  className={`min-w-[80px] text-xs select-none ${col.sort ? "cursor-pointer" : ""}`}
+                                  onClick={col.sort ? () => handleSort(col.sort!) : undefined}
+                                >
+                                  {col.header} {col.sort && <SortIcon col={col.sort} />}
+                                </TableHead>
+                              ))}
+                              {user.role === "admin" && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
                             </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    )}
+                          </TableHeader>
+                          <TableBody>
+                            {sectionItems.map(d => {
+                              let rec: any = {};
+                              try { if (d.recordData) rec = JSON.parse(d.recordData); } catch {}
+                              return (
+                                <TableRow
+                                  key={d.id}
+                                  className="cursor-pointer hover:bg-muted/50"
+                                  onClick={() => openEdit(d)}
+                                  data-testid={`row-closed-${d.id}`}
+                                >
+                                  {cols.map(col => (
+                                    <TableCell key={col.header} className="text-xs">
+                                      {col.renderCell(d, rec)}
+                                    </TableCell>
+                                  ))}
+                                  {user.role === "admin" && (
+                                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-closed-${d.id}`}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -486,7 +525,7 @@ export default function ClosedPage() {
         >
           <SheetHeader className="p-4 pb-2">
             <SheetTitle className="text-left" data-testid="text-closed-drawer-title">
-              {editingId ? `Edit Closed Record${form.patientName ? ` - ${form.patientName}` : ""}` : "New Closed Record"}
+              {editingId ? `Edit RTP Record${form.patientName ? ` - ${form.patientName}` : ""}` : "New RTP Record"}
             </SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 px-4">
@@ -648,7 +687,7 @@ export default function ClosedPage() {
           <DialogHeader>
             <DialogTitle>Confirm Delete</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">Are you sure you want to delete this closed record? This action cannot be undone.</p>
+          <p className="text-sm text-muted-foreground">Are you sure you want to delete this RTP record? This action cannot be undone.</p>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)} data-testid="button-cancel-delete-closed">Cancel</Button>
             <Button

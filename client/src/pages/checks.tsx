@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown } from "lucide-react";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -80,6 +80,7 @@ export default function ChecksPage() {
   const [filterInsurance, setFilterInsurance] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [doneOpen, setDoneOpen] = useState(false);
   const [filterDateField, setFilterDateField] = useState("inputDate");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
@@ -298,6 +299,9 @@ export default function ChecksPage() {
     return sortDir === "asc" ? cmp : -cmp;
   });
 
+  const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
+  const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
+
   const currentEditCheck = editingId ? (checksList || []).find(d => d.id === editingId) : null;
   const notesList = currentEditCheck?.notes
     ? currentEditCheck.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse()
@@ -456,6 +460,7 @@ export default function ChecksPage() {
         </div>
       </div>
 
+      <div className="flex-1 flex flex-col min-h-0 gap-2">
       <div className="flex-1 overflow-auto border rounded-lg">
         <Table>
           <TableHeader>
@@ -479,13 +484,13 @@ export default function ChecksPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {activeRecords.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={user.role === "admin" ? 16 : 15} className="text-center text-sm text-muted-foreground py-8">
                   No checks found
                 </TableCell>
               </TableRow>
-            ) : filtered.map(d => {
+            ) : activeRecords.map(d => {
               const isTransferred = (d.notes || "").startsWith("[Transferred from");
               return (
               <TableRow
@@ -521,6 +526,80 @@ export default function ChecksPage() {
             })}
           </TableBody>
         </Table>
+      </div>
+
+      {doneRecords.length > 0 && (
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border rounded-lg shrink-0">
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-lg text-sm font-semibold transition-colors" data-testid="collapsible-done-section">
+              <span>Done ({doneRecords.length})</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="overflow-auto max-h-80 border-t">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="text-xs whitespace-nowrap">Clinic</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Input Date</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Check Date</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Insurance</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Check No.</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Amount</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">File Name</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Scanned Date</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Type</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Status</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Posted Date</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Assigned To</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Deposit Date</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Deposited By</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Action</TableHead>
+                    {user.role === "admin" && <TableHead className="text-xs text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {doneRecords.map(d => {
+                    const isTransferred = (d.notes || "").startsWith("[Transferred from");
+                    return (
+                    <TableRow
+                      key={d.id}
+                      className={`${canEdit ? "cursor-pointer hover:bg-muted/50" : ""} ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`}
+                      onClick={() => canEdit && openEdit(d)}
+                      data-testid={`row-check-done-${d.id}`}
+                    >
+                      <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.checkDate)}</TableCell>
+                      <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.checkNumber || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.fileName || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.scannedDate)}</TableCell>
+                      <TableCell className="text-xs">{d.type || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.postedDate)}</TableCell>
+                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
+                      <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.activity || "-"}</TableCell>
+                      {user.role === "admin" && (
+                        <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-check-done-${d.id}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
       </div>
 
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>

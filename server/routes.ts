@@ -37,7 +37,7 @@ async function saveUploadedFiles(files: Express.Multer.File[]): Promise<string[]
 async function handleOutcomeTransfer(
   outcome: string,
   source: string,
-  record: { patientName?: string; clinic?: string; insurance?: string; amount?: string | null; notes?: string | null; comments?: string | null; activityHistory?: { field: string; oldValue: string | null; newValue: string | null; action: string; timestamp: Date }[] },
+  record: { patientName?: string; clinic?: string; insurance?: string; amount?: string | null; notes?: string | null; comments?: string | null; activityHistory?: { field: string; oldValue: string | null; newValue: string | null; action: string; timestamp: Date }[]; [key: string]: any },
   userId: number
 ) {
   const patientName = record.patientName || "Unknown";
@@ -141,7 +141,9 @@ async function handleOutcomeTransfer(
       targetType = "arbitration";
       break;
     }
+    case "Send to RTP":
     case "Send to Closed": {
+      const { activityHistory: _ah, ...recordWithoutHistory } = record;
       const closed = await storage.createClosed({
         patientName,
         clinic,
@@ -150,20 +152,7 @@ async function handleOutcomeTransfer(
         amount,
         source,
         notes: combinedNotes,
-      });
-      newRecordId = closed.id;
-      targetType = "closed";
-      break;
-    }
-    case "RTP": {
-      const closed = await storage.createClosed({
-        patientName,
-        clinic,
-        insurance,
-        status: "Unassigned",
-        amount,
-        source: `RTP - ${source}`,
-        notes: combinedNotes,
+        recordData: JSON.stringify(recordWithoutHistory),
       });
       newRecordId = closed.id;
       targetType = "closed";
@@ -666,7 +655,7 @@ export async function registerRoutes(
         const insuranceName = existing.insuranceId ? (await storage.getAllInsurances()).find(i => i.id === existing.insuranceId)?.name : null;
         const taskActivityHistory = await storage.getTaskActivity(id);
         await handleOutcomeTransfer(updates.outcome, "Verification/Billing", {
-          patientName: existing.patientName,
+          ...existing,
           clinic: clinicName || null,
           insurance: insuranceName || null,
           amount: null,
@@ -870,11 +859,7 @@ export async function registerRoutes(
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
         const denialActivityHistory = await storage.getDenialActivity(id);
         await handleOutcomeTransfer(data.outcome, "Denials", {
-          patientName: existing.patientName,
-          clinic: existing.clinic,
-          insurance: existing.insurance,
-          amount: existing.amount,
-          comments: existing.comments,
+          ...existing,
           activityHistory: denialActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -1041,11 +1026,7 @@ export async function registerRoutes(
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
         const arbActivityHistory = await storage.getArbitrationActivity(id);
         await handleOutcomeTransfer(data.outcome, "Arbitration", {
-          patientName: existing.patientName,
-          clinic: existing.clinic,
-          insurance: existing.insurance,
-          amount: existing.amount,
-          comments: existing.comments,
+          ...existing,
           activityHistory: arbActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -1229,11 +1210,7 @@ export async function registerRoutes(
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
         const collActivityHistory = await storage.getCollectionActivity(id);
         await handleOutcomeTransfer(data.outcome, "Collections", {
-          patientName: existing.patientName,
-          clinic: existing.clinic,
-          insurance: existing.insurance,
-          amount: existing.amount,
-          notes: existing.notes,
+          ...existing,
           activityHistory: collActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -1430,10 +1407,7 @@ export async function registerRoutes(
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
         const postingActivityHistory = await storage.getPostingActivity(id);
         await handleOutcomeTransfer(data.outcome, "Posting", {
-          patientName: existing.patientName || undefined,
-          clinic: existing.clinic,
-          insurance: existing.insurance || undefined,
-          amount: existing.amount,
+          ...existing,
           activityHistory: postingActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -2041,11 +2015,7 @@ export async function registerRoutes(
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
         const checkActivityHistory = await storage.getCheckActivity(id);
         await handleOutcomeTransfer(data.outcome, "Checks", {
-          patientName: existing.patientName || undefined,
-          clinic: existing.clinic,
-          insurance: existing.insurance,
-          amount: existing.amount,
-          notes: existing.notes,
+          ...existing,
           activityHistory: checkActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -2162,12 +2132,8 @@ export async function registerRoutes(
 
       if (data.outcome && OUTCOME_OPTIONS.includes(data.outcome) && data.outcome !== existing.outcome) {
         const closedActivityHistory = await storage.getClosedActivity(id);
-        await handleOutcomeTransfer(data.outcome, "Closed", {
-          patientName: existing.patientName,
-          clinic: existing.clinic,
-          insurance: existing.insurance,
-          amount: existing.amount,
-          notes: existing.notes,
+        await handleOutcomeTransfer(data.outcome, "RTP", {
+          ...existing,
           activityHistory: closedActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }

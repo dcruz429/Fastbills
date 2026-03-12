@@ -120,6 +120,7 @@ export default function CollectionsPage() {
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [doneOpen, setDoneOpen] = useState(false);
 
   if (!user) {
     return <Redirect to="/" />;
@@ -490,6 +491,9 @@ export default function CollectionsPage() {
     return sortDir === "asc" ? cmp : -cmp;
   });
 
+  const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
+  const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4 animate-fade-in">
@@ -697,6 +701,7 @@ export default function CollectionsPage() {
         </div>
       </div>
 
+      <div className="flex-1 flex flex-col min-h-0 gap-2">
       <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-20 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
@@ -722,14 +727,14 @@ export default function CollectionsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {activeRecords.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
                   No collections found
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map(d => {
+              activeRecords.map(d => {
                 const isTransferred = (d.notes || "").startsWith("[Transferred from");
                 return (
                 <TableRow key={d.id} data-testid={`row-collection-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
@@ -765,6 +770,79 @@ export default function CollectionsPage() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {doneRecords.length > 0 && (
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border rounded-lg shrink-0">
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-lg text-sm font-semibold transition-colors" data-testid="collapsible-done-section">
+              <span>Done ({doneRecords.length})</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="overflow-auto max-h-80 border-t">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="min-w-[160px]">Patient's Name</TableHead>
+                    <TableHead className="min-w-[90px]">Input Date</TableHead>
+                    <TableHead className="min-w-[60px]">Clinic</TableHead>
+                    <TableHead className="min-w-[70px]">Division</TableHead>
+                    <TableHead className="min-w-[120px]">Insurance</TableHead>
+                    <TableHead className="min-w-[90px]">DOS From</TableHead>
+                    <TableHead className="min-w-[90px]">DOS To</TableHead>
+                    <TableHead className="min-w-[50px]"># of Visits</TableHead>
+                    <TableHead className="min-w-[80px]">Amount</TableHead>
+                    <TableHead className="min-w-[120px]">Issue Type</TableHead>
+                    <TableHead className="min-w-[120px]">Type of Denial</TableHead>
+                    <TableHead className="min-w-[120px]">Action</TableHead>
+                    <TableHead className="min-w-[100px]">Outcome</TableHead>
+                    <TableHead className="min-w-[120px]">Priority</TableHead>
+                    <TableHead className="min-w-[70px]">Ageing</TableHead>
+                    <TableHead className="min-w-[120px]">Assigned to</TableHead>
+                    <TableHead className="min-w-[100px]">Status</TableHead>
+                    {user?.role === "admin" && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {doneRecords.map(d => {
+                    const isTransferred = (d.notes || "").startsWith("[Transferred from");
+                    return (
+                    <TableRow key={d.id} data-testid={`row-collection-done-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
+                      <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
+                      <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.division ? <Badge variant="outline" className="text-xs">{d.division}</Badge> : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
+                      <TableCell className="text-xs text-center">{d.numberOfVisits ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.issueType || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.action || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.outcome ? <Badge variant="secondary" className="text-xs">{d.outcome}</Badge> : "-"}</TableCell>
+                      <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <TrackerPriorityBadge priority={p} /> : "-"; })()}</TableCell>
+                      <TableCell className="text-xs font-medium">{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
+                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                      {user?.role === "admin" && (
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-done-${d.id}`}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                      )}
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
       </div>
 
       <Sheet open={dialogOpen} onOpenChange={v => { if (!v) { setDialogOpen(false); setEditingId(null); } }}>

@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown } from "lucide-react";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -77,6 +77,7 @@ export default function PostingPage() {
   const [filterPriority, setFilterPriority] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [doneOpen, setDoneOpen] = useState(false);
 
   if (!user) {
     return <Redirect to="/" />;
@@ -248,6 +249,9 @@ export default function PostingPage() {
     return sortDir === "asc" ? cmp : -cmp;
   });
 
+  const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
+  const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4 animate-fade-in">
@@ -400,6 +404,7 @@ export default function PostingPage() {
         </div>
       </div>
 
+      <div className="flex-1 flex flex-col min-h-0 gap-2">
       <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
@@ -420,14 +425,14 @@ export default function PostingPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {activeRecords.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={user.role === "admin" ? 13 : 12} className="text-center py-8 text-muted-foreground">
                   No postings found
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map(d => (
+              activeRecords.map(d => (
                 <TableRow
                   key={d.id}
                   className={canEdit ? "cursor-pointer hover:bg-muted/50" : ""}
@@ -458,6 +463,71 @@ export default function PostingPage() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {doneRecords.length > 0 && (
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border rounded-lg shrink-0">
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-lg text-sm font-semibold transition-colors" data-testid="collapsible-done-section">
+              <span>Done ({doneRecords.length})</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="overflow-auto max-h-80 border-t">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="min-w-[100px]">File #</TableHead>
+                    <TableHead className="min-w-[80px]">Clinic</TableHead>
+                    <TableHead className="min-w-[110px]">Scanned Date</TableHead>
+                    <TableHead className="min-w-[120px]">Document Type</TableHead>
+                    <TableHead className="min-w-[110px]">Posted Date</TableHead>
+                    <TableHead className="min-w-[90px]">Priority</TableHead>
+                    <TableHead className="min-w-[120px]">Assigned To</TableHead>
+                    <TableHead className="min-w-[80px]">Amount</TableHead>
+                    <TableHead className="min-w-[100px]">Status</TableHead>
+                    <TableHead className="min-w-[110px]">Deposit Date</TableHead>
+                    <TableHead className="min-w-[120px]">Deposited By</TableHead>
+                    <TableHead className="min-w-[100px]">Action</TableHead>
+                    {user.role === "admin" && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {doneRecords.map(d => (
+                    <TableRow
+                      key={d.id}
+                      className={canEdit ? "cursor-pointer hover:bg-muted/50" : ""}
+                      onClick={() => canEdit && openEdit(d)}
+                      data-testid={`row-posting-done-${d.id}`}
+                    >
+                      <TableCell className="text-xs font-medium">{d.fileNumber || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.scannedDate)}</TableCell>
+                      <TableCell className="text-xs">{d.documentType || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.postedDate)}</TableCell>
+                      <TableCell className="text-xs">{d.priority ? <TrackerPriorityBadge priority={d.priority} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
+                      <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
+                      <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
+                      {user.role === "admin" && (
+                        <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-posting-done-${d.id}`}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
       </div>
 
       <Sheet open={drawerOpen} onOpenChange={(v) => { if (!v) { setDrawerOpen(false); setEditingId(null); setForm({ ...emptyForm }); } }}>
