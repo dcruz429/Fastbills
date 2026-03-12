@@ -549,6 +549,8 @@ export const postings = pgTable("postings", {
   activity: text("posting_activity"),
   patientName: text("posting_patient_name"),
   insurance: text("posting_insurance"),
+  depositDate: timestamp("deposit_date"),
+  depositedBy: text("deposited_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

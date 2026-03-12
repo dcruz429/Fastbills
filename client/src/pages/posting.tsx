@@ -54,6 +54,8 @@ const emptyForm = {
   amount: "",
   outcome: "",
   activity: "",
+  depositDate: "",
+  depositedBy: "",
 };
 
 export default function PostingPage() {
@@ -172,6 +174,8 @@ export default function PostingPage() {
       amount: d.amount || "",
       outcome: d.outcome || "",
       activity: (d as any).activity || "",
+      depositDate: toInputDate(d.depositDate),
+      depositedBy: d.depositedBy || "",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -533,6 +537,28 @@ export default function PostingPage() {
               <div className="space-y-1.5">
                 <Label>Amount</Label>
                 <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-posting-amount" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Deposit Date</Label>
+                <Input type="date" value={form.depositDate} onChange={e => setForm(f => ({ ...f, depositDate: e.target.value }))} data-testid="input-posting-deposit-date" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Deposited By</Label>
+                <Select value={form.depositedBy || "__none__"} onValueChange={v => setForm(f => ({ ...f, depositedBy: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger data-testid="select-posting-deposited-by"><SelectValue placeholder="Select user" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-- None --</SelectItem>
+                    {(() => {
+                      const names = new Map(activeUsers.map(u => [u.fullName.replace(/\s+/g, ' ').trim().toLowerCase(), u.fullName]));
+                      if (form.depositedBy && !names.has(form.depositedBy.replace(/\s+/g, ' ').trim().toLowerCase())) {
+                        names.set(form.depositedBy.replace(/\s+/g, ' ').trim().toLowerCase(), form.depositedBy);
+                      }
+                      return [...names.values()].sort().map(name => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ));
+                    })()}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Status</Label>
