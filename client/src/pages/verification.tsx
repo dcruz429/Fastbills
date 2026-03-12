@@ -17,11 +17,17 @@ import { TaskDetailDrawer } from "@/components/task-detail-drawer";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { formatEST } from "@/lib/date-utils";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Search,
   ChevronUp,
   ChevronDown,
   MessageSquare,
   ShieldCheck,
+  CheckCircle2,
   Clock,
   AlertTriangle,
   ArrowUpDown,
@@ -85,6 +91,7 @@ export default function VerificationPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [doneOpen, setDoneOpen] = useState(false);
 
   useEffect(() => {
     if (params.get("status")) setFilterStatus(params.get("status")!);
@@ -146,7 +153,10 @@ export default function VerificationPage() {
     }
   }
 
-  const sortedTasks = sortField ? sortTasks(filteredTasks, sortField, sortDir) : filteredTasks;
+  const activeTasks = filteredTasks.filter(t => t.status !== "done");
+  const doneTasks = filteredTasks.filter(t => t.status === "done");
+  const activeSorted = sortField ? sortTasks(activeTasks, sortField, sortDir) : activeTasks;
+  const doneSorted = sortField ? sortTasks(doneTasks, sortField, sortDir) : doneTasks;
 
   return (
     <div className="flex flex-col h-full">
@@ -242,7 +252,7 @@ export default function VerificationPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4 animate-fade-in">
+      <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto px-6 pb-6 animate-fade-in">
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -250,150 +260,222 @@ export default function VerificationPage() {
             ))}
           </div>
         ) : (
-          <Card className="border shadow-sm border-amber-200 dark:border-amber-800/30">
-            <CardHeader
-              className="flex flex-row items-center gap-2 py-2.5 px-4 bg-amber-50 dark:bg-amber-950/20"
-              data-testid="verification-header"
-            >
-              <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <span className="text-sm font-bold tracking-wide text-amber-600 dark:text-amber-400">
-                FOR VERIFICATION
-              </span>
-              <span className="text-xs text-muted-foreground ml-auto font-medium">
-                {sortedTasks.length} task{sortedTasks.length !== 1 ? "s" : ""}
-              </span>
-            </CardHeader>
-            <CardContent className="p-0">
-              {sortedTasks.length === 0 ? (
-                <div className="py-10 text-center">
-                  <p className="text-sm text-muted-foreground">No tasks in verification</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Tasks will appear here when created and assigned for verification</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        {([
-                          { field: "patientName" as SortField, label: "Patient Name", cls: "px-3", hide: "" },
-                          { field: "clinic" as SortField, label: "Clinic", cls: "px-3", hide: "hidden md:table-cell" },
-                          { field: "insurance" as SortField, label: "Insurance", cls: "px-2", hide: "hidden lg:table-cell" },
-                          { field: "ieDate" as SortField, label: "IE Date", cls: "px-2", hide: "hidden lg:table-cell" },
-                          { field: "dueDate" as SortField, label: "Due Date", cls: "px-2", hide: "" },
-                          { field: "priority" as SortField, label: "Priority", cls: "px-2", hide: "" },
-                          { field: "status" as SortField, label: "Status", cls: "px-2", hide: "" },
-                          { field: "assigned" as SortField, label: "Assigned", cls: "px-3 min-w-[140px]", hide: "hidden md:table-cell" },
-                        ]).map(col => (
-                          <th
-                            key={col.field}
-                            className={cn("text-left py-2 font-medium cursor-pointer select-none hover:text-foreground transition-colors", col.cls, col.hide)}
-                            onClick={() => handleSort(col.field)}
-                            data-testid={`sort-${col.field}`}
-                          >
-                            <div className="flex items-center gap-1">
-                              {col.label}
-                              {sortField === col.field ? (
-                                sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
-                              ) : (
-                                <ArrowUpDown className="h-3 w-3 opacity-30" />
-                              )}
-                            </div>
-                          </th>
-                        ))}
-                        <th className="text-left py-2 px-3 font-medium w-8"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedTasks.map((task) => {
-                        const isOverdue =
-                          task.dueDate &&
-                          new Date(task.dueDate) < new Date() &&
-                          task.bucket !== "done";
-                        const isTransferred = (task.notes || "").startsWith("[Transferred from");
-                        return (
-                          <tr
-                            key={task.id}
-                            className={cn(
-                              "border-b last:border-0 cursor-pointer transition-colors duration-150",
-                              isOverdue
-                                ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30"
-                                : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10",
-                              isTransferred && "text-blue-600 dark:text-blue-400"
-                            )}
-                            onClick={() => {
-                              setSelectedTask(task);
-                              setDrawerOpen(true);
-                            }}
-                            data-testid={`task-row-${task.id}`}
-                          >
-                            <td className="py-2.5 px-3">
-                              <div className="flex items-center gap-2">
-                                {isOverdue && (
-                                  <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                                )}
-                                <span className="font-medium truncate max-w-[180px]">
-                                  {task.patientName}
-                                </span>
-                                {task.notes && (
-                                  <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0" />
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
-                              {task.clinic?.name || "-"}
-                            </td>
-                            <td className="py-2.5 px-2 text-muted-foreground hidden lg:table-cell">
-                              {task.insurance?.name || "-"}
-                            </td>
-                            <td className="py-2.5 px-2 text-muted-foreground hidden lg:table-cell">
-                              {task.ieDate ? formatEST(new Date(task.ieDate), "MM/dd") : "-"}
-                            </td>
-                            <td className="py-2.5 px-2">
-                              <span
-                                className={cn(
-                                  "text-xs",
-                                  isOverdue
-                                    ? "text-red-600 dark:text-red-400 font-semibold"
-                                    : "text-muted-foreground"
-                                )}
-                              >
-                                {task.dueDate
-                                  ? formatEST(new Date(task.dueDate), "MM/dd")
-                                  : "-"}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-2">
-                              <PriorityBadge priority={task.priority} />
-                            </td>
-                            <td className="py-2.5 px-2">
+          <>
+            <Card className="border shadow-sm border-amber-200 dark:border-amber-800/30 shrink-0">
+              <CardHeader
+                className="flex flex-row items-center gap-2 py-2.5 px-4 bg-amber-50 dark:bg-amber-950/20"
+                data-testid="verification-header"
+              >
+                <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-bold tracking-wide text-amber-600 dark:text-amber-400">
+                  FOR VERIFICATION
+                </span>
+                <span className="text-xs text-muted-foreground ml-auto font-medium">
+                  {activeSorted.length} task{activeSorted.length !== 1 ? "s" : ""}
+                </span>
+              </CardHeader>
+              <CardContent className="p-0">
+                {activeSorted.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <p className="text-sm text-muted-foreground">No tasks in verification</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">Tasks will appear here when created and assigned for verification</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-xs text-muted-foreground">
+                          {([
+                            { field: "patientName" as SortField, label: "Patient Name", cls: "px-3", hide: "" },
+                            { field: "clinic" as SortField, label: "Clinic", cls: "px-3", hide: "hidden md:table-cell" },
+                            { field: "insurance" as SortField, label: "Insurance", cls: "px-2", hide: "hidden lg:table-cell" },
+                            { field: "ieDate" as SortField, label: "IE Date", cls: "px-2", hide: "hidden lg:table-cell" },
+                            { field: "dueDate" as SortField, label: "Due Date", cls: "px-2", hide: "" },
+                            { field: "priority" as SortField, label: "Priority", cls: "px-2", hide: "" },
+                            { field: "status" as SortField, label: "Status", cls: "px-2", hide: "" },
+                            { field: "assigned" as SortField, label: "Assigned", cls: "px-3 min-w-[140px]", hide: "hidden md:table-cell" },
+                          ]).map(col => (
+                            <th
+                              key={col.field}
+                              className={cn("text-left py-2 font-medium cursor-pointer select-none hover:text-foreground transition-colors", col.cls, col.hide)}
+                              onClick={() => handleSort(col.field)}
+                              data-testid={`sort-${col.field}`}
+                            >
                               <div className="flex items-center gap-1">
-                                <StatusBadge status={task.status} />
-                                {task.status === "dropped" && task.rtp && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400" data-testid={`badge-rtp-${task.id}`}>
-                                    RTP
-                                  </span>
+                                {col.label}
+                                {sortField === col.field ? (
+                                  sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 opacity-30" />
                                 )}
                               </div>
-                            </td>
-                            <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
-                              <span className="truncate max-w-[160px] inline-block">
-                                {task.assignedUser?.fullName || "-"}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3">
-                              {isOverdue && (
-                                <Clock className="h-3.5 w-3.5 text-red-500" />
+                            </th>
+                          ))}
+                          <th className="text-left py-2 px-3 font-medium w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeSorted.map((task) => {
+                          const isOverdue =
+                            task.dueDate &&
+                            new Date(task.dueDate) < new Date() &&
+                            task.bucket !== "done";
+                          const isTransferred = (task.notes || "").startsWith("[Transferred from");
+                          return (
+                            <tr
+                              key={task.id}
+                              className={cn(
+                                "border-b last:border-0 cursor-pointer transition-colors duration-150",
+                                isOverdue
+                                  ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30"
+                                  : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10",
+                                isTransferred && "text-blue-600 dark:text-blue-400"
                               )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                              onClick={() => {
+                                setSelectedTask(task);
+                                setDrawerOpen(true);
+                              }}
+                              data-testid={`task-row-${task.id}`}
+                            >
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-2">
+                                  {isOverdue && (
+                                    <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                  )}
+                                  <span className="font-medium truncate max-w-[180px]">
+                                    {task.patientName}
+                                  </span>
+                                  {task.notes && (
+                                    <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
+                                {task.clinic?.name || "-"}
+                              </td>
+                              <td className="py-2.5 px-2 text-muted-foreground hidden lg:table-cell">
+                                {task.insurance?.name || "-"}
+                              </td>
+                              <td className="py-2.5 px-2 text-muted-foreground hidden lg:table-cell">
+                                {task.ieDate ? formatEST(new Date(task.ieDate), "MM/dd") : "-"}
+                              </td>
+                              <td className="py-2.5 px-2">
+                                <span
+                                  className={cn(
+                                    "text-xs",
+                                    isOverdue
+                                      ? "text-red-600 dark:text-red-400 font-semibold"
+                                      : "text-muted-foreground"
+                                  )}
+                                >
+                                  {task.dueDate
+                                    ? formatEST(new Date(task.dueDate), "MM/dd")
+                                    : "-"}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-2">
+                                <PriorityBadge priority={task.priority} />
+                              </td>
+                              <td className="py-2.5 px-2">
+                                <div className="flex items-center gap-1">
+                                  <StatusBadge status={task.status} />
+                                  {task.status === "dropped" && task.rtp && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400" data-testid={`badge-rtp-${task.id}`}>
+                                      RTP
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
+                                <span className="truncate max-w-[160px] inline-block">
+                                  {task.assignedUser?.fullName || "-"}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {isOverdue && (
+                                  <Clock className="h-3.5 w-3.5 text-red-500" />
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {doneSorted.length > 0 && (
+              <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border rounded-lg shrink-0">
+                <CollapsibleTrigger asChild>
+                  <button className="w-full flex items-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors rounded-lg font-semibold text-sm text-muted-foreground" data-testid="toggle-done-section">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", doneOpen ? "" : "-rotate-90")} />
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>DONE</span>
+                    <span className="text-xs font-normal ml-1">({doneSorted.length})</span>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="overflow-x-auto border-t">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-xs text-muted-foreground">
+                          <th className="text-left py-2 px-3 font-medium">Patient Name</th>
+                          <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Clinic</th>
+                          <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">Insurance</th>
+                          <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">IE Date</th>
+                          <th className="text-left py-2 px-2 font-medium">Due Date</th>
+                          <th className="text-left py-2 px-2 font-medium">Priority</th>
+                          <th className="text-left py-2 px-2 font-medium">Status</th>
+                          <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Assigned</th>
+                          <th className="w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {doneSorted.map((task) => {
+                          const isTransferred = (task.notes || "").startsWith("[Transferred from");
+                          return (
+                            <tr
+                              key={task.id}
+                              className={cn(
+                                "border-b last:border-0 cursor-pointer transition-colors duration-150 opacity-75",
+                                "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10",
+                                isTransferred && "text-blue-600 dark:text-blue-400"
+                              )}
+                              onClick={() => { setSelectedTask(task); setDrawerOpen(true); }}
+                              data-testid={`task-row-done-${task.id}`}
+                            >
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium truncate max-w-[180px]">{task.patientName}</span>
+                                  {task.notes && <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0" />}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">{task.clinic?.name || "-"}</td>
+                              <td className="py-2.5 px-2 text-muted-foreground hidden lg:table-cell">{task.insurance?.name || "-"}</td>
+                              <td className="py-2.5 px-2 text-muted-foreground hidden lg:table-cell">
+                                {task.ieDate ? formatEST(new Date(task.ieDate), "MM/dd") : "-"}
+                              </td>
+                              <td className="py-2.5 px-2 text-muted-foreground text-xs">
+                                {task.dueDate ? formatEST(new Date(task.dueDate), "MM/dd") : "-"}
+                              </td>
+                              <td className="py-2.5 px-2"><PriorityBadge priority={task.priority} /></td>
+                              <td className="py-2.5 px-2"><StatusBadge status={task.status} /></td>
+                              <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">
+                                <span className="truncate max-w-[160px] inline-block">{task.assignedUser?.fullName || "-"}</span>
+                              </td>
+                              <td className="py-2.5 px-3"></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </>
         )}
       </div>
 
