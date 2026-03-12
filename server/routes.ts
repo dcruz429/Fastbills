@@ -151,6 +151,7 @@ async function handleOutcomeTransfer(
         status: "Unassigned",
         amount,
         source,
+        sourceId: record.id ?? null,
         notes: combinedNotes,
         recordData: JSON.stringify(recordWithoutHistory),
       });
@@ -201,6 +202,17 @@ async function handleOutcomeTransfer(
         break;
     }
   }
+}
+
+async function syncRTPRecord(source: string, sourceId: number, updatedRecord: any): Promise<void> {
+  const { activityHistory: _ah, ...recordWithoutHistory } = updatedRecord;
+  await storage.syncClosedFromSource(source, sourceId, {
+    patientName: updatedRecord.patientName || "Unknown",
+    clinic: updatedRecord.clinic || null,
+    insurance: updatedRecord.insurance || null,
+    amount: updatedRecord.amount || null,
+    recordData: JSON.stringify(recordWithoutHistory),
+  });
 }
 
 const scryptAsync = promisify(scrypt);
@@ -882,6 +894,7 @@ export async function registerRoutes(
       }
 
       const denial = await storage.updateDenial(id, data);
+      if (denial && denial.outcome === "Send to RTP") await syncRTPRecord("Denials", id, denial);
       res.json(denial);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1048,6 +1061,7 @@ export async function registerRoutes(
         }
       }
       const arb = await storage.updateArbitration(id, data);
+      if (arb && arb.outcome === "Send to RTP") await syncRTPRecord("Arbitration", id, arb);
       res.json(arb);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1232,6 +1246,7 @@ export async function registerRoutes(
         }
       }
       const collection = await storage.updateCollection(id, data);
+      if (collection && collection.outcome === "Send to RTP") await syncRTPRecord("Collections", id, collection);
       res.json(collection);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1428,6 +1443,7 @@ export async function registerRoutes(
         }
       }
       const updated = await storage.updatePosting(id, data);
+      if (updated && updated.outcome === "Send to RTP") await syncRTPRecord("Posting", id, updated);
       res.json(updated);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2036,6 +2052,7 @@ export async function registerRoutes(
         }
       }
       const updated = await storage.updateCheck(id, data);
+      if (updated && updated.outcome === "Send to RTP") await syncRTPRecord("Checks", id, updated);
       res.json(updated);
     } catch (e: any) {
       res.status(500).json({ message: e.message });

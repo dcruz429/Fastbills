@@ -187,6 +187,7 @@ export interface IStorage {
   getAllClosed(): Promise<Closed[]>;
   getClosed(id: number): Promise<Closed | undefined>;
   createClosed(data: InsertClosed): Promise<Closed>;
+  syncClosedFromSource(source: string, sourceId: number, patch: Partial<Closed>): Promise<void>;
   updateClosed(id: number, data: Partial<Closed>): Promise<Closed | undefined>;
   deleteClosed(id: number): Promise<void>;
   getClosedActivity(closedId: number): Promise<any[]>;
@@ -888,6 +889,18 @@ export class DatabaseStorage implements IStorage {
   async createClosed(data: InsertClosed): Promise<Closed> {
     const [record] = await db.insert(closed).values(data).returning();
     return record;
+  }
+
+  async syncClosedFromSource(source: string, sourceId: number, patch: Partial<Closed>): Promise<void> {
+    const byId = await db.select().from(closed).where(and(eq(closed.source, source), eq(closed.sourceId, sourceId)));
+    if (byId.length > 0) {
+      await db.update(closed).set(patch).where(and(eq(closed.source, source), eq(closed.sourceId, sourceId)));
+    } else if (patch.patientName) {
+      const byName = await db.select().from(closed).where(and(eq(closed.source, source), eq(closed.patientName, patch.patientName)));
+      if (byName.length > 0) {
+        await db.update(closed).set(patch).where(and(eq(closed.source, source), eq(closed.patientName, patch.patientName)));
+      }
+    }
   }
 
   async updateClosed(id: number, data: Partial<Closed>): Promise<Closed | undefined> {
