@@ -601,89 +601,233 @@ export default function ClosedPage() {
             </SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 px-4">
-            <div className="grid grid-cols-2 gap-4 pb-4">
-              <div className="space-y-1.5 col-span-2">
-                <Label>Patient Name *</Label>
-                <Input value={form.patientName} onChange={e => setForm(f => ({ ...f, patientName: e.target.value }))} data-testid="input-closed-patient-name" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Clinic</Label>
-                <Input value={form.clinic} onChange={e => setForm(f => ({ ...f, clinic: e.target.value }))} data-testid="input-closed-clinic" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Insurance</Label>
-                <Input value={form.insurance} onChange={e => setForm(f => ({ ...f, insurance: e.target.value }))} data-testid="input-closed-insurance" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Assigned To</Label>
-                <Select value={form.assignedTo || "__none__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger data-testid="select-closed-assigned-to"><SelectValue placeholder="Select user" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">-- None --</SelectItem>
-                    {activeUsers.map(u => (
-                      <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={form.status || "__none__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger data-testid="select-closed-status"><SelectValue placeholder="Select status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">-- None --</SelectItem>
-                    {CLOSED_STATUS_OPTIONS.map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Amount</Label>
-                <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} data-testid="input-closed-amount" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Source</Label>
-                <Input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} data-testid="input-closed-source" />
-              </div>
-              <div className="space-y-1.5 col-span-2">
-                <Label>Outcome</Label>
-                <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger data-testid="select-closed-outcome"><SelectValue placeholder="Select outcome" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">-- None --</SelectItem>
-                    {OUTCOME_OPTIONS.map(o => (
-                      <SelectItem key={o} value={o}>{o}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5 col-span-2">
-                <Label>Notes</Label>
-                <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="resize-none" data-testid="textarea-closed-notes" />
-              </div>
-            </div>
+            {editingRecord?.recordData ? (
+              /* ── Source-record full view ── */
+              <div className="space-y-4 pb-4">
+                {/* All source fields read-only */}
+                {(() => {
+                  const f = (label: string, val: any) => val != null && val !== "" ? { label, value: String(val) } : null;
+                  const fd = (label: string, val: any) => val ? f(label, formatDate(val)) : null;
+                  let rows: ({ label: string; value: string } | null)[] = [];
 
-            {editingId && editingRecord?.recordData && (() => {
-              const fields = getSourceDetailFields(form.source, sourceRec).filter(f => f.value != null && f.value !== "");
-              if (fields.length === 0) return null;
-              return (
-                <div className="mb-4" data-testid="source-record-details">
-                  <Separator className="mb-3" />
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                    Source Record Details ({form.source})
-                  </p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                    {fields.map(f => (
-                      <div key={f.label} className="space-y-0.5">
-                        <p className="text-[11px] text-muted-foreground">{f.label}</p>
-                        <p className="text-xs font-medium">{f.value}</p>
+                  if (form.source === "Denials" || form.source === "Arbitration") {
+                    rows = [
+                      f("Patient Name", sourceRec.patientName),
+                      f("Clinic", sourceRec.clinic),
+                      f("Insurance", sourceRec.insurance),
+                      f("Amount", sourceRec.amount ? fmtAmt(sourceRec.amount) : null),
+                      f("File Name", sourceRec.denialFileName),
+                      fd("Date Input", sourceRec.dateInput),
+                      f("Intake", sourceRec.intake),
+                      fd("DOA", sourceRec.doa),
+                      fd("Date of Letter", sourceRec.dateOfLetter),
+                      f("Type of Denial", sourceRec.typeOfDenial),
+                      fd("Effective Date", sourceRec.effectiveDate),
+                      fd("DOS From", sourceRec.dosFrom),
+                      fd("DOS To", sourceRec.dosTo),
+                      f("# of Days", sourceRec.numberOfDays != null ? String(sourceRec.numberOfDays) : null),
+                      f("Filed To", sourceRec.filedTo),
+                      f("ARB Status", sourceRec.arbStatus),
+                      fd("Trial Date", sourceRec.trialDate),
+                      f("ARB Payment Status", sourceRec.arbPaymentStatus),
+                      f("Amount Received", sourceRec.amountReceived),
+                      f("Assigned To (Source)", sourceRec.assignedTo),
+                      f("Comments", sourceRec.comments),
+                    ];
+                  } else if (form.source === "Posting") {
+                    rows = [
+                      f("Patient Name", sourceRec.patientName),
+                      f("Clinic", sourceRec.clinic),
+                      f("Insurance", sourceRec.insurance),
+                      f("File Number", sourceRec.fileNumber),
+                      f("Document Type", sourceRec.documentType),
+                      f("Priority", sourceRec.priority),
+                      fd("Scanned Date", sourceRec.scannedDate),
+                      fd("Posted Date", sourceRec.postedDate),
+                      fd("Deposit Date", sourceRec.depositDate),
+                      f("Deposited By", sourceRec.depositedBy),
+                      f("Assigned To (Source)", sourceRec.assignedTo),
+                    ];
+                  } else if (form.source === "Checks") {
+                    rows = [
+                      f("Patient Name", sourceRec.patientName),
+                      f("Clinic", sourceRec.clinic),
+                      f("Insurance", sourceRec.insurance),
+                      f("Check Number", sourceRec.checkNumber),
+                      f("Amount", sourceRec.amount ? fmtAmt(sourceRec.amount) : null),
+                      f("Type", sourceRec.type),
+                      fd("Check Date", sourceRec.checkDate),
+                      fd("Input Date", sourceRec.inputDate),
+                      f("File Name", sourceRec.fileName),
+                      fd("Scanned Date", sourceRec.scannedDate),
+                      fd("Posted Date", sourceRec.postedDate),
+                      fd("Deposit Date", sourceRec.depositDate),
+                      f("Deposited By", sourceRec.depositedBy),
+                      f("Assigned To (Source)", sourceRec.assignedTo),
+                    ];
+                  } else if (form.source === "Collections") {
+                    rows = [
+                      f("Patient Name", sourceRec.patientName),
+                      f("Clinic", sourceRec.clinic),
+                      f("Insurance", sourceRec.insurance),
+                      f("Amount", sourceRec.amount ? fmtAmt(sourceRec.amount) : null),
+                      fd("DOS From", sourceRec.dosFrom),
+                      fd("DOS To", sourceRec.dosTo),
+                      f("Priority", sourceRec.priority),
+                      f("Type of Denial", sourceRec.typeOfDenial),
+                      f("Assigned To (Source)", sourceRec.assignedTo),
+                      f("Comments", sourceRec.comments),
+                    ];
+                  } else if (form.source === "Verification/Billing") {
+                    rows = [
+                      f("Patient Name", sourceRec.patientName),
+                      f("Clinic", sourceRec.clinic || form.clinic),
+                      f("Insurance", sourceRec.insurance || form.insurance),
+                      f("Priority", sourceRec.priority),
+                      f("Bucket", sourceRec.bucket),
+                      fd("IE Date", sourceRec.ieDate),
+                      fd("Due Date", sourceRec.dueDate),
+                      f("Chart Number", sourceRec.chartNumber),
+                    ];
+                  } else {
+                    rows = [
+                      f("Patient Name", sourceRec.patientName || form.patientName),
+                      f("Clinic", sourceRec.clinic || form.clinic),
+                      f("Insurance", sourceRec.insurance || form.insurance),
+                      f("Amount", sourceRec.amount ? fmtAmt(sourceRec.amount) : form.amount ? fmtAmt(form.amount) : null),
+                    ];
+                  }
+
+                  const visible = rows.filter(Boolean) as { label: string; value: string }[];
+                  if (visible.length === 0) return null;
+                  return (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                        {form.source} Record
+                      </p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 bg-muted/30 rounded-lg p-3">
+                        {visible.map(item => (
+                          <div key={item.label} className="space-y-0.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{item.label}</p>
+                            <p className="text-xs font-medium break-words">{item.value}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  );
+                })()}
+
+                {/* RTP management fields */}
+                <Separator />
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">RTP Management</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Assigned To</Label>
+                    <Select value={form.assignedTo || "__none__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-closed-assigned-to"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-- None --</SelectItem>
+                        {activeUsers.map(u => (
+                          <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Status</Label>
+                    <Select value={form.status || "__none__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-closed-status"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-- None --</SelectItem>
+                        {CLOSED_STATUS_OPTIONS.map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs">Outcome</Label>
+                    <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-closed-outcome"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-- None --</SelectItem>
+                        {OUTCOME_OPTIONS.map(o => (
+                          <SelectItem key={o} value={o}>{o}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs">Notes</Label>
+                    <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="resize-none text-xs min-h-[80px]" data-testid="textarea-closed-notes" />
                   </div>
                 </div>
-              );
-            })()}
+              </div>
+            ) : (
+              /* ── Manual creation / legacy form ── */
+              <div className="grid grid-cols-2 gap-4 pb-4">
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Patient Name *</Label>
+                  <Input value={form.patientName} onChange={e => setForm(f => ({ ...f, patientName: e.target.value }))} data-testid="input-closed-patient-name" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Clinic</Label>
+                  <Input value={form.clinic} onChange={e => setForm(f => ({ ...f, clinic: e.target.value }))} data-testid="input-closed-clinic" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Insurance</Label>
+                  <Input value={form.insurance} onChange={e => setForm(f => ({ ...f, insurance: e.target.value }))} data-testid="input-closed-insurance" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Assigned To</Label>
+                  <Select value={form.assignedTo || "__none__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-closed-assigned-to"><SelectValue placeholder="Select user" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {activeUsers.map(u => (
+                        <SelectItem key={u.id} value={u.fullName}>{u.fullName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Status</Label>
+                  <Select value={form.status || "__none__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-closed-status"><SelectValue placeholder="Select status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {CLOSED_STATUS_OPTIONS.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Amount</Label>
+                  <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} data-testid="input-closed-amount" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Source</Label>
+                  <Input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} data-testid="input-closed-source" />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Outcome</Label>
+                  <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-closed-outcome"><SelectValue placeholder="Select outcome" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {OUTCOME_OPTIONS.map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Notes</Label>
+                  <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="resize-none" data-testid="textarea-closed-notes" />
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2 pb-4">
               <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-closed">
