@@ -1366,15 +1366,21 @@ export async function registerRoutes(
   });
 
   // Postings
+  const PAYMENT_DOC_ROLES = ["payment_specialist", "account_manager"];
+
   app.get("/api/postings", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllPostings();
+      const canSeePaymentDocs = PAYMENT_DOC_ROLES.includes(user.role);
+      const visibleByDocType = canSeePaymentDocs
+        ? all
+        : all.filter(p => (p.documentType || "").toLowerCase() !== "payment");
       if (ADMIN_ROLES.includes(user.role)) {
-        res.json(all);
+        res.json(visibleByDocType);
       } else {
-        res.json(all.filter(p => p.assignedTo === user.fullName));
+        res.json(visibleByDocType.filter(p => p.assignedTo === user.fullName));
       }
     } catch (e: any) {
       res.status(500).json({ message: e.message });

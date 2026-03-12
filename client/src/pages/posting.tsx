@@ -210,7 +210,10 @@ export default function PostingPage() {
     setFilterOutcome("");
   }
 
+  const canSeePaymentDocs = user.role === "payment_specialist" || user.role === "account_manager";
+
   const filteredUnsorted = (postingList || []).filter(d => {
+    if (!canSeePaymentDocs && (d.documentType || "").toLowerCase() === "payment") return false;
     if (searchQuery && !Object.values(d).some(v => v && String(v).toLowerCase().includes(searchQuery.toLowerCase()))) return false;
     if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
     if (filterDocumentType && filterDocumentType !== "__all__" && d.documentType !== filterDocumentType) return false;
