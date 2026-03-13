@@ -8,8 +8,8 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db } from "./db";
-import { fileUploads, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS } from "@shared/schema";
+import { eq, desc, and, inArray } from "drizzle-orm";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -491,54 +491,96 @@ export async function registerRoutes(
       if (!user || ["payment_specialist", "assigner"].includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const [taskActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
+
+      const [verifActs, billActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
         db.select({
           id: taskActivity.id, userId: taskActivity.userId, action: taskActivity.action,
-          field: taskActivity.field, oldValue: taskActivity.oldValue, newValue: taskActivity.newValue,
-          timestamp: taskActivity.timestamp, userName: users.fullName,
-        }).from(taskActivity).leftJoin(users, eq(taskActivity.userId, users.id)).orderBy(desc(taskActivity.timestamp)),
+          timestamp: taskActivity.timestamp, userName: users.fullName, patientName: tasks.patientName,
+        }).from(taskActivity)
+          .leftJoin(users, eq(taskActivity.userId, users.id))
+          .leftJoin(tasks, eq(taskActivity.taskId, tasks.id))
+          .where(and(eq(taskActivity.field, "status"), eq(taskActivity.newValue, "verified")))
+          .orderBy(desc(taskActivity.timestamp)),
+
+        db.select({
+          id: taskActivity.id, userId: taskActivity.userId, action: taskActivity.action,
+          timestamp: taskActivity.timestamp, userName: users.fullName, patientName: tasks.patientName,
+        }).from(taskActivity)
+          .leftJoin(users, eq(taskActivity.userId, users.id))
+          .leftJoin(tasks, eq(taskActivity.taskId, tasks.id))
+          .where(and(eq(taskActivity.field, "status"), inArray(taskActivity.newValue, ["billed", "done"])))
+          .orderBy(desc(taskActivity.timestamp)),
+
         db.select({
           id: denialActivity.id, userId: denialActivity.userId, action: denialActivity.action,
-          field: denialActivity.field, oldValue: denialActivity.oldValue, newValue: denialActivity.newValue,
-          timestamp: denialActivity.timestamp, userName: users.fullName,
-        }).from(denialActivity).leftJoin(users, eq(denialActivity.userId, users.id)).orderBy(desc(denialActivity.timestamp)),
+          timestamp: denialActivity.timestamp, userName: users.fullName, patientName: denials.patientName,
+        }).from(denialActivity)
+          .leftJoin(users, eq(denialActivity.userId, users.id))
+          .leftJoin(denials, eq(denialActivity.denialId, denials.id))
+          .where(and(eq(denialActivity.field, "status"), eq(denialActivity.newValue, "Done")))
+          .orderBy(desc(denialActivity.timestamp)),
+
         db.select({
           id: arbitrationActivity.id, userId: arbitrationActivity.userId, action: arbitrationActivity.action,
-          field: arbitrationActivity.field, oldValue: arbitrationActivity.oldValue, newValue: arbitrationActivity.newValue,
-          timestamp: arbitrationActivity.timestamp, userName: users.fullName,
-        }).from(arbitrationActivity).leftJoin(users, eq(arbitrationActivity.userId, users.id)).orderBy(desc(arbitrationActivity.timestamp)),
+          timestamp: arbitrationActivity.timestamp, userName: users.fullName, patientName: arbitrations.patientName,
+        }).from(arbitrationActivity)
+          .leftJoin(users, eq(arbitrationActivity.userId, users.id))
+          .leftJoin(arbitrations, eq(arbitrationActivity.arbitrationId, arbitrations.id))
+          .where(and(eq(arbitrationActivity.field, "status"), eq(arbitrationActivity.newValue, "Done")))
+          .orderBy(desc(arbitrationActivity.timestamp)),
+
         db.select({
           id: collectionActivity.id, userId: collectionActivity.userId, action: collectionActivity.action,
-          field: collectionActivity.field, oldValue: collectionActivity.oldValue, newValue: collectionActivity.newValue,
-          timestamp: collectionActivity.timestamp, userName: users.fullName,
-        }).from(collectionActivity).leftJoin(users, eq(collectionActivity.userId, users.id)).orderBy(desc(collectionActivity.timestamp)),
+          timestamp: collectionActivity.timestamp, userName: users.fullName, patientName: collections.patientName,
+        }).from(collectionActivity)
+          .leftJoin(users, eq(collectionActivity.userId, users.id))
+          .leftJoin(collections, eq(collectionActivity.collectionId, collections.id))
+          .where(and(eq(collectionActivity.field, "status"), eq(collectionActivity.newValue, "Done")))
+          .orderBy(desc(collectionActivity.timestamp)),
+
         db.select({
           id: postingActivity.id, userId: postingActivity.userId, action: postingActivity.action,
-          field: postingActivity.field, oldValue: postingActivity.oldValue, newValue: postingActivity.newValue,
-          timestamp: postingActivity.timestamp, userName: users.fullName,
-        }).from(postingActivity).leftJoin(users, eq(postingActivity.userId, users.id)).orderBy(desc(postingActivity.timestamp)),
+          timestamp: postingActivity.timestamp, userName: users.fullName, patientName: postings.patientName,
+        }).from(postingActivity)
+          .leftJoin(users, eq(postingActivity.userId, users.id))
+          .leftJoin(postings, eq(postingActivity.postingId, postings.id))
+          .where(and(eq(postingActivity.field, "status"), eq(postingActivity.newValue, "Done")))
+          .orderBy(desc(postingActivity.timestamp)),
+
         db.select({
           id: checkActivity.id, userId: checkActivity.userId, action: checkActivity.action,
-          field: checkActivity.field, oldValue: checkActivity.oldValue, newValue: checkActivity.newValue,
-          timestamp: checkActivity.timestamp, userName: users.fullName,
-        }).from(checkActivity).leftJoin(users, eq(checkActivity.userId, users.id)).orderBy(desc(checkActivity.timestamp)),
+          timestamp: checkActivity.timestamp, userName: users.fullName, patientName: checks.patientName,
+        }).from(checkActivity)
+          .leftJoin(users, eq(checkActivity.userId, users.id))
+          .leftJoin(checks, eq(checkActivity.checkId, checks.id))
+          .where(and(eq(checkActivity.field, "status"), eq(checkActivity.newValue, "Done")))
+          .orderBy(desc(checkActivity.timestamp)),
+
         db.select({
           id: closedActivity.id, userId: closedActivity.userId, action: closedActivity.action,
-          field: closedActivity.field, oldValue: closedActivity.oldValue, newValue: closedActivity.newValue,
           timestamp: closedActivity.timestamp, userName: users.fullName,
-        }).from(closedActivity).leftJoin(users, eq(closedActivity.userId, users.id)).orderBy(desc(closedActivity.timestamp)),
+          patientName: closed.patientName, closedSource: closed.source,
+        }).from(closedActivity)
+          .leftJoin(users, eq(closedActivity.userId, users.id))
+          .leftJoin(closed, eq(closedActivity.closedId, closed.id))
+          .where(and(eq(closedActivity.field, "status"), eq(closedActivity.newValue, "Done")))
+          .orderBy(desc(closedActivity.timestamp)),
       ]);
 
-      const addSource = (acts: any[], source: string) => acts.map(a => ({ ...a, source }));
       const all = [
-        ...addSource(taskActs, "Verification/Billing"),
-        ...addSource(denialActs, "Denials"),
-        ...addSource(arbActs, "Arbitration"),
-        ...addSource(collActs, "Collections"),
-        ...addSource(postActs, "Posting"),
-        ...addSource(checkActs, "Checks"),
-        ...addSource(closedActs, "Closed"),
-      ];
+        ...verifActs.map(a => ({ ...a, department: "Verification" })),
+        ...billActs.map(a => ({ ...a, department: "Billing" })),
+        ...denialActs.map(a => ({ ...a, department: "Denials" })),
+        ...arbActs.map(a => ({ ...a, department: "Arbitration" })),
+        ...collActs.map(a => ({ ...a, department: "Collections" })),
+        ...postActs.map(a => ({ ...a, department: "Posting" })),
+        ...checkActs.map(a => ({ ...a, department: "Checks" })),
+        ...closedActs.map(a => ({
+          ...a,
+          department: a.closedSource?.startsWith("RTP") ? "RTP" : "Closed",
+          closedSource: undefined,
+        })),
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       res.json(all);
     } catch (e: any) {

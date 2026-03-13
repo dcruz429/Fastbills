@@ -1,0 +1,47 @@
+For the **Productivity Tab**, please implement the following updates and structure:
+
+1. **Separate Productivity by Department / Task Category**
+   The Productivity tab should not combine all work into a single section. Instead, please separate productivity tracking for each workflow category so we can clearly monitor performance per team. The categories should include:
+
+   * Verification
+   * Billing
+   * Posting
+   * Collections
+   * Denials
+   * Arbitration
+   * Checks
+   * RTP
+
+   Each category should have its **own section or column** in the Productivity tab so we can easily see how much work is completed under each department.
+
+2. **Productivity Based on “Done” Status Only**
+   Productivity should only be recorded **when the status of a case is changed to “Done.”**
+   Tasks that are still pending, in progress, awaiting response, or in any other status should **not be counted** toward productivity.
+
+   The system should automatically record the productivity **at the exact moment the task status is changed to “Done.”**
+
+3. **User-Based Productivity Tracking**
+   The productivity credit should be assigned to the **user who changed the status to “Done.”** This ensures accurate tracking of individual performance.
+
+4. **Detailed Productivity Data**
+   The Productivity tab should display the following information for better monitoring and reporting:
+
+   * User / Assigned Staff
+   * Department / Category (Verification, Billing, Posting, Collections, Denials, Arbitration, Checks, RTP)
+   * Patient / Case Name
+   * Action performed
+   * Date completed
+   * Time completed
+   * Total number of completed tasks per user
+
+5. **Reporting and Monitoring**
+   The Productivity tab should allow us to easily monitor:
+
+   * Individual staff productivity
+   * Department productivity
+   * Daily and weekly completed workload
+   * Comparison of completed tasks across teams
+
+This structure will help us properly measure productivity across all departments and provide clearer visibility on team performance.
+
+Thank you.

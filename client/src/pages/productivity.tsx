@@ -3,72 +3,71 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { useAuth } from "@/lib/auth";
-import { Redirect } from "wouter";
-import { ChevronLeft, ChevronRight, CalendarDays, FileText, ShieldAlert, Scale, CreditCard, Package, ClipboardList, Archive, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useMemo } from "react";
+import { useAuth } from "@/lib/auth";
+import { Redirect } from "wouter";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
+  ChevronDown, ChevronUp, CalendarDays, Trophy, Users, CheckCircle2, TrendingUp,
+  FileText, ShieldAlert, Scale, CreditCard, Package, ClipboardList, Archive, RotateCcw, BadgeCheck,
+} from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import type { User } from "@shared/schema";
 
-type ActivityRecord = {
+type ProductivityRecord = {
   id: number;
-  userId: number;
+  userId: number | null;
+  userName: string | null;
+  patientName: string | null;
   action: string;
-  field: string;
-  oldValue: string | null;
-  newValue: string | null;
   timestamp: string;
-  userName: string;
-  source: string;
+  department: string;
 };
 
 type TimeRange = "day" | "week" | "month";
-type PeriodPreset = "last_7_days" | "this_month" | "last_month" | "last_3_months" | "custom" | "all_time" | "single_day";
+type PeriodPreset = "today" | "last_7_days" | "this_month" | "last_month" | "last_3_months" | "all_time" | "single_day";
 
-const TRACKER_SOURCES = [
-  { key: "Verification/Billing", label: "Verification / Billing", icon: FileText, color: "text-blue-600" },
-  { key: "Denials", label: "Denials", icon: ShieldAlert, color: "text-red-600" },
-  { key: "Arbitration", label: "Arbitration", icon: Scale, color: "text-green-600" },
-  { key: "Collections", label: "Collections", icon: CreditCard, color: "text-amber-600" },
-  { key: "Posting", label: "Posting", icon: Package, color: "text-purple-600" },
-  { key: "Checks", label: "Checks", icon: ClipboardList, color: "text-teal-600" },
-  { key: "Closed", label: "Closed", icon: Archive, color: "text-gray-600" },
+const DEPARTMENTS = [
+  { key: "Verification", label: "Verification", icon: BadgeCheck, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950", badge: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+  { key: "Billing", label: "Billing", icon: FileText, color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-950", badge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" },
+  { key: "Posting", label: "Posting", icon: Package, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950", badge: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
+  { key: "Collections", label: "Collections", icon: CreditCard, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950", badge: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
+  { key: "Denials", label: "Denials", icon: ShieldAlert, color: "text-red-600", bg: "bg-red-50 dark:bg-red-950", badge: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },
+  { key: "Arbitration", label: "Arbitration", icon: Scale, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950", badge: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+  { key: "Checks", label: "Checks", icon: ClipboardList, color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-950", badge: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200" },
+  { key: "RTP", label: "RTP", icon: RotateCcw, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950", badge: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
+  { key: "Closed", label: "Closed", icon: Archive, color: "text-gray-600", bg: "bg-gray-50 dark:bg-gray-900", badge: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200" },
 ];
 
-const TRACKER_COLORS: Record<string, string> = {
-  "Verification/Billing": "hsl(210 70% 50%)",
-  "Denials": "hsl(0 70% 50%)",
-  "Arbitration": "hsl(140 60% 40%)",
-  "Collections": "hsl(40 80% 50%)",
-  "Posting": "hsl(270 60% 55%)",
-  "Checks": "hsl(175 60% 40%)",
-  "Closed": "hsl(0 0% 50%)",
+const DEPT_CHART_COLORS: Record<string, string> = {
+  Verification: "hsl(215 80% 55%)",
+  Billing: "hsl(240 60% 55%)",
+  Posting: "hsl(270 60% 55%)",
+  Collections: "hsl(40 80% 50%)",
+  Denials: "hsl(0 70% 52%)",
+  Arbitration: "hsl(140 60% 42%)",
+  Checks: "hsl(175 60% 40%)",
+  RTP: "hsl(25 85% 52%)",
+  Closed: "hsl(0 0% 50%)",
 };
 
-function getMonthStart(year: number, month: number): Date {
-  return new Date(year, month, 1);
+function getDept(key: string) {
+  return DEPARTMENTS.find(d => d.key === key) || DEPARTMENTS[DEPARTMENTS.length - 1];
 }
 
-function getMonthEnd(year: number, month: number): Date {
-  return new Date(year, month + 1, 0, 23, 59, 59, 999);
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
 }
-
-function formatMonthYear(year: number, month: number): string {
-  const d = new Date(year, month);
-  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+function endOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
+function startOfMonth(y: number, m: number) { return new Date(y, m, 1); }
+function endOfMonth(y: number, m: number) { return new Date(y, m + 1, 0, 23, 59, 59, 999); }
 
 function getDateKey(date: Date, range: TimeRange): string {
   const y = date.getFullYear();
@@ -76,12 +75,9 @@ function getDateKey(date: Date, range: TimeRange): string {
   const d = String(date.getDate()).padStart(2, "0");
   if (range === "day") return `${y}-${m}-${d}`;
   if (range === "week") {
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() - date.getDay());
-    const wy = startOfWeek.getFullYear();
-    const wm = String(startOfWeek.getMonth() + 1).padStart(2, "0");
-    const wd = String(startOfWeek.getDate()).padStart(2, "0");
-    return `${wy}-${wm}-${wd}`;
+    const s = new Date(date);
+    s.setDate(date.getDate() - date.getDay());
+    return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, "0")}-${String(s.getDate()).padStart(2, "0")}`;
   }
   return `${y}-${m}`;
 }
@@ -93,217 +89,210 @@ function formatDateLabel(key: string, range: TimeRange): string {
   }
   if (range === "week") {
     const d = new Date(key + "T12:00:00");
-    const end = new Date(d);
-    end.setDate(d.getDate() + 6);
-    return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+    const e = new Date(d); e.setDate(d.getDate() + 6);
+    return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}–${e.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
   }
-  const [y, m] = key.split("-");
-  const d = new Date(parseInt(y), parseInt(m) - 1);
-  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const [y, mo] = key.split("-");
+  return new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
-function isCompletedAction(a: ActivityRecord): boolean {
-  if (a.action === "Record created" || a.action === "Created") return true;
-  if (a.field === "status" && (a.newValue === "Done" || a.newValue === "done" || a.newValue === "verified" || a.newValue === "billed")) return true;
-  if (a.field === "outcome" && a.newValue) return true;
-  if (a.field === "activity" && a.newValue) return true;
-  return false;
-}
-
-function countActions(acts: ActivityRecord[]): number {
-  return acts.length;
+function formatTs(ts: string) {
+  const d = new Date(ts);
+  return {
+    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }),
+  };
 }
 
 export default function ProductivityPage() {
   const { user } = useAuth();
   const now = new Date();
+
   const [timeRange, setTimeRange] = useState<TimeRange>("day");
   const [selectedUser, setSelectedUser] = useState<string>("all");
-  const [selectedSource, setSelectedSource] = useState<string>("all");
+  const [selectedDept, setSelectedDept] = useState<string>("all");
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("this_month");
   const [customYear, setCustomYear] = useState(now.getFullYear());
   const [customMonth, setCustomMonth] = useState(now.getMonth());
   const [singleDay, setSingleDay] = useState("");
+  const [sortField, setSortField] = useState<"total" | string>("total");
+  const [sortAsc, setSortAsc] = useState(false);
+  const [logPage, setLogPage] = useState(1);
+  const LOG_PAGE_SIZE = 50;
 
   if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
     return <Redirect to="/" />;
   }
 
-  const { data: activities, isLoading: activitiesLoading } = useQuery<ActivityRecord[]>({
+  const { data: records = [], isLoading } = useQuery<ProductivityRecord[]>({
     queryKey: ["/api/productivity"],
   });
-  const { data: users } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
-  if (activitiesLoading) {
+  const { dateStart, dateEnd } = useMemo(() => {
+    let dateStart: Date | null = null;
+    let dateEnd: Date | null = null;
+    if (periodPreset === "today") {
+      dateStart = startOfDay(now);
+      dateEnd = endOfDay(now);
+    } else if (periodPreset === "last_7_days") {
+      dateEnd = endOfDay(now);
+      dateStart = new Date(dateEnd); dateStart.setDate(dateStart.getDate() - 6); dateStart.setHours(0, 0, 0, 0);
+    } else if (periodPreset === "this_month") {
+      dateStart = startOfMonth(now.getFullYear(), now.getMonth());
+      dateEnd = endOfMonth(now.getFullYear(), now.getMonth());
+    } else if (periodPreset === "last_month") {
+      const lm = new Date(now.getFullYear(), now.getMonth() - 1);
+      dateStart = startOfMonth(lm.getFullYear(), lm.getMonth());
+      dateEnd = endOfMonth(lm.getFullYear(), lm.getMonth());
+    } else if (periodPreset === "last_3_months") {
+      const s = new Date(now.getFullYear(), now.getMonth() - 2);
+      dateStart = startOfMonth(s.getFullYear(), s.getMonth());
+      dateEnd = endOfMonth(now.getFullYear(), now.getMonth());
+    } else if (periodPreset === "custom") {
+      dateStart = startOfMonth(customYear, customMonth);
+      dateEnd = endOfMonth(customYear, customMonth);
+    } else if (periodPreset === "single_day" && singleDay) {
+      const d = new Date(singleDay + "T00:00:00");
+      dateStart = startOfDay(d);
+      dateEnd = endOfDay(d);
+    }
+    return { dateStart, dateEnd };
+  }, [periodPreset, customYear, customMonth, singleDay]);
+
+  const filtered = useMemo(() => records.filter(r => {
+    if (selectedUser !== "all" && String(r.userId) !== selectedUser) return false;
+    if (selectedDept !== "all" && r.department !== selectedDept) return false;
+    if (dateStart && dateEnd) {
+      const ts = new Date(r.timestamp);
+      if (ts < dateStart || ts > dateEnd) return false;
+    }
+    return true;
+  }), [records, selectedUser, selectedDept, dateStart, dateEnd]);
+
+  const today = useMemo(() => {
+    const s = startOfDay(now);
+    const e = endOfDay(now);
+    return records.filter(r => { const ts = new Date(r.timestamp); return ts >= s && ts <= e; }).length;
+  }, [records]);
+
+  const deptCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const r of filtered) map[r.department] = (map[r.department] || 0) + 1;
+    return map;
+  }, [filtered]);
+
+  const userMap = useMemo(() => {
+    const map = new Map<string, { name: string; totals: Record<string, number>; total: number }>();
+    for (const r of filtered) {
+      const key = String(r.userId ?? "__unknown__");
+      if (!map.has(key)) map.set(key, { name: r.userName || "Unknown", totals: {}, total: 0 });
+      const e = map.get(key)!;
+      e.totals[r.department] = (e.totals[r.department] || 0) + 1;
+      e.total++;
+    }
+    return map;
+  }, [filtered]);
+
+  const activeDepts = useMemo(() => Array.from(new Set(filtered.map(r => r.department))), [filtered]);
+
+  const userSummary = useMemo(() => {
+    const rows = Array.from(userMap.entries()).map(([id, d]) => ({ userId: id, ...d }));
+    return rows.sort((a, b) => {
+      if (sortField === "total") return sortAsc ? a.total - b.total : b.total - a.total;
+      const va = a.totals[sortField] || 0;
+      const vb = b.totals[sortField] || 0;
+      return sortAsc ? va - vb : vb - va;
+    });
+  }, [userMap, sortField, sortAsc]);
+
+  const maxTotal = userSummary[0]?.total || 1;
+
+  const timeData = useMemo(() => {
+    const map = new Map<string, Record<string, number>>();
+    for (const r of filtered) {
+      const key = getDateKey(new Date(r.timestamp), timeRange);
+      if (!map.has(key)) map.set(key, {});
+      const e = map.get(key)!;
+      e[r.department] = (e[r.department] || 0) + 1;
+    }
+    const keys = Array.from(new Set([...map.keys()])).sort();
+    return keys.map(key => {
+      const data = map.get(key) || {};
+      const entry: any = { date: key, label: formatDateLabel(key, timeRange) };
+      for (const d of activeDepts) entry[d] = data[d] || 0;
+      return entry;
+    });
+  }, [filtered, timeRange, activeDepts]);
+
+  const logRows = useMemo(() => [...filtered].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [filtered]);
+  const logPageCount = Math.max(1, Math.ceil(logRows.length / LOG_PAGE_SIZE));
+  const pagedLog = logRows.slice((logPage - 1) * LOG_PAGE_SIZE, logPage * LOG_PAGE_SIZE);
+
+  function toggleSort(field: string) {
+    if (sortField === field) setSortAsc(v => !v);
+    else { setSortField(field); setSortAsc(false); }
+  }
+
+  function SortIcon({ field }: { field: string }) {
+    if (sortField !== field) return <ChevronDown className="h-3 w-3 opacity-30 inline ml-1" />;
+    return sortAsc
+      ? <ChevronUp className="h-3 w-3 inline ml-1 text-primary" />
+      : <ChevronDown className="h-3 w-3 inline ml-1 text-primary" />;
+  }
+
+  const periodLabel = periodPreset === "today" ? "Today"
+    : periodPreset === "last_7_days" ? "Last 7 Days"
+    : periodPreset === "this_month" ? "This Month"
+    : periodPreset === "last_month" ? "Last Month"
+    : periodPreset === "last_3_months" ? "Last 3 Months"
+    : periodPreset === "single_day" && singleDay ? new Date(singleDay + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : periodPreset === "custom" ? new Date(customYear, customMonth).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : "All Time";
+
+  if (isLoading) {
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
+        <div className="grid grid-cols-4 gap-4"><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
         <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
-  let dateStart: Date | null = null;
-  let dateEnd: Date | null = null;
-
-  if (periodPreset === "last_7_days") {
-    dateEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    dateStart = new Date(dateEnd);
-    dateStart.setDate(dateStart.getDate() - 6);
-    dateStart.setHours(0, 0, 0, 0);
-  } else if (periodPreset === "this_month") {
-    dateStart = getMonthStart(now.getFullYear(), now.getMonth());
-    dateEnd = getMonthEnd(now.getFullYear(), now.getMonth());
-  } else if (periodPreset === "last_month") {
-    const lm = new Date(now.getFullYear(), now.getMonth() - 1);
-    dateStart = getMonthStart(lm.getFullYear(), lm.getMonth());
-    dateEnd = getMonthEnd(lm.getFullYear(), lm.getMonth());
-  } else if (periodPreset === "last_3_months") {
-    const start = new Date(now.getFullYear(), now.getMonth() - 2);
-    dateStart = getMonthStart(start.getFullYear(), start.getMonth());
-    dateEnd = getMonthEnd(now.getFullYear(), now.getMonth());
-  } else if (periodPreset === "custom") {
-    dateStart = getMonthStart(customYear, customMonth);
-    dateEnd = getMonthEnd(customYear, customMonth);
-  } else if (periodPreset === "single_day" && singleDay) {
-    const d = new Date(singleDay + "T00:00:00");
-    dateStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-    dateEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-  }
-
-  const periodLabel = periodPreset === "last_7_days" ? "Last 7 Days"
-    : periodPreset === "this_month" ? "This Month"
-    : periodPreset === "last_month" ? "Last Month"
-    : periodPreset === "last_3_months" ? "Last 3 Months"
-    : periodPreset === "single_day" && singleDay ? new Date(singleDay + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : periodPreset === "custom" ? formatMonthYear(customYear, customMonth)
-    : "All Time";
-
-  const filtered = (activities || []).filter(a => {
-    if (selectedUser !== "all" && String(a.userId) !== selectedUser) return false;
-    if (selectedSource !== "all" && a.source !== selectedSource) return false;
-    if (dateStart && dateEnd) {
-      const ts = new Date(a.timestamp);
-      if (ts < dateStart || ts > dateEnd) return false;
-    }
-    return true;
-  });
-
-  function navigateMonth(direction: number) {
-    const d = new Date(customYear, customMonth + direction);
-    setCustomYear(d.getFullYear());
-    setCustomMonth(d.getMonth());
-    setPeriodPreset("custom");
-  }
-
-  const totalActions = filtered.length;
-  const totalCompleted = filtered.filter(isCompletedAction).length;
-
-  const sourceBreakdown = TRACKER_SOURCES.map(s => {
-    const sourceActs = filtered.filter(a => a.source === s.key);
-    return {
-      ...s,
-      total: sourceActs.length,
-      completed: sourceActs.filter(isCompletedAction).length,
-    };
-  }).filter(s => s.total > 0);
-
-  const userMap = new Map<number, { name: string; totals: Record<string, number>; total: number }>();
-  for (const a of filtered) {
-    if (!a.userId) continue;
-    if (!userMap.has(a.userId)) {
-      userMap.set(a.userId, {
-        name: a.userName || "Unknown",
-        totals: {},
-        total: 0,
-      });
-    }
-    const entry = userMap.get(a.userId)!;
-    entry.totals[a.source] = (entry.totals[a.source] || 0) + 1;
-    entry.total++;
-  }
-
-  const userSummary = Array.from(userMap.entries())
-    .map(([id, data]) => ({ userId: id, ...data }))
-    .sort((a, b) => b.total - a.total);
-
-  const timeMap = new Map<string, Record<string, number>>();
-  for (const a of filtered) {
-    const key = getDateKey(new Date(a.timestamp), timeRange);
-    if (!timeMap.has(key)) timeMap.set(key, {});
-    const entry = timeMap.get(key)!;
-    entry[a.source] = (entry[a.source] || 0) + 1;
-    entry["_total"] = (entry["_total"] || 0) + 1;
-  }
-
-  const allTimeKeys: string[] = [];
-  if (dateStart && dateEnd) {
-    if (timeRange === "day") {
-      const cursor = new Date(dateStart);
-      while (cursor <= dateEnd) {
-        allTimeKeys.push(getDateKey(cursor, "day"));
-        cursor.setDate(cursor.getDate() + 1);
-      }
-    } else if (timeRange === "week") {
-      const cursor = new Date(dateStart);
-      cursor.setDate(cursor.getDate() - cursor.getDay());
-      while (cursor <= dateEnd) {
-        allTimeKeys.push(getDateKey(cursor, "week"));
-        cursor.setDate(cursor.getDate() + 7);
-      }
-    } else {
-      const cursor = new Date(dateStart);
-      while (cursor <= dateEnd) {
-        allTimeKeys.push(getDateKey(cursor, "month"));
-        cursor.setMonth(cursor.getMonth() + 1);
-      }
-    }
-  }
-
-  const keysToUse = allTimeKeys.length > 0 ? allTimeKeys : Array.from(timeMap.keys());
-  const activeSources = Array.from(new Set(filtered.map(a => a.source)));
-  const timeData = keysToUse
-    .map(key => {
-      const data = timeMap.get(key) || {};
-      const entry: any = { date: key, label: formatDateLabel(key, timeRange) };
-      for (const src of activeSources) {
-        entry[src] = data[src] || 0;
-      }
-      entry.total = data["_total"] || 0;
-      return entry;
-    })
-    .sort((a, b) => a.date.localeCompare(b.date));
-
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold tracking-tight" data-testid="text-productivity-title">Productivity</h1>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select value={selectedSource} onValueChange={setSelectedSource}>
-            <SelectTrigger className="w-[180px]" data-testid="select-productivity-source">
-              <SelectValue placeholder="All Trackers" />
+    <div className="p-6 space-y-5 animate-fade-in">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" data-testid="text-productivity-title">
+            <TrendingUp className="h-6 w-6 text-primary" />
+            Productivity
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Tracking cases marked <span className="font-medium text-emerald-600">Done</span> across all departments</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={selectedDept} onValueChange={v => { setSelectedDept(v); setLogPage(1); }}>
+            <SelectTrigger className="w-[165px]" data-testid="select-productivity-dept">
+              <SelectValue placeholder="All Departments" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Trackers</SelectItem>
-              {TRACKER_SOURCES.map(s => (
-                <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-              ))}
+              <SelectItem value="all">All Departments</SelectItem>
+              {DEPARTMENTS.map(d => <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={selectedUser} onValueChange={setSelectedUser}>
-            <SelectTrigger className="w-[180px]" data-testid="select-productivity-user">
-              <SelectValue placeholder="All Users" />
+          <Select value={selectedUser} onValueChange={v => { setSelectedUser(v); setLogPage(1); }}>
+            <SelectTrigger className="w-[165px]" data-testid="select-productivity-user">
+              <SelectValue placeholder="All Staff" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
-              {users?.filter(u => u.active).slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map(u => (
+              <SelectItem value="all">All Staff</SelectItem>
+              {users.filter(u => u.active).sort((a, b) => a.fullName.localeCompare(b.fullName)).map(u => (
                 <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-            <SelectTrigger className="w-[130px]" data-testid="select-productivity-range">
+            <SelectTrigger className="w-[110px]" data-testid="select-productivity-range">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -315,133 +304,159 @@ export default function ProductivityPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex gap-1">
-          {(["last_7_days", "this_month", "last_month", "last_3_months", "all_time"] as PeriodPreset[]).map(p => (
-            <Button
-              key={p}
-              size="sm"
-              variant={periodPreset === p ? "default" : "outline"}
-              onClick={() => {
-                setPeriodPreset(p);
-                setSingleDay("");
-                if (p === "last_7_days") setTimeRange("day");
-              }}
-              data-testid={`button-period-${p}`}
-            >
-              {p === "last_7_days" ? "Last 7 Days" : p === "this_month" ? "This Month" : p === "last_month" ? "Last Month" : p === "last_3_months" ? "Last 3 Months" : "All Time"}
-            </Button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1 ml-2 border rounded-md px-1">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateMonth(-1)} data-testid="button-prev-month">
-            <ChevronLeft className="h-4 w-4" />
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {(["today", "last_7_days", "this_month", "last_month", "last_3_months", "all_time"] as PeriodPreset[]).map(p => (
+          <Button key={p} size="sm" variant={periodPreset === p ? "default" : "outline"}
+            onClick={() => { setPeriodPreset(p); setSingleDay(""); setLogPage(1); if (p === "last_7_days" || p === "today") setTimeRange("day"); }}
+            data-testid={`button-period-${p}`}>
+            {p === "today" ? "Today" : p === "last_7_days" ? "Last 7 Days" : p === "this_month" ? "This Month" : p === "last_month" ? "Last Month" : p === "last_3_months" ? "Last 3 Months" : "All Time"}
           </Button>
-          <span className="text-sm font-medium min-w-[120px] text-center" data-testid="text-current-period">
-            {formatMonthYear(customYear, customMonth)}
-          </span>
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigateMonth(1)} data-testid="button-next-month">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-1 ml-2 border rounded-md px-2 py-1">
+        ))}
+        <div className="flex items-center gap-1 ml-1 border rounded-md px-2 py-1">
           <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
-          <Input
-            type="date"
-            value={singleDay}
-            onChange={(e) => {
-              setSingleDay(e.target.value);
-              if (e.target.value) {
-                setPeriodPreset("single_day");
-                setTimeRange("day");
-              }
-            }}
-            className="h-7 w-[140px] border-0 p-0 text-sm shadow-none focus-visible:ring-0"
-            data-testid="input-productivity-date"
-          />
+          <Input type="date" value={singleDay}
+            onChange={e => { setSingleDay(e.target.value); if (e.target.value) { setPeriodPreset("single_day"); setTimeRange("day"); setLogPage(1); } }}
+            className="h-7 w-[135px] border-0 p-0 text-sm shadow-none focus-visible:ring-0"
+            data-testid="input-productivity-date" />
         </div>
-        <span className="text-sm text-muted-foreground ml-2">Showing: {periodLabel}</span>
+        <span className="text-sm text-muted-foreground ml-1 italic">Showing: {periodLabel}</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Total Actions</p>
-            <p className="text-3xl font-bold mt-1" data-testid="text-total-actions">{totalActions}</p>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Completions</p>
+              <p className="text-2xl font-bold" data-testid="text-total-completions">{filtered.length}</p>
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Key Completions</p>
-            <p className="text-3xl font-bold mt-1 text-emerald-600" data-testid="text-total-completed">{totalCompleted}</p>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900">
+              <Users className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Active Staff</p>
+              <p className="text-2xl font-bold text-blue-600" data-testid="text-active-staff">{userMap.size}</p>
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Active Employees</p>
-            <p className="text-3xl font-bold mt-1 text-blue-600" data-testid="text-active-employees">{userMap.size}</p>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900">
+              <CalendarDays className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Completed Today</p>
+              <p className="text-2xl font-bold text-amber-600" data-testid="text-today-completions">{today}</p>
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Trackers Active</p>
-            <p className="text-3xl font-bold mt-1 text-purple-600" data-testid="text-active-trackers">{sourceBreakdown.length}</p>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
+              <Trophy className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Top Performer</p>
+              <p className="text-sm font-bold text-purple-600 truncate max-w-[110px]" data-testid="text-top-performer">
+                {userSummary[0]?.name || "—"}
+              </p>
+              {userSummary[0] && <p className="text-xs text-muted-foreground">{userSummary[0].total} done</p>}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        {TRACKER_SOURCES.map(s => {
-          const data = sourceBreakdown.find(sb => sb.key === s.key);
-          const SIcon = s.icon;
-          return (
-            <Card key={s.key} className={`cursor-pointer transition-all ${selectedSource === s.key ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
-              onClick={() => setSelectedSource(selectedSource === s.key ? "all" : s.key)}
-              data-testid={`card-source-${s.key}`}
-            >
-              <CardContent className="p-3 text-center">
-                <SIcon className={`h-5 w-5 mx-auto mb-1 ${s.color}`} />
-                <p className="text-xs text-muted-foreground truncate">{s.label}</p>
-                <p className="text-xl font-bold mt-0.5">{data?.total || 0}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">By Department</h2>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-9 gap-2">
+          {DEPARTMENTS.map(d => {
+            const count = deptCounts[d.key] || 0;
+            const DIcon = d.icon;
+            const active = selectedDept === d.key;
+            return (
+              <Card key={d.key}
+                className={`cursor-pointer transition-all hover:shadow-md ${active ? "ring-2 ring-primary" : ""}`}
+                onClick={() => { setSelectedDept(active ? "all" : d.key); setLogPage(1); }}
+                data-testid={`card-dept-${d.key}`}>
+                <CardContent className="p-2.5 text-center">
+                  <DIcon className={`h-4 w-4 mx-auto mb-1 ${d.color}`} />
+                  <p className="text-[10px] text-muted-foreground leading-tight truncate">{d.label}</p>
+                  <p className={`text-lg font-bold mt-0.5 ${count > 0 ? d.color : "text-muted-foreground"}`}>{count}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
-      <Tabs defaultValue="chart" className="space-y-4">
+      <Tabs defaultValue="log" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="chart" data-testid="tab-chart">Activity Over Time</TabsTrigger>
+          <TabsTrigger value="log" data-testid="tab-log">Activity Log</TabsTrigger>
           <TabsTrigger value="employees" data-testid="tab-employees">By Employee</TabsTrigger>
+          <TabsTrigger value="chart" data-testid="tab-chart">Over Time</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chart">
+        <TabsContent value="log">
           <Card>
-            <CardHeader className="pb-2">
-              <h2 className="text-lg font-semibold">Actions Over Time</h2>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <h2 className="text-base font-semibold">Completion Log</h2>
+              <span className="text-sm text-muted-foreground">{filtered.length} records</span>
             </CardHeader>
-            <CardContent>
-              {timeData.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">No activity data yet</p>
+            <CardContent className="p-0">
+              {logRows.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-10 text-center">No completions found for the selected filters.</p>
               ) : (
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={timeData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Legend />
-                    {activeSources.map(src => (
-                      <Bar
-                        key={src}
-                        dataKey={src}
-                        name={TRACKER_SOURCES.find(s => s.key === src)?.label || src}
-                        fill={TRACKER_COLORS[src] || "hsl(0 0% 60%)"}
-                        stackId="stack"
-                      />
-                    ))}
-                  </BarChart>
-                </ResponsiveContainer>
+                <>
+                  <div className="overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[130px]">Date</TableHead>
+                          <TableHead className="min-w-[90px]">Time</TableHead>
+                          <TableHead className="min-w-[150px]">Employee</TableHead>
+                          <TableHead className="min-w-[120px]">Department</TableHead>
+                          <TableHead className="min-w-[200px]">Patient / Case</TableHead>
+                          <TableHead className="min-w-[140px]">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pagedLog.map((r, i) => {
+                          const { date, time } = formatTs(r.timestamp);
+                          const dept = getDept(r.department);
+                          return (
+                            <TableRow key={`${r.department}-${r.id}-${i}`} data-testid={`row-log-${i}`}>
+                              <TableCell className="text-sm">{date}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{time}</TableCell>
+                              <TableCell className="font-medium text-sm">{r.userName || "—"}</TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${dept.badge}`}>
+                                  {r.department}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-sm">{r.patientName || "—"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">Status → Done</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {logPageCount > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t">
+                      <span className="text-sm text-muted-foreground">Page {logPage} of {logPageCount}</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" disabled={logPage <= 1} onClick={() => setLogPage(p => p - 1)} data-testid="button-log-prev">Previous</Button>
+                        <Button size="sm" variant="outline" disabled={logPage >= logPageCount} onClick={() => setLogPage(p => p + 1)} data-testid="button-log-next">Next</Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -450,47 +465,54 @@ export default function ProductivityPage() {
         <TabsContent value="employees">
           <Card>
             <CardHeader className="pb-2">
-              <h2 className="text-lg font-semibold">Employee Productivity</h2>
+              <h2 className="text-base font-semibold">Employee Leaderboard</h2>
+              <p className="text-sm text-muted-foreground">Click column headers to sort. Counts reflect "Done" completions only.</p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {userSummary.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">No activity data yet</p>
+                <p className="text-muted-foreground text-sm py-10 text-center">No data for selected filters.</p>
               ) : (
                 <div className="overflow-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[150px]">Employee</TableHead>
-                        {TRACKER_SOURCES.filter(s => activeSources.includes(s.key)).map(s => (
-                          <TableHead key={s.key} className="text-center min-w-[80px] text-xs">{s.label}</TableHead>
+                        <TableHead className="w-10 text-center">#</TableHead>
+                        <TableHead className="min-w-[150px] cursor-pointer select-none" onClick={() => toggleSort("total")}>
+                          Employee <SortIcon field="total" />
+                        </TableHead>
+                        {DEPARTMENTS.filter(d => activeDepts.includes(d.key)).map(d => (
+                          <TableHead key={d.key} className="text-center min-w-[80px] text-xs cursor-pointer select-none" onClick={() => toggleSort(d.key)}>
+                            {d.label} <SortIcon field={d.key} />
+                          </TableHead>
                         ))}
-                        <TableHead className="text-center min-w-[80px]">Total</TableHead>
+                        <TableHead className="text-center min-w-[70px] cursor-pointer select-none" onClick={() => toggleSort("total")}>
+                          Total <SortIcon field="total" />
+                        </TableHead>
                         <TableHead className="min-w-[120px]">Progress</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {userSummary.map((u) => (
-                        <TableRow key={u.userId} data-testid={`row-productivity-${u.userId}`}>
+                      {userSummary.map((u, idx) => (
+                        <TableRow key={u.userId} data-testid={`row-employee-${u.userId}`}>
+                          <TableCell className="text-center">
+                            {idx === 0 ? <Trophy className="h-4 w-4 text-amber-500 mx-auto" /> : <span className="text-sm text-muted-foreground">{idx + 1}</span>}
+                          </TableCell>
                           <TableCell className="font-medium text-sm">{u.name}</TableCell>
-                          {TRACKER_SOURCES.filter(s => activeSources.includes(s.key)).map(s => (
-                            <TableCell key={s.key} className="text-center text-sm">
-                              <span className={u.totals[s.key] ? "font-semibold" : "text-muted-foreground"}>
-                                {u.totals[s.key] || "-"}
+                          {DEPARTMENTS.filter(d => activeDepts.includes(d.key)).map(d => (
+                            <TableCell key={d.key} className="text-center text-sm">
+                              <span className={u.totals[d.key] ? `font-semibold ${d.color}` : "text-muted-foreground"}>
+                                {u.totals[d.key] || "—"}
                               </span>
                             </TableCell>
                           ))}
                           <TableCell className="text-center font-bold text-sm">{u.total}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="w-20 h-2.5 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-emerald-500 rounded-full transition-all"
-                                  style={{ width: `${userSummary[0]?.total ? (u.total / userSummary[0].total) * 100 : 0}%` }}
-                                />
+                              <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full transition-all"
+                                  style={{ width: `${Math.round((u.total / maxTotal) * 100)}%` }} />
                               </div>
-                              <span className="text-xs text-muted-foreground">
-                                {userSummary[0]?.total ? Math.round((u.total / userSummary[0].total) * 100) : 0}%
-                              </span>
+                              <span className="text-xs text-muted-foreground">{Math.round((u.total / maxTotal) * 100)}%</span>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -498,6 +520,33 @@ export default function ProductivityPage() {
                     </TableBody>
                   </Table>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="chart">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <h2 className="text-base font-semibold">Completions Over Time</h2>
+              <span className="text-sm text-muted-foreground capitalize">{timeRange === "day" ? "Daily" : timeRange === "week" ? "Weekly" : "Monthly"} view</span>
+            </CardHeader>
+            <CardContent>
+              {timeData.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-10 text-center">No data for selected filters.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={380}>
+                  <BarChart data={timeData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Legend />
+                    {activeDepts.map(dept => (
+                      <Bar key={dept} dataKey={dept} name={dept} fill={DEPT_CHART_COLORS[dept] || "hsl(0 0% 60%)"} stackId="stack" radius={activeDepts.indexOf(dept) === activeDepts.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </CardContent>
           </Card>
