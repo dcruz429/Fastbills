@@ -50,7 +50,7 @@ export function ScrollSync({ children, className }: Props) {
   }, []);
 
   return (
-    <div className={cn("flex flex-col min-h-0 flex-1 overflow-hidden", className)}>
+    <div className={cn("flex flex-col min-h-0 flex-1 min-w-0 overflow-hidden", className)}>
       <div
         ref={topBarRef}
         className="scroll-sync-top shrink-0"
