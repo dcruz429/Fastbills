@@ -181,8 +181,8 @@ export default function BoardPage() {
     sortField ? sortTasks(tasks, sortField, sortDir) : tasks;
 
   const tasksByBucket = {
-    ready_for_billing: applySorting(filteredTasks.filter((t) => t.bucket === "ready_for_billing")),
-    done: applySorting(filteredTasks.filter((t) => t.bucket === "done")),
+    ready_for_billing: applySorting(filteredTasks.filter((t) => t.bucket === "ready_for_billing" && t.status !== "done")),
+    done: applySorting(filteredTasks.filter((t) => t.bucket === "done" || (t.bucket === "ready_for_billing" && t.status === "done"))),
   };
 
   const toggleBucket = (bucket: string) => {
