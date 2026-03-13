@@ -413,7 +413,7 @@ export default function VerificationPage() {
                     <ChevronDown className={cn("h-4 w-4 transition-transform", doneOpen ? "" : "-rotate-90")} />
                     <CheckCircle2 className="h-4 w-4" />
                     <span>DONE</span>
-                    <span className="text-xs font-normal ml-1">({doneSorted.length})</span>
+                    <span className="text-xs font-normal ml-auto">({doneSorted.length})</span>
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>

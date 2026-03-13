@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, CheckCircle2 } from "lucide-react";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -468,9 +468,11 @@ export default function PostingPage() {
       {doneRecords.length > 0 && (
         <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">
           <CollapsibleTrigger asChild>
-            <button className="w-full flex items-center justify-between px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 rounded-lg text-sm font-semibold transition-colors text-emerald-700 dark:text-emerald-400" data-testid="collapsible-done-section">
-              <span>Done ({doneRecords.length})</span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "rotate-180" : ""}`} />
+            <button className="w-full flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 rounded-lg text-sm font-semibold transition-colors text-emerald-700 dark:text-emerald-400" data-testid="collapsible-done-section">
+              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "" : "-rotate-90"}`} />
+              <CheckCircle2 className="h-4 w-4" />
+              <span>DONE</span>
+              <span className="text-xs font-normal ml-auto">({doneRecords.length})</span>
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent>
