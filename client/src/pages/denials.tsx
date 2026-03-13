@@ -20,6 +20,7 @@ import { Plus, Trash2, X, Search, History, Scale, ArrowUpDown, ArrowUp, ArrowDow
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
+import { ScrollSync } from "@/components/scroll-sync";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
@@ -497,7 +498,7 @@ export default function DenialsPage() {
       <div className="flex-1 flex flex-col min-h-0 gap-2">
       <Card className="flex-1 min-h-0 flex flex-col">
         <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
-          <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar">
+          <ScrollSync>
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
@@ -595,7 +596,7 @@ export default function DenialsPage() {
                 })}
               </TableBody>
             </Table>
-          </div>
+          </ScrollSync>
         </CardContent>
       </Card>
 

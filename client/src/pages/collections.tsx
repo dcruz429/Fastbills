@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-badge";
+import { ScrollSync } from "@/components/scroll-sync";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -702,7 +703,7 @@ export default function CollectionsPage() {
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 gap-2">
-      <div className="border rounded-lg overflow-auto flex-1 min-h-0 always-show-scrollbar">
+      <ScrollSync className="border rounded-lg">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-20 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <TableRow>
@@ -770,7 +771,7 @@ export default function CollectionsPage() {
             )}
           </TableBody>
         </Table>
-      </div>
+      </ScrollSync>
 
       {doneRecords.length > 0 && (
         <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">

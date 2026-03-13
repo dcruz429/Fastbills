@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
+import { ScrollSync } from "@/components/scroll-sync";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, CheckCircle2 } from "lucide-react";
@@ -461,7 +462,7 @@ export default function ChecksPage() {
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 gap-2">
-      <div className="flex-1 overflow-auto border rounded-lg">
+      <ScrollSync className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -526,7 +527,7 @@ export default function ChecksPage() {
             })}
           </TableBody>
         </Table>
-      </div>
+      </ScrollSync>
 
       {doneRecords.length > 0 && (
         <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">
