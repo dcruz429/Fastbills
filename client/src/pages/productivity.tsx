@@ -112,8 +112,6 @@ export default function ProductivityPage() {
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("this_month");
-  const [customYear, setCustomYear] = useState(now.getFullYear());
-  const [customMonth, setCustomMonth] = useState(now.getMonth());
   const [singleDay, setSingleDay] = useState("");
   const [sortField, setSortField] = useState<"total" | string>("total");
   const [sortAsc, setSortAsc] = useState(false);
@@ -149,16 +147,13 @@ export default function ProductivityPage() {
       const s = new Date(now.getFullYear(), now.getMonth() - 2);
       dateStart = startOfMonth(s.getFullYear(), s.getMonth());
       dateEnd = endOfMonth(now.getFullYear(), now.getMonth());
-    } else if (periodPreset === "custom") {
-      dateStart = startOfMonth(customYear, customMonth);
-      dateEnd = endOfMonth(customYear, customMonth);
     } else if (periodPreset === "single_day" && singleDay) {
       const d = new Date(singleDay + "T00:00:00");
       dateStart = startOfDay(d);
       dateEnd = endOfDay(d);
     }
     return { dateStart, dateEnd };
-  }, [periodPreset, customYear, customMonth, singleDay]);
+  }, [periodPreset, singleDay]);
 
   const filtered = useMemo(() => records.filter(r => {
     if (selectedUser !== "all" && String(r.userId) !== selectedUser) return false;
@@ -247,7 +242,6 @@ export default function ProductivityPage() {
     : periodPreset === "last_month" ? "Last Month"
     : periodPreset === "last_3_months" ? "Last 3 Months"
     : periodPreset === "single_day" && singleDay ? new Date(singleDay + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : periodPreset === "custom" ? new Date(customYear, customMonth).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "All Time";
 
   if (isLoading) {

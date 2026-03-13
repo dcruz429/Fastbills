@@ -99,7 +99,7 @@ export default function PostingPage() {
   });
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
-  const activeClinics = (allClinics || []).filter((c: any) => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
+  const activeClinics = (allClinics || []).sort((a, b) => a.name.localeCompare(b.name));
 
   const createMutation = useMutation({
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/postings", data),

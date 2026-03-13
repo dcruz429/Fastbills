@@ -147,8 +147,8 @@ export default function CollectionsPage() {
   const { data: issueTypeOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_issue_type"] });
   const { data: actionOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options/collection_action"] });
   const { data: statusOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "collection_status"] });
-  const activeUsers = (allUsers || []).filter(u => u.isActive !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
-  const activeClinics = (allClinics || []).filter(c => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
+  const activeUsers = (allUsers || []).filter(u => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  const activeClinics = (allClinics || []).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
 
   const formToPayload = (f: typeof emptyForm) => {

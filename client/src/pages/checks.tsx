@@ -110,7 +110,7 @@ export default function ChecksPage() {
   });
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
-  const activeClinics = (allClinics || []).filter((c: any) => c.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
+  const activeClinics = (allClinics || []).sort((a, b) => a.name.localeCompare(b.name));
 
   const assignedToOptions = (() => {
     const map = new Map<string, string>();
@@ -130,7 +130,7 @@ export default function ChecksPage() {
 
   const insuranceOptions = (() => {
     const set = new Set<string>();
-    (allInsurances || []).filter(i => i.isActive !== false).forEach(i => set.add(i.name));
+    (allInsurances || []).forEach(i => set.add(i.name));
     (checksList || []).forEach(d => { if (d.insurance) set.add(d.insurance); });
     return Array.from(set).sort();
   })();
@@ -639,7 +639,7 @@ export default function ChecksPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__clear__">-- None --</SelectItem>
-                    {(allInsurances || []).filter(i => i.isActive !== false).map(i => (
+                    {(allInsurances || []).map(i => (
                       <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
                     ))}
                   </SelectContent>

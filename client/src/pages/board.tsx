@@ -249,7 +249,7 @@ export default function BoardPage() {
           <SelectContent>
             <SelectItem value="all">All Assigned</SelectItem>
             <SelectItem value="unassigned">Unassigned</SelectItem>
-            {users?.filter(u => u.isActive !== false).slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map((u) => (
+            {users?.filter(u => u.active !== false).slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map((u) => (
               <SelectItem key={u.id} value={u.id.toString()}>{u.fullName}</SelectItem>
             ))}
           </SelectContent>
