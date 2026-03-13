@@ -53,8 +53,8 @@ export function ScrollSync({ children, className }: Props) {
     <div className={cn("flex flex-col min-h-0 flex-1 overflow-hidden", className)}>
       <div
         ref={topBarRef}
-        className="always-show-scrollbar shrink-0"
-        style={{ height: "10px", overflowY: "hidden" }}
+        className="scroll-sync-top shrink-0"
+        style={{ height: "10px" }}
         onScroll={onTopScroll}
       >
         <div ref={topInnerRef} style={{ height: "1px", minWidth: "100%" }} />
