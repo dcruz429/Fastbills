@@ -10,6 +10,7 @@ export function ScrollSync({ children, className }: Props) {
   const topBarRef = useRef<HTMLDivElement>(null);
   const topInnerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
   const syncingRef = useRef(false);
 
   const onTopScroll = useCallback(() => {
@@ -32,16 +33,17 @@ export function ScrollSync({ children, className }: Props) {
 
   useEffect(() => {
     const content = contentRef.current;
-    if (!content) return;
+    const inner = innerRef.current;
+    if (!content || !inner) return;
 
     const updateWidth = () => {
       if (topInnerRef.current) {
-        topInnerRef.current.style.width = `${content.scrollWidth}px`;
+        topInnerRef.current.style.width = `${inner.scrollWidth}px`;
       }
     };
 
     const observer = new ResizeObserver(updateWidth);
-    observer.observe(content);
+    observer.observe(inner);
     updateWidth();
 
     return () => observer.disconnect();
@@ -51,8 +53,8 @@ export function ScrollSync({ children, className }: Props) {
     <div className={cn("flex flex-col min-h-0 flex-1 overflow-hidden", className)}>
       <div
         ref={topBarRef}
-        className="overflow-x-auto overflow-y-hidden shrink-0"
-        style={{ height: "10px" }}
+        className="always-show-scrollbar shrink-0"
+        style={{ height: "10px", overflowY: "hidden" }}
         onScroll={onTopScroll}
       >
         <div ref={topInnerRef} style={{ height: "1px", minWidth: "100%" }} />
@@ -62,7 +64,9 @@ export function ScrollSync({ children, className }: Props) {
         className="overflow-auto flex-1 min-h-0 always-show-scrollbar"
         onScroll={onContentScroll}
       >
-        {children}
+        <div ref={innerRef}>
+          {children}
+        </div>
       </div>
     </div>
   );
