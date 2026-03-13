@@ -1428,7 +1428,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can create postings" });
       }
       const data: any = { ...req.body };
-      const dateFields = ["scannedDate", "postedDate"];
+      const dateFields = ["scannedDate", "postedDate", "depositDate"];
       for (const f of dateFields) {
         if (data[f]) { data[f] = new Date(data[f]); } else { data[f] = null; }
       }
@@ -1457,7 +1457,7 @@ export async function registerRoutes(
       const existing = await storage.getPosting(id);
       if (!existing) return res.status(404).json({ message: "Posting not found" });
       const data: any = { ...req.body };
-      const dateFields = ["scannedDate", "postedDate"];
+      const dateFields = ["scannedDate", "postedDate", "depositDate"];
       for (const f of dateFields) {
         if (data[f] !== undefined) { data[f] = data[f] ? new Date(data[f]) : null; }
       }
