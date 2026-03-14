@@ -78,6 +78,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
         bucket: task.bucket,
         dueDate: task.dueDate ? formatEST(new Date(task.dueDate), "yyyy-MM-dd") : "",
         ieDate: task.ieDate ? formatEST(new Date(task.ieDate), "yyyy-MM-dd") : "",
+        doa: task.doa ? formatEST(new Date(task.doa), "yyyy-MM-dd") : "",
         notes: task.notes || "",
         rtp: task.rtp || false,
         resolutionDate: task.resolutionDate ? formatEST(new Date(task.resolutionDate), "yyyy-MM-dd") : "",
@@ -137,6 +138,10 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
     if (editData.priority !== task?.priority) updates.priority = editData.priority;
     if (editData.status !== task?.status) updates.status = editData.status;
     if (editData.bucket !== task?.bucket) updates.bucket = editData.bucket;
+    const originalDoa = task?.doa ? formatEST(new Date(task.doa), "yyyy-MM-dd") : "";
+    if ((editData.doa || "") !== originalDoa) {
+      updates.doa = editData.doa || null;
+    }
     const originalIeDate = task?.ieDate ? formatEST(new Date(task.ieDate), "yyyy-MM-dd") : "";
     if (editData.ieDate !== originalIeDate) {
       updates.ieDate = editData.ieDate || null;
@@ -366,6 +371,18 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                     setEditData({ ...editData, ieDate, dueDate, priority });
                   }}
                   data-testid="input-task-ie-date"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">DOA</Label>
+                <Input
+                  type="date"
+                  value={editData.doa || ""}
+                  onChange={(e) => setEditData({ ...editData, doa: e.target.value })}
+                  data-testid="input-task-doa"
                 />
               </div>
             </div>

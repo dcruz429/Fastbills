@@ -1381,7 +1381,7 @@ export async function registerRoutes(
       const allUsers = await storage.getAllUsers();
       const allTasks = await storage.getAllTasks();
       const targetBucket = bucket || "for_verification";
-      const dateFields = ["inputDate", "ieDate", "dueDate", "resolutionDate"];
+      const dateFields = ["inputDate", "ieDate", "dueDate", "resolutionDate", "doa"];
       const results = { success: 0, updated: 0, errors: [] as string[] };
       for (let i = 0; i < rows.length; i++) {
         try {
