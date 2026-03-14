@@ -1378,29 +1378,73 @@ export async function registerRoutes(
       if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
       const allClinics = await storage.getAllClinics();
       const allInsurances = await storage.getAllInsurances();
+      const allUsers = await storage.getAllUsers();
       const allTasks = await storage.getAllTasks();
+      const targetBucket = bucket || "for_verification";
       const dateFields = ["inputDate", "ieDate", "dueDate", "resolutionDate"];
       const results = { success: 0, updated: 0, errors: [] as string[] };
       for (let i = 0; i < rows.length; i++) {
         try {
           const data: any = { ...rows[i] };
           if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
-          for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
+          for (const f of dateFields) {
+            if (f === "inputDate") {
+              data[f] = data[f] ? new Date(data[f]) : new Date();
+            } else {
+              data[f] = data[f] ? new Date(data[f]) : null;
+            }
+          }
           if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
-          if (data.clinic) {
-            const cl = allClinics.find(c => c.name.toLowerCase() === data.clinic.toLowerCase());
+
+          // Resolve clinic name → clinicId
+          const clinicName = data.clinic || "";
+          if (clinicName) {
+            const cl = allClinics.find(c => c.name.toLowerCase() === clinicName.toLowerCase());
             data.clinicId = cl?.id || null;
-            delete data.clinic;
+          } else {
+            data.clinicId = data.clinicId || null;
           }
-          if (data.insurance) {
-            const ins = allInsurances.find(i => i.name.toLowerCase() === data.insurance.toLowerCase());
+          delete data.clinic;
+
+          // Resolve insurance name → insuranceId
+          const insuranceName = data.insurance || "";
+          if (insuranceName) {
+            const ins = allInsurances.find(ins => ins.name.toLowerCase() === insuranceName.toLowerCase());
             data.insuranceId = ins?.id || null;
-            delete data.insurance;
+          } else {
+            data.insuranceId = data.insuranceId || null;
           }
+          delete data.insurance;
+
+          // Resolve assignedTo (name/username) → assignedUserId
+          const assignedName = data.assignedTo || "";
+          delete data.assignedTo;
+          if (assignedName) {
+            const nameLower = assignedName.toLowerCase().trim();
+            const matchedUser = allUsers.find(u =>
+              `${u.firstName} ${u.lastName}`.toLowerCase() === nameLower ||
+              u.username.toLowerCase() === nameLower
+            );
+            data.assignedUserId = matchedUser?.id || null;
+          } else {
+            data.assignedUserId = data.assignedUserId || null;
+          }
+
           if (!data.status) data.status = "unassigned";
           if (!data.priority) data.priority = "low";
-          data.bucket = bucket || "for_verification";
-          const match = allTasks.find(t => t.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && t.bucket === data.bucket);
+          data.bucket = targetBucket;
+
+          // Duplicate check: patientName + chartNumber + bucket (most specific);
+          // fall back to patientName + clinicId + bucket if no chartNumber
+          const patLower = data.patientName.toLowerCase().trim();
+          const hasChart = !!(data.chartNumber || "").trim();
+          const match = allTasks.find(t => {
+            if (t.patientName?.toLowerCase().trim() !== patLower) return false;
+            if (t.bucket !== targetBucket) return false;
+            if (hasChart) return (t.chartNumber || "").toLowerCase().trim() === (data.chartNumber || "").toLowerCase().trim();
+            return t.clinicId === data.clinicId;
+          });
+
           if (match) {
             await storage.updateTask(match.id, data);
             await storage.createTaskActivity({ taskId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
