@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import type { TaskWithRelations, Clinic, User } from "@shared/schema";
 
-type SortField = "patientName" | "clinic" | "insurance" | "ieDate" | "dueDate" | "priority" | "status" | "assigned";
+type SortField = "patientName" | "clinic" | "insurance" | "ieDate" | "dueDate" | "doa" | "priority" | "status" | "assigned";
 type SortDir = "asc" | "desc";
 
 const priorityOrder: Record<string, number> = { low: 0, medium: 1, high: 2, critical: 3 };
@@ -65,6 +65,9 @@ function sortTasks(tasks: TaskWithRelations[], field: SortField, dir: SortDir): 
         break;
       case "dueDate":
         cmp = (a.dueDate ? new Date(a.dueDate).getTime() : 0) - (b.dueDate ? new Date(b.dueDate).getTime() : 0);
+        break;
+      case "doa":
+        cmp = (a.doa ? new Date(a.doa).getTime() : 0) - (b.doa ? new Date(b.doa).getTime() : 0);
         break;
       case "priority":
         cmp = (priorityOrder[a.priority] ?? 0) - (priorityOrder[b.priority] ?? 0);
@@ -342,6 +345,7 @@ export default function VerificationPage() {
                             { field: "insurance" as SortField, label: "Insurance", cls: "px-2", hide: "hidden lg:table-cell" },
                             { field: "ieDate" as SortField, label: "IE Date", cls: "px-2", hide: "hidden lg:table-cell" },
                             { field: "dueDate" as SortField, label: "Due Date", cls: "px-2", hide: "" },
+                            { field: "doa" as SortField, label: "DOA", cls: "px-2", hide: "" },
                             { field: "priority" as SortField, label: "Priority", cls: "px-2", hide: "" },
                             { field: "status" as SortField, label: "Status", cls: "px-2", hide: "" },
                             { field: "assigned" as SortField, label: "Assigned", cls: "px-3 min-w-[140px]", hide: "hidden md:table-cell" },
@@ -362,7 +366,6 @@ export default function VerificationPage() {
                               </div>
                             </th>
                           ))}
-                          <th className="text-left py-2 px-2 font-medium">DOA</th>
                           <th className="text-left py-2 px-3 font-medium w-8"></th>
                         </tr>
                       </thead>
