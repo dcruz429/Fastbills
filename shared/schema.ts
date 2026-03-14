@@ -679,6 +679,44 @@ export const ROLE_LABELS: Record<string, string> = {
   case_manager: "Case Manager",
 };
 
+export const ceoBox = pgTable("ceo_box", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  work: text("work"),
+  dateOfLetter: timestamp("date_of_letter"),
+  sender: text("sender"),
+  company: text("company"),
+  clinic: text("clinic"),
+  action: text("action"),
+  status: text("status").notNull().default("todo"),
+  dueDate: timestamp("due_date"),
+  priority: text("priority").notNull().default("medium"),
+  attachments: text("attachments").array(),
+  createdById: integer("created_by_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCeoBoxSchema = createInsertSchema(ceoBox).omit({ id: true, createdAt: true, updatedAt: true, createdById: true });
+export type InsertCeoBox = z.infer<typeof insertCeoBoxSchema>;
+export type CeoBox = typeof ceoBox.$inferSelect;
+
+export const CEO_USERS = ["Maria Serrano", "Dr. Al Manjoorsa", "David Cruz"] as const;
+export const DR_AL_NAME = "Dr. Al Manjoorsa";
+
+export const CEO_STATUS_LABELS: Record<string, string> = {
+  todo: "To Do",
+  working: "Working",
+  done: "Done",
+  closed: "Closed",
+};
+
+export const CEO_PRIORITY_LABELS: Record<string, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  urgent: "Urgent",
+};
+
 export const DROPDOWN_CATEGORIES = [
   { key: "denial_type", label: "Type of Denial" },
   { key: "filed_to", label: "Filed To" },
@@ -696,4 +734,7 @@ export const DROPDOWN_CATEGORIES = [
   { key: "denial_action", label: "Denial Action" },
   { key: "arbitration_action", label: "Arbitration Action" },
   { key: "checks_action", label: "Checks Action" },
+  { key: "ceo_sender", label: "CEO Box Sender" },
+  { key: "ceo_company", label: "CEO Box Company" },
+  { key: "ceo_action", label: "CEO Box Action" },
 ] as const;

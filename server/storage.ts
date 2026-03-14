@@ -80,6 +80,10 @@ import {
   type InsertClosed,
   type ClosedActivity,
   type InsertClosedActivity,
+  ceoBox,
+  type CeoBox,
+  type InsertCeoBox,
+  DR_AL_NAME,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -192,6 +196,12 @@ export interface IStorage {
   deleteClosed(id: number): Promise<void>;
   getClosedActivity(closedId: number): Promise<any[]>;
   createClosedActivity(data: InsertClosedActivity): Promise<ClosedActivity>;
+
+  getCeoBoxRecords(currentUserId: number, currentUserName: string): Promise<(CeoBox & { creatorName?: string })[]>;
+  getCeoBoxRecord(id: number): Promise<CeoBox | undefined>;
+  createCeoBoxRecord(data: Partial<CeoBox>, userId: number): Promise<CeoBox>;
+  updateCeoBoxRecord(id: number, data: Partial<CeoBox>): Promise<CeoBox | undefined>;
+  deleteCeoBoxRecord(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -936,6 +946,56 @@ export class DatabaseStorage implements IStorage {
   async createClosedActivity(data: InsertClosedActivity): Promise<ClosedActivity> {
     const [activity] = await db.insert(closedActivity).values(data).returning();
     return activity;
+  }
+
+  async getCeoBoxRecords(currentUserId: number, currentUserName: string): Promise<(CeoBox & { creatorName?: string })[]> {
+    const rows = await db
+      .select({
+        id: ceoBox.id,
+        work: ceoBox.work,
+        dateOfLetter: ceoBox.dateOfLetter,
+        sender: ceoBox.sender,
+        company: ceoBox.company,
+        clinic: ceoBox.clinic,
+        action: ceoBox.action,
+        status: ceoBox.status,
+        dueDate: ceoBox.dueDate,
+        priority: ceoBox.priority,
+        attachments: ceoBox.attachments,
+        createdById: ceoBox.createdById,
+        createdAt: ceoBox.createdAt,
+        updatedAt: ceoBox.updatedAt,
+        creatorName: users.fullName,
+      })
+      .from(ceoBox)
+      .leftJoin(users, eq(ceoBox.createdById, users.id))
+      .orderBy(desc(ceoBox.createdAt));
+
+    return rows.filter(r => {
+      if (r.creatorName === DR_AL_NAME) {
+        return r.createdById === currentUserId;
+      }
+      return true;
+    }) as (CeoBox & { creatorName?: string })[];
+  }
+
+  async getCeoBoxRecord(id: number): Promise<CeoBox | undefined> {
+    const [row] = await db.select().from(ceoBox).where(eq(ceoBox.id, id));
+    return row;
+  }
+
+  async createCeoBoxRecord(data: Partial<CeoBox>, userId: number): Promise<CeoBox> {
+    const [row] = await db.insert(ceoBox).values({ ...data, createdById: userId, status: data.status || "todo", priority: data.priority || "medium" } as any).returning();
+    return row;
+  }
+
+  async updateCeoBoxRecord(id: number, data: Partial<CeoBox>): Promise<CeoBox | undefined> {
+    const [row] = await db.update(ceoBox).set({ ...data, updatedAt: new Date() }).where(eq(ceoBox.id, id)).returning();
+    return row;
+  }
+
+  async deleteCeoBoxRecord(id: number): Promise<void> {
+    await db.delete(ceoBox).where(eq(ceoBox.id, id));
   }
 }
 

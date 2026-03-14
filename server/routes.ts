@@ -8,7 +8,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db } from "./db";
-import { fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS } from "@shared/schema";
+import { fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS, ceoBox, CEO_USERS, DR_AL_NAME } from "@shared/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
@@ -2318,6 +2318,113 @@ export async function registerRoutes(
         denials: myDenials,
         arbitrations: myArbitrations,
       });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  const CEO_USER_NAMES: string[] = [...CEO_USERS];
+
+  function requireCeoAccess(req: Request, res: Response, next: NextFunction) {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    storage.getUser(req.session.userId).then(user => {
+      if (!user || !CEO_USER_NAMES.includes(user.fullName)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      next();
+    }).catch(() => res.status(500).json({ message: "Server error" }));
+  }
+
+  app.get("/api/ceo-box", requireCeoAccess, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const records = await storage.getCeoBoxRecords(user.id, user.fullName);
+      res.json(records);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/ceo-box", requireCeoAccess, upload.array("attachments"), async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const files = req.files as Express.Multer.File[];
+      const uploaded = files && files.length > 0 ? await saveUploadedFiles(files) : [];
+      const dateFields = ["dateOfLetter", "dueDate"];
+      const data: any = { ...req.body };
+      dateFields.forEach(f => {
+        if (data[f]) data[f] = new Date(data[f]);
+        else data[f] = null;
+      });
+      if (data.attachments) {
+        try { data.attachments = JSON.parse(data.attachments); } catch { data.attachments = []; }
+      }
+      data.attachments = [...(data.attachments || []), ...uploaded];
+      const record = await storage.createCeoBoxRecord(data, user.id);
+      res.json(record);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/ceo-box/:id", requireCeoAccess, upload.array("newAttachments"), async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const id = parseInt(req.params.id);
+      const existing = await storage.getCeoBoxRecord(id);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      const files = req.files as Express.Multer.File[];
+      const uploaded = files && files.length > 0 ? await saveUploadedFiles(files) : [];
+      const dateFields = ["dateOfLetter", "dueDate"];
+      const data: any = { ...req.body };
+      dateFields.forEach(f => {
+        if (data[f]) data[f] = new Date(data[f]);
+        else if (data[f] === "" || data[f] === null) data[f] = null;
+        else delete data[f];
+      });
+      if (data.attachments !== undefined) {
+        try { data.attachments = JSON.parse(data.attachments); } catch { data.attachments = existing.attachments || []; }
+      }
+      if (uploaded.length > 0) {
+        data.attachments = [...(data.attachments || existing.attachments || []), ...uploaded];
+      }
+      const updated = await storage.updateCeoBoxRecord(id, data);
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/ceo-box/:id", requireCeoAccess, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const id = parseInt(req.params.id);
+      const existing = await storage.getCeoBoxRecord(id);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      if (existing.createdById !== user.id) {
+        return res.status(403).json({ message: "You can only delete your own records" });
+      }
+      await storage.deleteCeoBoxRecord(id);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/ceo-box/:id/attachments/:index", requireCeoAccess, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const idx = parseInt(req.params.index);
+      const existing = await storage.getCeoBoxRecord(id);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      const atts = [...(existing.attachments || [])];
+      atts.splice(idx, 1);
+      const updated = await storage.updateCeoBoxRecord(id, { attachments: atts });
+      res.json(updated);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

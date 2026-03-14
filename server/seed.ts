@@ -41,6 +41,27 @@ const INSURANCE_NAMES = [
   "Voyager", "Zurich",
 ];
 
+export async function ensureCeoBoxUsers() {
+  async function hashPass(password: string): Promise<string> {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
+  }
+  const ceoUsers = [
+    { username: "mserrano", fullName: "Maria Serrano", role: "manager" as const },
+    { username: "almanjoorsa", fullName: "Dr. Al Manjoorsa", role: "manager" as const },
+    { username: "dcruz", fullName: "David Cruz", role: "manager" as const },
+  ];
+  for (const u of ceoUsers) {
+    const existing = await storage.getUserByUsername(u.username);
+    if (!existing) {
+      const password = await hashPass("pass123");
+      await storage.createUser({ username: u.username, password, fullName: u.fullName, role: u.role });
+      console.log(`Created CEO Box user: ${u.fullName} (${u.username})`);
+    }
+  }
+}
+
 export async function seedInsurances() {
   for (const name of INSURANCE_NAMES) {
     await db.insert(insurances).values({ name }).onConflictDoNothing();
@@ -51,6 +72,7 @@ export async function seedInsurances() {
 export async function seed() {
   await seedInsurances();
   await seedDropdownOptions();
+  await ensureCeoBoxUsers();
 
   const existingUsers = await storage.getAllUsers();
   if (existingUsers.length > 0) return;
