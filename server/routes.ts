@@ -505,6 +505,7 @@ export async function registerRoutes(
         db.select({
           id: taskActivity.id, userId: taskActivity.userId, action: taskActivity.action,
           timestamp: taskActivity.timestamp, userName: users.fullName, patientName: tasks.patientName,
+          bucket: tasks.bucket,
         }).from(taskActivity)
           .leftJoin(users, eq(taskActivity.userId, users.id))
           .leftJoin(tasks, eq(taskActivity.taskId, tasks.id))
@@ -569,7 +570,7 @@ export async function registerRoutes(
 
       const all = [
         ...verifActs.map(a => ({ ...a, department: "Verification" })),
-        ...billActs.map(a => ({ ...a, department: "Billing" })),
+        ...billActs.map(a => ({ ...a, department: a.bucket === "for_verification" ? "Verification" : "Billing", bucket: undefined })),
         ...denialActs.map(a => ({ ...a, department: "Denials" })),
         ...arbActs.map(a => ({ ...a, department: "Arbitration" })),
         ...collActs.map(a => ({ ...a, department: "Collections" })),
