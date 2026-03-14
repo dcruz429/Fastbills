@@ -127,9 +127,11 @@ export default function CeoBoxPage() {
   const createMutation = useMutation({
     mutationFn: async (data: typeof emptyForm) => {
       const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, String(v)); });
+      Object.entries(data).forEach(([k, v]) => { fd.append(k, v ?? ""); });
       attachmentFiles.forEach(f => fd.append("attachments", f));
-      return apiRequest("POST", "/api/ceo-box", fd);
+      const res = await fetch("/api/ceo-box", { method: "POST", body: fd, credentials: "include" });
+      if (!res.ok) { const t = await res.text(); throw new Error(t); }
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ceo-box"] });
@@ -143,10 +145,12 @@ export default function CeoBoxPage() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: typeof emptyForm }) => {
       const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, String(v)); });
+      Object.entries(data).forEach(([k, v]) => { fd.append(k, v ?? ""); });
       if (currentRecord?.attachments) fd.append("attachments", JSON.stringify(currentRecord.attachments));
       attachmentFiles.forEach(f => fd.append("newAttachments", f));
-      return apiRequest("PATCH", `/api/ceo-box/${id}`, fd);
+      const res = await fetch(`/api/ceo-box/${id}`, { method: "PATCH", body: fd, credentials: "include" });
+      if (!res.ok) { const t = await res.text(); throw new Error(t); }
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ceo-box"] });
