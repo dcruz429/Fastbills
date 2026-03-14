@@ -21,7 +21,8 @@ import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-ba
 import { ScrollSync } from "@/components/scroll-sync";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, CheckCircle2, Upload } from "lucide-react";
+import { parseCsvText } from "@/lib/csv-import";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -79,6 +80,9 @@ export default function PostingPage() {
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
   const [doneOpen, setDoneOpen] = useState(false);
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
+  const [csvFileName, setCsvFileName] = useState("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -145,6 +149,38 @@ export default function PostingPage() {
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
+
+  const importCsvMutation = useMutation({
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/postings/import-csv", { rows }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
+      setCsvDialogOpen(false);
+      setCsvPreview([]);
+      toast({ title: `Import complete — ${data.success} created, ${data.updated} updated${data.errors?.length ? `, ${data.errors.length} errors` : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Import failed", description: e.message, variant: "destructive" }),
+  });
+
+  const CSV_COLUMN_MAP: Record<string, string> = {
+    "patient name": "patientName", "patient": "patientName",
+    "last name": "lastName", "first name": "firstName",
+    "file number": "fileNumber", "file #": "fileNumber", "file no": "fileNumber",
+    "clinic": "clinic", "document type": "documentType", "doc type": "documentType",
+    "priority": "priority", "assigned to": "assignedTo", "status": "status",
+    "amount": "amount", "insurance": "insurance", "outcome": "outcome",
+  };
+
+  function handleCsvFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = parseCsvText(text, CSV_COLUMN_MAP);
+      setCsvPreview(rows);
+      setCsvFileName(file.name);
+      if (rows.length === 0) toast({ title: "No valid rows found", description: "CSV must have a 'Patient Name' column", variant: "destructive" });
+    };
+    reader.readAsText(file);
+  }
 
   function handleSubmit() {
     if (editingId) {
@@ -268,9 +304,14 @@ export default function PostingPage() {
         <h1 className="text-2xl font-bold" data-testid="text-posting-title">Posting</h1>
         <div className="flex items-center gap-2">
           {canEdit && (
-            <Button onClick={openCreate} data-testid="button-create-posting">
-              <Plus className="h-4 w-4 mr-1" /> New Posting
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => { setCsvDialogOpen(true); setCsvPreview([]); setCsvFileName(""); }} data-testid="button-import-csv-posting">
+                <Upload className="h-4 w-4 mr-1" /> Import CSV
+              </Button>
+              <Button onClick={openCreate} data-testid="button-create-posting">
+                <Plus className="h-4 w-4 mr-1" /> New Posting
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -800,6 +841,47 @@ export default function PostingPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => deleteConfirmId && deleteMutation.mutate(deleteConfirmId)} data-testid="button-confirm-delete-posting">Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Import Postings from CSV</DialogTitle></DialogHeader>
+          {csvPreview.length === 0 ? (
+            <div className="space-y-3">
+              <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => document.getElementById("csv-file-input-posting")?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file?.name.endsWith(".csv")) handleCsvFile(file); }}>
+                <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-sm font-medium">Click to select or drag & drop a CSV file</p>
+                <p className="text-xs text-muted-foreground mt-1">Accepted format: .csv</p>
+                <input id="csv-file-input-posting" type="file" accept=".csv" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); e.target.value = ""; }} />
+              </div>
+              <p className="text-xs text-muted-foreground">Expected columns: Patient Name, File Number, Clinic, Document Type, Priority, Assigned To, Status, Amount, Insurance</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm"><span className="font-medium">{csvFileName}</span> — {csvPreview.length} row{csvPreview.length !== 1 ? "s" : ""} found</p>
+                <Button variant="ghost" size="sm" onClick={() => { setCsvPreview([]); setCsvFileName(""); }}>Clear</Button>
+              </div>
+              <div className="border rounded-md overflow-auto max-h-64">
+                <table className="text-xs w-full">
+                  <thead><tr className="bg-muted">{Object.keys(csvPreview[0]).map(k => <th key={k} className="px-2 py-1 text-left font-medium whitespace-nowrap">{k}</th>)}</tr></thead>
+                  <tbody>{csvPreview.slice(0, 50).map((row, i) => <tr key={i} className="border-t">{Object.values(row).map((v, j) => <td key={j} className="px-2 py-1 whitespace-nowrap max-w-[150px] truncate">{v}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+              {csvPreview.length > 50 && <p className="text-xs text-muted-foreground text-center">Showing first 50 of {csvPreview.length} rows</p>}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCsvDialogOpen(false)}>Cancel</Button>
+            <Button disabled={csvPreview.length === 0 || importCsvMutation.isPending} onClick={() => importCsvMutation.mutate(csvPreview)}>
+              {importCsvMutation.isPending ? "Importing..." : `Import ${csvPreview.length} Posting${csvPreview.length !== 1 ? "s" : ""}`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

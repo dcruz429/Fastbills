@@ -1246,6 +1246,176 @@ export async function registerRoutes(
     }
   });
 
+  // ─── Denials import-csv ───────────────────────────────────────────────────
+  app.post("/api/denials/import-csv", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
+      const dateFields = ["inputDate", "dosFrom", "dosTo", "dateOfLetter", "trialDate", "effectiveDate"];
+      const results = { success: 0, updated: 0, errors: [] as string[] };
+      const existing = await storage.getAllDenials();
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const data: any = { ...rows[i] };
+          if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
+          for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
+          if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
+          const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase());
+          if (match) { await storage.updateDenial(match.id, data); await storage.createDenialActivity({ denialId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
+          else { const rec = await storage.createDenial(data); await storage.createDenialActivity({ denialId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+        } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
+      }
+      res.json(results);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ─── Arbitrations import-csv ──────────────────────────────────────────────
+  app.post("/api/arbitrations/import-csv", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
+      const dateFields = ["inputDate", "dosFrom", "dosTo", "dateOfLetter", "trialDate", "effectiveDate"];
+      const results = { success: 0, updated: 0, errors: [] as string[] };
+      const existing = await storage.getAllArbitrations();
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const data: any = { ...rows[i] };
+          if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
+          for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
+          if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
+          const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase());
+          if (match) { await storage.updateArbitration(match.id, data); await storage.createArbitrationActivity({ arbitrationId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
+          else { const rec = await storage.createArbitration(data); await storage.createArbitrationActivity({ arbitrationId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+        } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
+      }
+      res.json(results);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ─── Postings import-csv ──────────────────────────────────────────────────
+  app.post("/api/postings/import-csv", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
+      const dateFields = ["scannedDate", "depositDate"];
+      const results = { success: 0, updated: 0, errors: [] as string[] };
+      const existing = await storage.getAllPostings();
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const data: any = { ...rows[i] };
+          if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
+          for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
+          if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
+          const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.fileNumber || "").toLowerCase() === (data.fileNumber || "").toLowerCase());
+          if (match) { await storage.updatePosting(match.id, data); await storage.createPostingActivity({ postingId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
+          else { const rec = await storage.createPosting(data); await storage.createPostingActivity({ postingId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+        } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
+      }
+      res.json(results);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ─── Checks import-csv ────────────────────────────────────────────────────
+  app.post("/api/checks/import-csv", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
+      const dateFields = ["checkDate", "inputDate", "scannedDate", "postedDate", "depositDate"];
+      const results = { success: 0, updated: 0, errors: [] as string[] };
+      const existing = await storage.getAllChecks();
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const data: any = { ...rows[i] };
+          if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
+          for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
+          if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
+          const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.checkNumber || "").toLowerCase() === (data.checkNumber || "").toLowerCase());
+          if (match) { await storage.updateCheck(match.id, data); await storage.createCheckActivity({ checkId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
+          else { const rec = await storage.createCheck(data); await storage.createCheckActivity({ checkId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+        } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
+      }
+      res.json(results);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ─── Closed import-csv ────────────────────────────────────────────────────
+  app.post("/api/closed/import-csv", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
+      const results = { success: 0, updated: 0, errors: [] as string[] };
+      const existing = await storage.getAllClosed();
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const data: any = { ...rows[i] };
+          if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
+          if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
+          const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase());
+          if (match) { await storage.updateClosed(match.id, data); await storage.createClosedActivity({ closedId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
+          else { const rec = await storage.createClosed(data); await storage.createClosedActivity({ closedId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+        } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
+      }
+      res.json(results);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ─── Tasks import-csv (verification + billing) ────────────────────────────
+  app.post("/api/tasks/import-csv", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
+      const { rows, bucket } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
+      const allClinics = await storage.getAllClinics();
+      const allInsurances = await storage.getAllInsurances();
+      const allTasks = await storage.getAllTasks();
+      const dateFields = ["inputDate", "ieDate", "dueDate", "resolutionDate"];
+      const results = { success: 0, updated: 0, errors: [] as string[] };
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const data: any = { ...rows[i] };
+          if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
+          for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
+          if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
+          if (data.clinic) {
+            const cl = allClinics.find(c => c.name.toLowerCase() === data.clinic.toLowerCase());
+            data.clinicId = cl?.id || null;
+            delete data.clinic;
+          }
+          if (data.insurance) {
+            const ins = allInsurances.find(i => i.name.toLowerCase() === data.insurance.toLowerCase());
+            data.insuranceId = ins?.id || null;
+            delete data.insurance;
+          }
+          if (!data.status) data.status = "unassigned";
+          if (!data.priority) data.priority = "low";
+          data.bucket = bucket || "for_verification";
+          const match = allTasks.find(t => t.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && t.bucket === data.bucket);
+          if (match) {
+            await storage.updateTask(match.id, data);
+            await storage.createTaskActivity({ taskId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
+            results.updated++;
+          } else {
+            const task = await storage.createTask({ ...data, uploaderId: req.session.userId! });
+            await storage.createTaskActivity({ taskId: task.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null });
+            results.success++;
+          }
+        } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
+      }
+      res.json(results);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.patch("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
