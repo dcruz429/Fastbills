@@ -255,7 +255,7 @@ export default function CeoBoxPage() {
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="w-8 pl-4">#</TableHead>
-                <TableHead className="min-w-[160px]">Work</TableHead>
+                <TableHead className="min-w-[160px]">Name of Doc</TableHead>
                 <TableHead className="min-w-[110px]">Date of Letter</TableHead>
                 <TableHead className="min-w-[120px]">Sender</TableHead>
                 <TableHead className="min-w-[140px]">Company</TableHead>
@@ -353,12 +353,12 @@ export default function CeoBoxPage() {
           <ScrollArea className="flex-1 min-h-0">
             <div className="px-6 py-4 space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="ceo-work">Work</Label>
+                <Label htmlFor="ceo-work">Name of Doc</Label>
                 <Input
                   id="ceo-work"
                   value={form.work}
                   onChange={e => setForm(f => ({ ...f, work: e.target.value }))}
-                  placeholder="Describe the work..."
+                  placeholder="Enter document name..."
                   data-testid="input-ceo-work"
                 />
               </div>
