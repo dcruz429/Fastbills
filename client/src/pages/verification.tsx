@@ -362,7 +362,7 @@ export default function VerificationPage() {
                               </div>
                             </th>
                           ))}
-                          <th className="text-left py-2 px-2 font-medium hidden xl:table-cell">DOA</th>
+                          <th className="text-left py-2 px-2 font-medium">DOA</th>
                           <th className="text-left py-2 px-3 font-medium w-8"></th>
                         </tr>
                       </thead>
@@ -425,7 +425,7 @@ export default function VerificationPage() {
                                     : "-"}
                                 </span>
                               </td>
-                              <td className="py-2.5 px-2 text-muted-foreground text-xs hidden xl:table-cell">
+                              <td className="py-2.5 px-2 text-muted-foreground text-xs">
                                 {task.doa ? formatEST(new Date(task.doa), "MM/dd/yy") : "-"}
                               </td>
                               <td className="py-2.5 px-2">
@@ -481,7 +481,7 @@ export default function VerificationPage() {
                           <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">Insurance</th>
                           <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">IE Date</th>
                           <th className="text-left py-2 px-2 font-medium">Due Date</th>
-                          <th className="text-left py-2 px-2 font-medium hidden xl:table-cell">DOA</th>
+                          <th className="text-left py-2 px-2 font-medium">DOA</th>
                           <th className="text-left py-2 px-2 font-medium">Priority</th>
                           <th className="text-left py-2 px-2 font-medium">Status</th>
                           <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Assigned</th>
@@ -516,7 +516,7 @@ export default function VerificationPage() {
                               <td className="py-2.5 px-2 text-muted-foreground text-xs">
                                 {task.dueDate ? formatEST(new Date(task.dueDate), "MM/dd") : "-"}
                               </td>
-                              <td className="py-2.5 px-2 text-muted-foreground text-xs hidden xl:table-cell">
+                              <td className="py-2.5 px-2 text-muted-foreground text-xs">
                                 {task.doa ? formatEST(new Date(task.doa), "MM/dd/yy") : "-"}
                               </td>
                               <td className="py-2.5 px-2"><PriorityBadge priority={task.priority} /></td>
