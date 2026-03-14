@@ -93,6 +93,7 @@ const emptyForm = {
   status: "todo",
   dueDate: "",
   priority: "medium",
+  confidential: false,
 };
 
 export default function CeoBoxPage() {
@@ -127,7 +128,7 @@ export default function CeoBoxPage() {
   const createMutation = useMutation({
     mutationFn: async (data: typeof emptyForm) => {
       const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) => { fd.append(k, v ?? ""); });
+      Object.entries(data).forEach(([k, v]) => { fd.append(k, String(v ?? "")); });
       attachmentFiles.forEach(f => fd.append("attachments", f));
       const res = await fetch("/api/ceo-box", { method: "POST", body: fd, credentials: "include" });
       if (!res.ok) { const t = await res.text(); throw new Error(t); }
@@ -145,7 +146,7 @@ export default function CeoBoxPage() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: typeof emptyForm }) => {
       const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) => { fd.append(k, v ?? ""); });
+      Object.entries(data).forEach(([k, v]) => { fd.append(k, String(v ?? "")); });
       if (currentRecord?.attachments) fd.append("attachments", JSON.stringify(currentRecord.attachments));
       attachmentFiles.forEach(f => fd.append("newAttachments", f));
       const res = await fetch(`/api/ceo-box/${id}`, { method: "PATCH", body: fd, credentials: "include" });
@@ -196,6 +197,7 @@ export default function CeoBoxPage() {
       status: record.status || "todo",
       dueDate: toInputDate(record.dueDate),
       priority: record.priority || "medium",
+      confidential: record.confidential ?? false,
     });
     setAttachmentFiles([]);
     setDrawerOpen(true);
@@ -219,8 +221,6 @@ export default function CeoBoxPage() {
   });
 
   const canDelete = (record: CeoBoxWithCreator) => record.createdById === user.id;
-
-  const isPrivate = (record: CeoBoxWithCreator) => record.creatorName === DR_AL_NAME;
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -286,7 +286,7 @@ export default function CeoBoxPage() {
                   key={record.id}
                   className={cn(
                     "cursor-pointer hover:bg-muted/30 transition-colors",
-                    isPrivate(record) && isDrAl ? "bg-purple-50/40 dark:bg-purple-950/20" : ""
+                    record.confidential ? "bg-purple-50/40 dark:bg-purple-950/20" : ""
                   )}
                   onClick={() => openEdit(record)}
                   data-testid={`row-ceo-record-${record.id}`}
@@ -294,7 +294,7 @@ export default function CeoBoxPage() {
                   <TableCell className="pl-4 text-xs text-muted-foreground font-mono">{idx + 1}</TableCell>
                   <TableCell className="font-medium max-w-[200px]">
                     <div className="flex items-center gap-1.5">
-                      {isPrivate(record) && isDrAl && <Lock className="h-3 w-3 text-purple-500 flex-shrink-0" title="Only visible to Dr. Al" />}
+                      {record.confidential && <Lock className="h-3 w-3 text-purple-500 flex-shrink-0" title="Confidential — only visible to Dr. Al" />}
                       <span className="truncate">{record.work || <span className="text-muted-foreground italic text-xs">—</span>}</span>
                     </div>
                   </TableCell>
@@ -487,10 +487,37 @@ export default function CeoBoxPage() {
                 />
               </div>
 
-              {editingId && isDrAl && (
-                <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 rounded-md px-3 py-2">
-                  <Lock className="h-3.5 w-3.5" />
-                  <span>This record is private and only visible to you.</span>
+              {isDrAl && (
+                <div
+                  className={cn(
+                    "flex items-center justify-between rounded-md px-3 py-2.5 cursor-pointer select-none transition-colors",
+                    form.confidential
+                      ? "bg-purple-100 dark:bg-purple-950/50 border border-purple-300 dark:border-purple-700"
+                      : "bg-muted/50 border border-border hover:bg-muted"
+                  )}
+                  onClick={() => setForm(f => ({ ...f, confidential: !f.confidential }))}
+                  data-testid="toggle-confidential"
+                >
+                  <div className="flex items-center gap-2">
+                    <Lock className={cn("h-4 w-4", form.confidential ? "text-purple-600 dark:text-purple-400" : "text-muted-foreground")} />
+                    <div>
+                      <p className={cn("text-sm font-medium", form.confidential ? "text-purple-700 dark:text-purple-300" : "text-foreground")}>
+                        Confidential
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {form.confidential ? "Only visible to you" : "Visible to all CEO Box users"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={cn(
+                    "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                    form.confidential ? "bg-purple-600" : "bg-muted-foreground/30"
+                  )}>
+                    <span className={cn(
+                      "inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform",
+                      form.confidential ? "translate-x-4" : "translate-x-1"
+                    )} />
+                  </div>
                 </div>
               )}
             </div>

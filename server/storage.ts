@@ -962,6 +962,7 @@ export class DatabaseStorage implements IStorage {
         dueDate: ceoBox.dueDate,
         priority: ceoBox.priority,
         attachments: ceoBox.attachments,
+        confidential: ceoBox.confidential,
         createdById: ceoBox.createdById,
         createdAt: ceoBox.createdAt,
         updatedAt: ceoBox.updatedAt,
@@ -972,9 +973,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(ceoBox.createdAt));
 
     return rows.filter(r => {
-      if (r.creatorName === DR_AL_NAME) {
-        return r.createdById === currentUserId;
-      }
+      if (r.confidential && currentUserName !== DR_AL_NAME) return false;
       return true;
     }) as (CeoBox & { creatorName?: string })[];
   }

@@ -2599,6 +2599,9 @@ export async function registerRoutes(
         else if (data[f] === "" || data[f] === null) data[f] = null;
         else delete data[f];
       });
+      if (data.confidential !== undefined) {
+        data.confidential = data.confidential === "true" || data.confidential === true;
+      }
       if (data.attachments !== undefined) {
         try { data.attachments = JSON.parse(data.attachments); } catch { data.attachments = existing.attachments || []; }
       }

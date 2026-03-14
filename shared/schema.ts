@@ -692,6 +692,7 @@ export const ceoBox = pgTable("ceo_box", {
   dueDate: timestamp("due_date"),
   priority: text("priority").notNull().default("medium"),
   attachments: text("attachments").array(),
+  confidential: boolean("confidential").notNull().default(false),
   createdById: integer("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
