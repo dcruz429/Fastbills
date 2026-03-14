@@ -1773,10 +1773,6 @@ export async function registerRoutes(
 
   app.get("/api/files/:id", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
-        return res.status(403).json({ message: "Access denied" });
-      }
       const fileId = parseInt(req.params.id);
       const [file] = await db.select().from(fileUploads).where(eq(fileUploads.id, fileId));
       if (!file) return res.status(404).json({ message: "File not found" });
