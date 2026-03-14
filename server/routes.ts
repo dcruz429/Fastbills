@@ -677,6 +677,9 @@ export async function registerRoutes(
       if (updates.assignedUserId !== undefined && editor && !ADMIN_ROLES.includes(editor.role)) {
         delete updates.assignedUserId;
       }
+      if (updates.doa !== undefined) {
+        updates.doa = updates.doa ? new Date(updates.doa + "T12:00:00") : null;
+      }
       if (updates.resolutionDate !== undefined) {
         updates.resolutionDate = updates.resolutionDate ? new Date(updates.resolutionDate + "T12:00:00") : null;
       }

@@ -42,6 +42,7 @@ export const tasks = pgTable("tasks", {
   bucket: bucketEnum("bucket").notNull().default("for_verification"),
   assignedUserId: integer("assigned_user_id").references(() => users.id),
   notes: text("notes"),
+  doa: timestamp("doa"),
   rtp: boolean("rtp").notNull().default(false),
   resolutionDate: timestamp("resolution_date"),
   outcome: text("task_outcome"),
