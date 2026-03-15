@@ -357,16 +357,6 @@ export default function DenialsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <h1 className="text-2xl font-bold" data-testid="text-denials-title">Denials</h1>
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search denials..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-9 w-[200px]"
-              data-testid="input-search-denials"
-            />
-          </div>
           <Button variant="outline" onClick={() => { setCsvDialogOpen(true); setCsvPreview([]); setCsvFileName(""); }} data-testid="button-import-csv-denial">
             <Upload className="h-4 w-4 mr-1" /> Import CSV
           </Button>
@@ -374,6 +364,17 @@ export default function DenialsPage() {
             <Plus className="h-4 w-4 mr-1" /> New Denial
           </Button>
         </div>
+      </div>
+
+      <div className="relative max-w-sm mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search denials..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="pl-9"
+          data-testid="input-search-denials"
+        />
       </div>
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
