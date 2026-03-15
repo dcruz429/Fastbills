@@ -2630,6 +2630,26 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/ceo-box/:id/notes", requireCeoAccess, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const id = parseInt(req.params.id);
+      const existing = await storage.getCeoBoxRecord(id);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      const { note } = req.body;
+      if (!note || !note.trim()) return res.status(400).json({ message: "Note is required" });
+      const timestamp = new Date().toISOString();
+      const entry = `[${user.fullName} - ${timestamp}]\n${note.trim()}`;
+      const updated = await storage.updateCeoBoxRecord(id, {
+        notes: existing.notes ? `${existing.notes}\n${entry}` : entry,
+      });
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.delete("/api/ceo-box/:id", requireCeoAccess, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

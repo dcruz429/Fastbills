@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Search, X, Paperclip, FileText, Image, FileSpreadsheet, Download, Lock, Eye } from "lucide-react";
+import { Plus, Trash2, Search, X, Paperclip, FileText, Image, FileSpreadsheet, Download, Lock, Eye, MessageSquare, Clock, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS = ["todo", "working", "done", "closed"];
@@ -92,7 +92,6 @@ const emptyForm = {
   status: "todo",
   dueDate: "",
   priority: "medium",
-  notes: "",
   confidential: false,
 };
 
@@ -105,6 +104,7 @@ export default function CeoBoxPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<typeof emptyForm>({ ...emptyForm });
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [newNote, setNewNote] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -178,10 +178,21 @@ export default function CeoBoxPage() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const addNoteMutation = useMutation({
+    mutationFn: ({ id, note }: { id: number; note: string }) =>
+      apiRequest("POST", `/api/ceo-box/${id}/notes`, { note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ceo-box"] });
+      setNewNote("");
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   function openCreate() {
     setEditingId(null);
     setForm({ ...emptyForm });
     setAttachmentFiles([]);
+    setNewNote("");
     setDrawerOpen(true);
   }
 
@@ -197,10 +208,10 @@ export default function CeoBoxPage() {
       status: record.status || "todo",
       dueDate: toInputDate(record.dueDate),
       priority: record.priority || "medium",
-      notes: record.notes || "",
       confidential: record.confidential ?? false,
     });
     setAttachmentFiles([]);
+    setNewNote("");
     setDrawerOpen(true);
   }
 
@@ -438,17 +449,60 @@ export default function CeoBoxPage() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="ceo-notes">Notes</Label>
-                <Textarea
-                  id="ceo-notes"
-                  value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Add notes..."
-                  rows={4}
-                  className="resize-none text-sm"
-                  data-testid="textarea-ceo-notes"
-                />
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                  <MessageSquare className="h-4 w-4" />
+                  Notes
+                </h3>
+                {currentRecord?.notes && (
+                  <div className="space-y-2" data-testid="ceo-notes-display">
+                    {currentRecord.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse().map((block, idx) => {
+                      const m = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
+                      if (m) {
+                        const ts = new Date(m[2]);
+                        const label = isNaN(ts.getTime()) ? m[2] : ts.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+                        return (
+                          <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50 space-y-0.5" data-testid={`ceo-note-item-${idx}`}>
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <UserIcon className="h-3 w-3" />
+                              <span className="font-medium text-foreground">{m[1]}</span>
+                              <span className="mx-0.5">·</span>
+                              <Clock className="h-3 w-3" />
+                              <span>{label}</span>
+                            </div>
+                            <p className="text-foreground whitespace-pre-wrap">{m[3].trim()}</p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50" data-testid={`ceo-note-item-${idx}`}>
+                          <p className="text-foreground whitespace-pre-wrap">{block.trim()}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {editingId && (
+                  <>
+                    <Textarea
+                      placeholder="Add a note..."
+                      value={newNote}
+                      onChange={e => setNewNote(e.target.value)}
+                      rows={3}
+                      className="resize-none text-sm"
+                      data-testid="textarea-ceo-new-note"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => newNote.trim() && addNoteMutation.mutate({ id: editingId, note: newNote.trim() })}
+                      disabled={!newNote.trim() || addNoteMutation.isPending}
+                      data-testid="button-add-ceo-note"
+                    >
+                      Add Note
+                    </Button>
+                  </>
+                )}
               </div>
 
               <div className="space-y-2">
