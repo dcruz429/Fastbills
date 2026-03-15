@@ -340,7 +340,7 @@ export default function CeoBoxPage() {
                     ) : <span className="text-muted-foreground text-xs">—</span>}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {record.creatorName?.split(" ")[0] || "—"}
+                    {record.creatorName || "—"}
                   </TableCell>
                   <TableCell className="text-right pr-4" onClick={e => e.stopPropagation()}>
                     {canDelete(record) && (
