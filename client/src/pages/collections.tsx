@@ -112,7 +112,6 @@ export default function CollectionsPage() {
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvFileName, setCsvFileName] = useState("");
   const [newNote, setNewNote] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterClinic, setFilterClinic] = useState("");
   const [filterDivision, setFilterDivision] = useState("");
   const [filterInsurance, setFilterInsurance] = useState("");
@@ -548,149 +547,84 @@ export default function CollectionsPage() {
         </div>
       </div>
 
-      <div className="relative max-w-sm mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search collections..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="pl-9"
-          data-testid="input-search-collections"
-        />
-      </div>
-
-      <div className="flex items-center gap-2 mb-3">
-        <Button variant="outline" size="sm" onClick={() => setFiltersOpen(!filtersOpen)} data-testid="button-toggle-filters" className="text-xs">
-          <Filter className="h-3.5 w-3.5 mr-1" />
-          Filters
-          {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">{activeFilterCount}</Badge>
-          )}
-        </Button>
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search collections..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-search-collections"
+          />
+        </div>
+        <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-clinic"><SelectValue placeholder="All Clinics" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Clinics</SelectItem>
+            {activeClinics.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterDivision || "__all__"} onValueChange={v => setFilterDivision(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-division"><SelectValue placeholder="All Divisions" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Divisions</SelectItem>
+            {(divisionOpts || []).map(o => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterInsurance || "__all__"} onValueChange={v => setFilterInsurance(v)}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-insurance"><SelectValue placeholder="All Insurances" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Insurances</SelectItem>
+            {sortedInsurances.map(ins => <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterIssueType || "__all__"} onValueChange={v => setFilterIssueType(v)}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-issue-type"><SelectValue placeholder="All Issue Types" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Issue Types</SelectItem>
+            {(issueTypeOpts || []).map(o => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-status"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Statuses</SelectItem>
+            {(statusOpts || []).map(o => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-assigned-to"><SelectValue placeholder="All Assigned" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Assigned</SelectItem>
+            {[...new Map([...(dataList || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
+              <SelectItem key={name} value={name}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterPriority || "__all__"} onValueChange={v => setFilterPriority(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-priority"><SelectValue placeholder="All Priorities" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Priorities</SelectItem>
+            <SelectItem value="Low <10 days">Low</SelectItem>
+            <SelectItem value="Medium <20 Days">Medium</SelectItem>
+            <SelectItem value="High <30 Days">High</SelectItem>
+            <SelectItem value="Critical >30 Days">Critical</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-outcome"><SelectValue placeholder="All Outcomes" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Outcomes</SelectItem>
+            {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          </SelectContent>
+        </Select>
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" onClick={clearAllFilters} data-testid="button-clear-filters" className="text-xs">
-            Clear Filters
+            <X className="h-3 w-3 mr-1" /> Clear
           </Button>
         )}
       </div>
-
-      {filtersOpen && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" data-testid="filter-grid">
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Clinic</Label>
-            <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)} data-testid="filter-clinic">
-              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-clinic">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {activeClinics.map(c => (
-                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Division</Label>
-            <Select value={filterDivision || "__all__"} onValueChange={v => setFilterDivision(v)} data-testid="filter-division">
-              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-division">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {(divisionOpts || []).map(o => (
-                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Insurance</Label>
-            <Select value={filterInsurance || "__all__"} onValueChange={v => setFilterInsurance(v)} data-testid="filter-insurance">
-              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-insurance">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {sortedInsurances.map(ins => (
-                  <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Issue Type</Label>
-            <Select value={filterIssueType || "__all__"} onValueChange={v => setFilterIssueType(v)} data-testid="filter-issue-type">
-              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-issue-type">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {(issueTypeOpts || []).map(o => (
-                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Status</Label>
-            <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)} data-testid="filter-status">
-              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-status">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {(statusOpts || []).map(o => (
-                  <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Assigned To</Label>
-            <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)} data-testid="filter-assigned-to">
-              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-assigned-to">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {[...new Map([...(dataList || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Priority</Label>
-            <Select value={filterPriority || "__all__"} onValueChange={v => setFilterPriority(v)} data-testid="filter-priority">
-              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-priority">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                <SelectItem value="Low <10 days">Low</SelectItem>
-                <SelectItem value="Medium <20 Days">Medium</SelectItem>
-                <SelectItem value="High <30 Days">High</SelectItem>
-                <SelectItem value="Critical >30 Days">Critical</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Outcome</Label>
-            <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)} data-testid="filter-outcome">
-              <SelectTrigger className="h-9 text-xs" data-testid="select-filter-outcome">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {OUTCOME_OPTIONS.map(o => (
-                  <SelectItem key={o} value={o}>{o}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-center gap-2 mb-3">
         <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">

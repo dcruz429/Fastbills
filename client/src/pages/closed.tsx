@@ -179,7 +179,6 @@ export default function ClosedPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterSource, setFilterSource] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
@@ -520,97 +519,53 @@ export default function ClosedPage() {
         </div>
       </div>
 
-      <div className="relative max-w-sm mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search RTP records..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="pl-9"
-          data-testid="input-search-closed"
-        />
-      </div>
-
-      <div className="flex items-center gap-2 mb-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          data-testid="button-toggle-filters"
-        >
-          <Filter className="h-4 w-4 mr-1" />
-          Filters
-          {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="ml-1 text-xs">{activeFilterCount}</Badge>
-          )}
-        </Button>
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search RTP records..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-search-closed"
+          />
+        </div>
+        <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-closed-status"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Statuses</SelectItem>
+            {CLOSED_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterSource || "__all__"} onValueChange={v => setFilterSource(v)}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-closed-source"><SelectValue placeholder="All Sources" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Sources</SelectItem>
+            {sourceOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-closed-assigned-to"><SelectValue placeholder="All Assigned" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Assigned</SelectItem>
+            {Array.from(new Map([...(closedList || []).map(d => d.assignedTo).filter(Boolean) as string[], ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()).sort().map(name => (
+              <SelectItem key={name} value={name}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-outcome"><SelectValue placeholder="All Outcomes" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Outcomes</SelectItem>
+            {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          </SelectContent>
+        </Select>
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
-            Clear Filters
+            <X className="h-3 w-3 mr-1" /> Clear
           </Button>
         )}
       </div>
-
-      {filtersOpen && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4" data-testid="filter-grid-closed">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Status</Label>
-            <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-closed-status">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {CLOSED_STATUS_OPTIONS.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Source</Label>
-            <Select value={filterSource || "__all__"} onValueChange={v => setFilterSource(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-closed-source">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {sourceOptions.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Assigned To</Label>
-            <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-closed-assigned-to">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {Array.from(new Map([...(closedList || []).map(d => d.assignedTo).filter(Boolean) as string[], ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()).sort().map(name => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Outcome</Label>
-            <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-outcome">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {OUTCOME_OPTIONS.map(o => (
-                  <SelectItem key={o} value={o}>{o}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-center gap-2 mb-3">
         <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">

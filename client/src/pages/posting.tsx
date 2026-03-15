@@ -72,7 +72,6 @@ export default function PostingPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterClinic, setFilterClinic] = useState("");
   const [filterDocumentType, setFilterDocumentType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -316,125 +315,67 @@ export default function PostingPage() {
         </div>
       </div>
 
-      <div className="relative max-w-sm mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search postings..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="pl-9"
-          data-testid="input-search-postings"
-        />
-      </div>
-
-      <div className="flex items-center gap-2 mb-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          data-testid="button-toggle-filters"
-        >
-          <Filter className="h-4 w-4 mr-1" />
-          Filters
-          {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="ml-1 text-xs">{activeFilterCount}</Badge>
-          )}
-        </Button>
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search postings..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-search-postings"
+          />
+        </div>
+        <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-posting-clinic"><SelectValue placeholder="All Clinics" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Clinics</SelectItem>
+            {activeClinics.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterDocumentType || "__all__"} onValueChange={v => setFilterDocumentType(v)}>
+          <SelectTrigger className="w-[150px]" data-testid="filter-posting-document-type"><SelectValue placeholder="All Doc Types" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Doc Types</SelectItem>
+            {POSTING_DOCUMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-posting-status"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Statuses</SelectItem>
+            {POSTING_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterPriority || "__all__"} onValueChange={v => setFilterPriority(v)}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-posting-priority"><SelectValue placeholder="All Priorities" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Priorities</SelectItem>
+            {POSTING_PRIORITY_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-posting-assigned-to"><SelectValue placeholder="All Assigned" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Assigned</SelectItem>
+            {[...new Map([...(postingList || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
+              <SelectItem key={name} value={name}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-outcome"><SelectValue placeholder="All Outcomes" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Outcomes</SelectItem>
+            {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          </SelectContent>
+        </Select>
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
-            Clear Filters
+            <X className="h-3 w-3 mr-1" /> Clear
           </Button>
         )}
       </div>
-
-      {filtersOpen && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" data-testid="filter-grid-postings">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Clinic</Label>
-            <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-clinic">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {activeClinics.map(c => (
-                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Document Type</Label>
-            <Select value={filterDocumentType || "__all__"} onValueChange={v => setFilterDocumentType(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-document-type">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {POSTING_DOCUMENT_TYPES.map(t => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Status</Label>
-            <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-status">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {POSTING_STATUS_OPTIONS.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Priority</Label>
-            <Select value={filterPriority || "__all__"} onValueChange={v => setFilterPriority(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-priority">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {POSTING_PRIORITY_OPTIONS.map(p => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Assigned To</Label>
-            <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-posting-assigned-to">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {[...new Map([...(postingList || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Outcome</Label>
-            <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)}>
-              <SelectTrigger className="h-9 text-xs" data-testid="filter-outcome">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All</SelectItem>
-                {OUTCOME_OPTIONS.map(o => (
-                  <SelectItem key={o} value={o}>{o}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-center gap-2 mb-3">
         <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">

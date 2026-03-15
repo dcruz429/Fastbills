@@ -75,7 +75,6 @@ export default function ChecksPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterClinic, setFilterClinic] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -376,126 +375,77 @@ export default function ChecksPage() {
         </div>
       </div>
 
-      <div className="relative max-w-sm mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search checks..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="pl-9"
-          data-testid="input-search-checks"
-        />
-      </div>
-
-      <div className="flex items-center gap-2 mb-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          data-testid="button-toggle-filters"
-        >
-          <Filter className="h-4 w-4 mr-1" />
-          Filters
-          {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="ml-1 text-xs">{activeFilterCount}</Badge>
-          )}
-        </Button>
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search checks..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-search-checks"
+          />
+        </div>
+        <Select value={filterClinic} onValueChange={setFilterClinic}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-clinic"><SelectValue placeholder="All Clinics" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Clinics</SelectItem>
+            {activeClinics.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-type"><SelectValue placeholder="All Types" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Types</SelectItem>
+            {CHECKS_TYPE_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-status"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Statuses</SelectItem>
+            {CHECKS_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterInsurance} onValueChange={setFilterInsurance}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-insurance"><SelectValue placeholder="All Insurances" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Insurances</SelectItem>
+            {insuranceOptions.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterAssignedTo} onValueChange={setFilterAssignedTo}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-assigned-to"><SelectValue placeholder="All Assigned" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Assigned</SelectItem>
+            {assignedToOptions.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterOutcome} onValueChange={setFilterOutcome}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-outcome"><SelectValue placeholder="All Outcomes" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Outcomes</SelectItem>
+            {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterDateField} onValueChange={setFilterDateField}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-date-field"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="inputDate">Input Date</SelectItem>
+            <SelectItem value="checkDate">Check Date</SelectItem>
+            <SelectItem value="scannedDate">Scanned Date</SelectItem>
+            <SelectItem value="postedDate">Posted Date</SelectItem>
+            <SelectItem value="depositDate">Deposit Date</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-from" />
+        <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-to" />
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
-            <X className="h-3 w-3 mr-1" /> Clear filters
+            <X className="h-3 w-3 mr-1" /> Clear
           </Button>
         )}
       </div>
-
-      <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <CollapsibleContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4 p-3 border rounded-lg bg-muted/30">
-            <div>
-              <Label className="text-xs mb-1 block">Clinic</Label>
-              <Select value={filterClinic} onValueChange={setFilterClinic}>
-                <SelectTrigger className="h-8 text-xs" data-testid="filter-clinic"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All</SelectItem>
-                  {activeClinics.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">Type</Label>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="h-8 text-xs" data-testid="filter-type"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All</SelectItem>
-                  {CHECKS_TYPE_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">Status</Label>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-8 text-xs" data-testid="filter-status"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All</SelectItem>
-                  {CHECKS_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">Insurance</Label>
-              <Select value={filterInsurance} onValueChange={setFilterInsurance}>
-                <SelectTrigger className="h-8 text-xs" data-testid="filter-insurance"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All</SelectItem>
-                  {insuranceOptions.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">Assigned To</Label>
-              <Select value={filterAssignedTo} onValueChange={setFilterAssignedTo}>
-                <SelectTrigger className="h-8 text-xs" data-testid="filter-assigned-to"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All</SelectItem>
-                  {assignedToOptions.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">Outcome</Label>
-              <Select value={filterOutcome} onValueChange={setFilterOutcome}>
-                <SelectTrigger className="h-8 text-xs" data-testid="filter-outcome"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All</SelectItem>
-                  {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4 p-3 border rounded-lg bg-muted/30">
-            <div>
-              <Label className="text-xs mb-1 block">Date Column</Label>
-              <Select value={filterDateField} onValueChange={setFilterDateField}>
-                <SelectTrigger className="h-8 text-xs" data-testid="filter-date-field"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="inputDate">Input Date</SelectItem>
-                  <SelectItem value="checkDate">Check Date</SelectItem>
-                  <SelectItem value="scannedDate">Scanned Date</SelectItem>
-                  <SelectItem value="postedDate">Posted Date</SelectItem>
-                  <SelectItem value="depositDate">Deposit Date</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">From</Label>
-              <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="h-8 text-xs" data-testid="filter-date-from" />
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">To</Label>
-              <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="h-8 text-xs" data-testid="filter-date-to" />
-            </div>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
 
       <div className="flex items-center gap-2 mb-3">
         <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">
