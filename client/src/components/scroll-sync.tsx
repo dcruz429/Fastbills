@@ -17,9 +17,9 @@ export function ScrollSync({ children, className }: Props) {
     const inner = innerRef.current;
     if (!inner) return;
 
-    // Shadcn's <Table> wraps content in <div class="relative w-full overflow-auto">
+    // Shadcn's <Table> wraps content in a div with overflow-x-auto.
     // We sync with that inner scroll container rather than a wrapper we add ourselves.
-    const found = inner.querySelector("div.overflow-auto") as HTMLElement | null;
+    const found = inner.querySelector("div.overflow-x-auto") as HTMLElement | null;
     const scrollEl: HTMLElement = found ?? inner;
     scrollElRef.current = scrollEl;
 
