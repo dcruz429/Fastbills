@@ -9,6 +9,7 @@ import { CEO_STATUS_LABELS, CEO_PRIORITY_LABELS, DR_AL_NAME } from "@shared/sche
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -91,6 +92,7 @@ const emptyForm = {
   status: "todo",
   dueDate: "",
   priority: "medium",
+  notes: "",
   confidential: false,
 };
 
@@ -195,6 +197,7 @@ export default function CeoBoxPage() {
       status: record.status || "todo",
       dueDate: toInputDate(record.dueDate),
       priority: record.priority || "medium",
+      notes: record.notes || "",
       confidential: record.confidential ?? false,
     });
     setAttachmentFiles([]);
@@ -433,6 +436,19 @@ export default function CeoBoxPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ceo-notes">Notes</Label>
+                <Textarea
+                  id="ceo-notes"
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Add notes..."
+                  rows={4}
+                  className="resize-none text-sm"
+                  data-testid="textarea-ceo-notes"
+                />
               </div>
 
               <div className="space-y-2">

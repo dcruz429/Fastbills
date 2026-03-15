@@ -962,6 +962,7 @@ export class DatabaseStorage implements IStorage {
         dueDate: ceoBox.dueDate,
         priority: ceoBox.priority,
         attachments: ceoBox.attachments,
+        notes: ceoBox.notes,
         confidential: ceoBox.confidential,
         createdById: ceoBox.createdById,
         createdAt: ceoBox.createdAt,
