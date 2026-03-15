@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List } from "lucide-react";
+import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List, Briefcase } from "lucide-react";
 import type { Clinic, Insurance, User, DropdownOption } from "@shared/schema";
 import { DROPDOWN_CATEGORIES } from "@shared/schema";
 
@@ -329,6 +329,17 @@ function UserSettings() {
     },
   });
 
+  const ceoAccessMutation = useMutation({
+    mutationFn: async ({ id, ceoBoxAccess }: { id: number; ceoBoxAccess: boolean }) => {
+      await apiRequest("PATCH", `/api/users/${id}/ceo-access`, { ceoBoxAccess });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "CEO Box access updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/users/${id}`);
@@ -515,6 +526,17 @@ function UserSettings() {
                 </div>
                 {!isManager && (
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title={u.ceoBoxAccess ? "Remove CEO Box access" : "Grant CEO Box access"}
+                      onClick={() => ceoAccessMutation.mutate({ id: u.id, ceoBoxAccess: !u.ceoBoxAccess })}
+                      disabled={ceoAccessMutation.isPending}
+                      data-testid={`button-ceo-access-${u.id}`}
+                      className={u.ceoBoxAccess ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50" : "text-muted-foreground hover:text-amber-600 hover:bg-amber-50"}
+                    >
+                      <Briefcase className="h-3.5 w-3.5" />
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"

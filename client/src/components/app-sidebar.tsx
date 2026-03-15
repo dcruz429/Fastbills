@@ -22,7 +22,6 @@ import {
   CheckCircle2,
   Briefcase,
 } from "lucide-react";
-import { CEO_USERS } from "@shared/schema";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -69,7 +68,7 @@ const navItems = [
   { title: "Message Board", url: "/message-board", icon: Megaphone, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Messages", url: "/messages", icon: MessageCircle, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Suggestion Box", url: "/tickets", icon: Lightbulb, roles: ["admin"], allowedUserNames: [] as string[] },
-  { title: "CEO Box", url: "/ceo-box", icon: Briefcase, roles: [] as string[], allowedUserNames: [...CEO_USERS] },
+  { title: "CEO Box", url: "/ceo-box", icon: Briefcase, roles: [] as string[], ceoBoxOnly: true },
   { title: "Workload", url: "/workload", icon: Users, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Billing Queue", url: "/billing-queue", icon: Flame, roles: ["admin", "manager", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Productivity", url: "/productivity", icon: TrendingUp, roles: ["admin", "manager", "account_manager", "case_manager"] },
@@ -191,7 +190,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.filter((item) => item.roles.includes(user?.role || "") || ((item as any).allowedUserNames?.includes(user?.fullName))).map((item) => (
+              {navItems.filter((item) => item.roles.includes(user?.role || "") || ((item as any).allowedUserNames?.includes(user?.fullName)) || ((item as any).ceoBoxOnly && (user as any)?.ceoBoxAccess)).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     data-testid={`nav-${item.title.toLowerCase().replace(/\s/g, "-")}`}

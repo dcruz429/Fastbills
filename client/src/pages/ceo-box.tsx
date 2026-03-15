@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Redirect } from "wouter";
 import type { CeoBox, Clinic, DropdownOption } from "@shared/schema";
-import { CEO_USERS, CEO_STATUS_LABELS, CEO_PRIORITY_LABELS, DR_AL_NAME } from "@shared/schema";
+import { CEO_STATUS_LABELS, CEO_PRIORITY_LABELS, DR_AL_NAME } from "@shared/schema";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +18,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Search, X, Paperclip, FileText, Image, FileSpreadsheet, Download, Lock, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const CEO_USER_NAMES: string[] = [...CEO_USERS];
 
 const STATUS_OPTIONS = ["todo", "working", "done", "closed"];
 const PRIORITY_OPTIONS = ["low", "medium", "high", "urgent"];
@@ -110,7 +108,7 @@ export default function CeoBoxPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!user) return <Redirect to="/login" />;
-  if (!CEO_USER_NAMES.includes(user.fullName)) return <Redirect to="/" />;
+  if (!user.ceoBoxAccess) return <Redirect to="/" />;
 
   const isDrAl = user.fullName === DR_AL_NAME;
 

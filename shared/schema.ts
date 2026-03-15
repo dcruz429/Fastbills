@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   fullName: text("full_name").notNull(),
   role: roleEnum("role").notNull().default("verifier"),
   active: boolean("active").notNull().default(true),
+  ceoBoxAccess: boolean("ceo_box_access").notNull().default(false),
 });
 
 export const clinics = pgTable("clinics", {

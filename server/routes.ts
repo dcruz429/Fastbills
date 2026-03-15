@@ -2537,17 +2537,32 @@ export async function registerRoutes(
     }
   });
 
-  const CEO_USER_NAMES: string[] = [...CEO_USERS];
-
   function requireCeoAccess(req: Request, res: Response, next: NextFunction) {
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
     storage.getUser(req.session.userId).then(user => {
-      if (!user || !CEO_USER_NAMES.includes(user.fullName)) {
+      if (!user || !user.ceoBoxAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       next();
     }).catch(() => res.status(500).json({ message: "Server error" }));
   }
+
+  app.patch("/api/users/:id/ceo-access", requireAuth, async (req, res) => {
+    try {
+      const requestingUser = await storage.getUser(req.session.userId!);
+      if (!requestingUser || requestingUser.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can manage CEO Box access" });
+      }
+      const id = parseInt(req.params.id);
+      const { ceoBoxAccess } = req.body;
+      const updated = await storage.updateUser(id, { ceoBoxAccess: Boolean(ceoBoxAccess) });
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      const { password: _, ...safe } = updated;
+      res.json(safe);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
 
   app.get("/api/ceo-box", requireCeoAccess, async (req, res) => {
     try {

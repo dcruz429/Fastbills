@@ -66,16 +66,24 @@ export async function ensureCeoBoxUsers() {
         if (keepAccount) {
           await db.execute(sql`UPDATE ceo_box SET created_by_id = ${keepAccount.id} WHERE created_by_id = ${seedAccount.id}`);
           await storage.deleteUser(seedAccount.id);
-          console.log(`Removed duplicate CEO user ${u.fullName} (${seedAccount.username}), kept id=${keepAccount.id}`);
+          await storage.updateUser(keepAccount.id, { ceoBoxAccess: true });
+          console.log(`Removed duplicate CEO user ${u.fullName} (${seedAccount.username}), granted CEO access to kept id=${keepAccount.id}`);
         }
       }
       continue;
     }
 
-    if (byUsername || byName.length === 1) continue;
+    if (byUsername || byName.length === 1) {
+      const existing = byUsername || byName[0];
+      if (existing && !existing.ceoBoxAccess) {
+        await storage.updateUser(existing.id, { ceoBoxAccess: true });
+        console.log(`Granted CEO Box access to existing user: ${existing.fullName}`);
+      }
+      continue;
+    }
 
     const password = await hashPass("pass123");
-    await storage.createUser({ username: u.username, password, fullName: u.fullName, role: u.role });
+    await storage.createUser({ username: u.username, password, fullName: u.fullName, role: u.role, ceoBoxAccess: true });
     console.log(`Created CEO Box user: ${u.fullName} (${u.username})`);
   }
 }
