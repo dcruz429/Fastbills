@@ -71,7 +71,7 @@ export function ScrollSync({ children, className }: Props) {
       >
         <div ref={topInnerRef} style={{ height: "1px", minWidth: "100%" }} />
       </div>
-      <div ref={innerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div ref={innerRef} className="flex-1 min-h-0 overflow-x-hidden">
         {children}
       </div>
     </div>
