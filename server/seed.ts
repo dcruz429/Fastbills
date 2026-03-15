@@ -52,13 +52,31 @@ export async function ensureCeoBoxUsers() {
     { username: "almanjoorsa", fullName: "Dr. Al Manjoorsa", role: "manager" as const },
     { username: "dcruz", fullName: "David Cruz", role: "manager" as const },
   ];
+
+  const allUsers = await storage.getAllUsers();
+
   for (const u of ceoUsers) {
-    const existing = await storage.getUserByUsername(u.username);
-    if (!existing) {
-      const password = await hashPass("pass123");
-      await storage.createUser({ username: u.username, password, fullName: u.fullName, role: u.role });
-      console.log(`Created CEO Box user: ${u.fullName} (${u.username})`);
+    const byUsername = allUsers.find(x => x.username === u.username);
+    const byName = allUsers.filter(x => x.fullName === u.fullName);
+
+    if (byName.length > 1) {
+      const seedAccount = byName.find(x => x.username === u.username);
+      if (seedAccount) {
+        const keepAccount = byName.find(x => x.username !== u.username);
+        if (keepAccount) {
+          await db.execute(sql`UPDATE ceo_box SET created_by_id = ${keepAccount.id} WHERE created_by_id = ${seedAccount.id}`);
+          await storage.deleteUser(seedAccount.id);
+          console.log(`Removed duplicate CEO user ${u.fullName} (${seedAccount.username}), kept id=${keepAccount.id}`);
+        }
+      }
+      continue;
     }
+
+    if (byUsername || byName.length === 1) continue;
+
+    const password = await hashPass("pass123");
+    await storage.createUser({ username: u.username, password, fullName: u.fullName, role: u.role });
+    console.log(`Created CEO Box user: ${u.fullName} (${u.username})`);
   }
 }
 
