@@ -1963,16 +1963,20 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/messages", requireAuth, async (req, res) => {
+  app.post("/api/messages", requireAuth, upload.array("attachments"), async (req, res) => {
     try {
-      const { recipientId, content } = req.body;
-      if (!recipientId || !content?.trim()) {
-        return res.status(400).json({ message: "Recipient and content are required" });
+      const body = req.body || {};
+      const { recipientId, content } = body;
+      const files = req.files as Express.Multer.File[];
+      const uploaded = files && files.length > 0 ? await saveUploadedFiles(files) : [];
+      if (!recipientId || (!content?.trim() && uploaded.length === 0)) {
+        return res.status(400).json({ message: "Recipient and content or attachment are required" });
       }
       const message = await storage.createDirectMessage({
         senderId: req.session.userId!,
         recipientId: parseInt(recipientId),
-        content: content.trim(),
+        content: content?.trim() || "",
+        attachments: uploaded.length > 0 ? uploaded : undefined,
       });
       res.json(message);
     } catch (e: any) {
