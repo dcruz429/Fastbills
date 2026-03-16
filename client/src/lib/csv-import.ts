@@ -17,8 +17,10 @@ export function parseDateValue(val: string): string {
 
 export function parseCsvText(
   text: string,
-  columnMap: Record<string, string>
+  columnMap: Record<string, string>,
+  options?: { requirePatientName?: boolean }
 ): Record<string, string>[] {
+  const requirePatientName = options?.requirePatientName !== false;
   const cleaned = text.replace(/^\uFEFF/, "");
   const lines = cleaned.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
@@ -65,7 +67,7 @@ export function parseCsvText(
       delete row.firstName;
     }
     if (row.amount) row.amount = cleanAmount(row.amount);
-    if (row.patientName) rows.push(row);
+    if (!requirePatientName || row.patientName) rows.push(row);
   }
   return rows;
 }

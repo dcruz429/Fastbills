@@ -212,10 +212,10 @@ export default function ChecksPage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const rows = parseCsvText(text, CSV_COLUMN_MAP);
+      const rows = parseCsvText(text, CSV_COLUMN_MAP, { requirePatientName: false });
       setCsvPreview(rows);
       setCsvFileName(file.name);
-      if (rows.length === 0) toast({ title: "No valid rows found", description: "CSV must have a 'Patient Name' column", variant: "destructive" });
+      if (rows.length === 0) toast({ title: "No valid rows found", description: "The CSV appears to be empty or has no data rows.", variant: "destructive" });
     };
     reader.readAsText(file);
   }
@@ -856,7 +856,7 @@ export default function ChecksPage() {
                 <input id="csv-file-input-check" type="file" accept=".csv" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); e.target.value = ""; }} />
               </div>
-              <p className="text-xs text-muted-foreground">Expected columns: Patient Name, Clinic, Insurance, Check Number, Amount, Check Date, Input Date, File Name, Scanned Date, Type, Status, Posted Date, Deposit Date, Deposited By, Assigned To</p>
+              <p className="text-xs text-muted-foreground">Expected columns: Clinic, Insurance, Check Number, Amount, Check Date, Input Date, File Name, Scanned Date, Type, Status, Posted Date, Deposit Date, Deposited By, Assigned To (Patient Name optional)</p>
             </div>
           ) : (
             <div className="space-y-3">
