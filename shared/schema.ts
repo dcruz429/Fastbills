@@ -648,6 +648,12 @@ export const closed = pgTable("closed", {
   outcome: text("closed_outcome"),
   recordData: text("record_data"),
   dateExported: timestamp("date_exported"),
+  reason: text("reason"),
+  dosFrom: text("dos_from"),
+  dosTo: text("dos_to"),
+  regularVisit: integer("regular_visit"),
+  fullVisit: integer("full_visit"),
+  reportedDate: text("reported_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -742,4 +748,5 @@ export const DROPDOWN_CATEGORIES = [
   { key: "ceo_sender", label: "CEO Box Sender" },
   { key: "ceo_company", label: "CEO Box Company" },
   { key: "ceo_action", label: "CEO Box Action" },
+  { key: "rtp_reason", label: "RTP Reason" },
 ] as const;

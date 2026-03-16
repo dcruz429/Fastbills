@@ -2385,7 +2385,12 @@ export async function registerRoutes(
       if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const record = await storage.createClosed(req.body);
+      const body = { ...req.body };
+      if (body.regularVisit !== undefined && body.regularVisit !== "") body.regularVisit = parseInt(body.regularVisit) || null;
+      else if (body.regularVisit === "") body.regularVisit = null;
+      if (body.fullVisit !== undefined && body.fullVisit !== "") body.fullVisit = parseInt(body.fullVisit) || null;
+      else if (body.fullVisit === "") body.fullVisit = null;
+      const record = await storage.createClosed(body);
       await storage.createClosedActivity({
         closedId: record.id,
         userId: req.session.userId!,
@@ -2437,7 +2442,18 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
-      const trackFields = ["patientName", "clinic", "insurance", "assignedTo", "status", "amount", "notes", "outcome", "activity"];
+      if (data.regularVisit !== undefined && data.regularVisit !== "") {
+        data.regularVisit = parseInt(data.regularVisit) || null;
+      } else if (data.regularVisit === "") {
+        data.regularVisit = null;
+      }
+      if (data.fullVisit !== undefined && data.fullVisit !== "") {
+        data.fullVisit = parseInt(data.fullVisit) || null;
+      } else if (data.fullVisit === "") {
+        data.fullVisit = null;
+      }
+
+      const trackFields = ["patientName", "clinic", "insurance", "assignedTo", "status", "amount", "notes", "outcome", "activity", "reason", "dosFrom", "dosTo", "regularVisit", "fullVisit", "reportedDate"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];

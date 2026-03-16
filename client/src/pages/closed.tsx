@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Redirect } from "wouter";
-import type { Closed, User } from "@shared/schema";
+import type { Closed, User, DropdownOption } from "@shared/schema";
 import { CLOSED_STATUS_OPTIONS, OUTCOME_OPTIONS } from "@shared/schema";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -165,6 +165,12 @@ const emptyForm = {
   source: "",
   outcome: "",
   notes: "",
+  reason: "",
+  dosFrom: "",
+  dosTo: "",
+  regularVisit: "",
+  fullVisit: "",
+  reportedDate: "",
 };
 
 export default function ClosedPage() {
@@ -196,6 +202,7 @@ export default function ClosedPage() {
 
   const { data: closedList, isLoading } = useQuery<Closed[]>({ queryKey: ["/api/closed"] });
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const { data: rtpReasonOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "rtp_reason"] });
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
     queryKey: ["/api/closed", editingId, "activity"],
     enabled: !!editingId,
@@ -393,6 +400,12 @@ export default function ClosedPage() {
       source: d.source || "",
       outcome: d.outcome || "",
       notes: d.notes || "",
+      reason: (d as any).reason || "",
+      dosFrom: (d as any).dosFrom || "",
+      dosTo: (d as any).dosTo || "",
+      regularVisit: (d as any).regularVisit != null ? String((d as any).regularVisit) : "",
+      fullVisit: (d as any).fullVisit != null ? String((d as any).fullVisit) : "",
+      reportedDate: (d as any).reportedDate || "",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -646,6 +659,12 @@ export default function ClosedPage() {
                               <TableHead className="min-w-[100px] text-xs select-none cursor-pointer" onClick={() => handleSort("dateExported")}>
                                 Date Exported <SortIcon col="dateExported" />
                               </TableHead>
+                              <TableHead className="min-w-[110px] text-xs">Reason</TableHead>
+                              <TableHead className="min-w-[90px] text-xs">DOS From</TableHead>
+                              <TableHead className="min-w-[90px] text-xs">DOS To</TableHead>
+                              <TableHead className="min-w-[100px] text-xs">Regular Visit</TableHead>
+                              <TableHead className="min-w-[90px] text-xs">Full Visit</TableHead>
+                              <TableHead className="min-w-[110px] text-xs">Reported Date</TableHead>
                               {user.role === "admin" && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
                             </TableRow>
                           </TableHeader>
@@ -677,6 +696,12 @@ export default function ClosedPage() {
                                   <TableCell className="text-xs text-muted-foreground">
                                     {(d as any).dateExported ? formatDate((d as any).dateExported) : "-"}
                                   </TableCell>
+                                  <TableCell className="text-xs">{(d as any).reason || "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).dosFrom ? formatDate((d as any).dosFrom) : "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).dosTo ? formatDate((d as any).dosTo) : "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).regularVisit != null ? (d as any).regularVisit : "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).fullVisit != null ? (d as any).fullVisit : "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).reportedDate ? formatDate((d as any).reportedDate) : "-"}</TableCell>
                                   {user.role === "admin" && (
                                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                                       <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-closed-${d.id}`}>
@@ -870,6 +895,38 @@ export default function ClosedPage() {
                     </Select>
                   </div>
                   <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs">Reason</Label>
+                    <Select value={form.reason || "__none__"} onValueChange={v => setForm(f => ({ ...f, reason: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-closed-reason"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-- None --</SelectItem>
+                        {(rtpReasonOpts || []).map(o => (
+                          <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">DOS From</Label>
+                    <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-dos-from" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">DOS To</Label>
+                    <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-dos-to" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Regular Visit (0-100)</Label>
+                    <Input type="number" min={0} max={100} value={form.regularVisit} onChange={e => setForm(f => ({ ...f, regularVisit: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-regular-visit" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Full Visit (0-100)</Label>
+                    <Input type="number" min={0} max={100} value={form.fullVisit} onChange={e => setForm(f => ({ ...f, fullVisit: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-full-visit" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs">Reported Date</Label>
+                    <Input type="date" value={form.reportedDate} onChange={e => setForm(f => ({ ...f, reportedDate: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-reported-date" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs">Notes</Label>
                     <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="resize-none text-xs min-h-[80px]" data-testid="textarea-closed-notes" />
                   </div>
@@ -939,6 +996,38 @@ export default function ClosedPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Reason</Label>
+                  <Select value={form.reason || "__none__"} onValueChange={v => setForm(f => ({ ...f, reason: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-closed-reason"><SelectValue placeholder="Select reason" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(rtpReasonOpts || []).map(o => (
+                        <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>DOS From</Label>
+                  <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-closed-dos-from" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>DOS To</Label>
+                  <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-closed-dos-to" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Regular Visit (0-100)</Label>
+                  <Input type="number" min={0} max={100} value={form.regularVisit} onChange={e => setForm(f => ({ ...f, regularVisit: e.target.value }))} data-testid="input-closed-regular-visit" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Full Visit (0-100)</Label>
+                  <Input type="number" min={0} max={100} value={form.fullVisit} onChange={e => setForm(f => ({ ...f, fullVisit: e.target.value }))} data-testid="input-closed-full-visit" />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Reported Date</Label>
+                  <Input type="date" value={form.reportedDate} onChange={e => setForm(f => ({ ...f, reportedDate: e.target.value }))} data-testid="input-closed-reported-date" />
                 </div>
                 <div className="space-y-1.5 col-span-2">
                   <Label>Notes</Label>
