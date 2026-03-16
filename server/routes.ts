@@ -2527,22 +2527,22 @@ export async function registerRoutes(
       const fullName = user.fullName;
 
       const allTasks = await storage.getAllTasks();
-      const myTasks = allTasks.filter((t: any) => t.assignedUserId === user.id);
+      const myTasks = allTasks.filter((t: any) => t.assignedUserId === user.id && t.status !== "done");
 
       const allChecks = await db.select().from(checks);
-      const myChecks = allChecks.filter((c: any) => c.assignedTo === fullName);
+      const myChecks = allChecks.filter((c: any) => c.assignedTo === fullName && (c.status || "").toLowerCase() !== "done");
 
       const allPostings = await db.select().from(postings);
-      const myPostings = allPostings.filter((p: any) => p.assignedTo === fullName);
+      const myPostings = allPostings.filter((p: any) => p.assignedTo === fullName && (p.status || "").toLowerCase() !== "done");
 
       const allCollections = await db.select().from(collections);
-      const myCollections = allCollections.filter((c: any) => c.assignedTo === fullName);
+      const myCollections = allCollections.filter((c: any) => c.assignedTo === fullName && (c.status || "").toLowerCase() !== "done");
 
       const allDenials = await db.select().from(denials);
-      const myDenials = allDenials.filter((d: any) => d.assignedTo === fullName);
+      const myDenials = allDenials.filter((d: any) => d.assignedTo === fullName && (d.status || "").toLowerCase() !== "done");
 
       const allArbitrations = await db.select().from(arbitrations);
-      const myArbitrations = allArbitrations.filter((a: any) => a.assignedTo === fullName);
+      const myArbitrations = allArbitrations.filter((a: any) => a.assignedTo === fullName && (a.status || "").toLowerCase() !== "done");
 
       res.json({
         tasks: myTasks,
