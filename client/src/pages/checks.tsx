@@ -302,16 +302,10 @@ export default function ChecksPage() {
     if (filterDateFrom || filterDateTo) {
       const fieldVal = (d as any)[filterDateField];
       if (!fieldVal) return false;
-      const dateVal = new Date(fieldVal);
-      if (isNaN(dateVal.getTime())) return false;
-      if (filterDateFrom) {
-        const from = new Date(filterDateFrom + "T00:00:00");
-        if (dateVal < from) return false;
-      }
-      if (filterDateTo) {
-        const to = new Date(filterDateTo + "T23:59:59.999");
-        if (dateVal > to) return false;
-      }
+      const raw = typeof fieldVal === "string" ? fieldVal : new Date(fieldVal).toISOString();
+      const dateStr = raw.substring(0, 10);
+      if (filterDateFrom && dateStr < filterDateFrom) return false;
+      if (filterDateTo && dateStr > filterDateTo) return false;
     }
     return true;
   });
