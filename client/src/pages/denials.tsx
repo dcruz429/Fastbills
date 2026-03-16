@@ -168,7 +168,7 @@ export default function DenialsPage() {
   });
 
   const importCsvMutation = useMutation({
-    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/denials/import-csv", { rows }),
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/denials/import-csv", { rows }).then(r => r.json()),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
       setCsvDialogOpen(false);

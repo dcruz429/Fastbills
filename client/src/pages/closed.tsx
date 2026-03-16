@@ -353,7 +353,7 @@ export default function ClosedPage() {
   });
 
   const importCsvMutation = useMutation({
-    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/closed/import-csv", { rows }),
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/closed/import-csv", { rows }).then(r => r.json()),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/closed"] });
       setCsvDialogOpen(false);

@@ -150,7 +150,7 @@ export default function PostingPage() {
   });
 
   const importCsvMutation = useMutation({
-    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/postings/import-csv", { rows }),
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/postings/import-csv", { rows }).then(r => r.json()),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
       setCsvDialogOpen(false);

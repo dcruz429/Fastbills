@@ -193,7 +193,7 @@ export default function CollectionsPage() {
   });
 
   const importMutation = useMutation({
-    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/collections/import-csv", { rows }),
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/collections/import-csv", { rows }).then(r => r.json()),
     onSuccess: async (res) => {
       const result = await res.json();
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });

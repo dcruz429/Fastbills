@@ -184,7 +184,7 @@ export default function ChecksPage() {
   });
 
   const importCsvMutation = useMutation({
-    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/checks/import-csv", { rows }),
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/checks/import-csv", { rows }).then(r => r.json()),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/checks"] });
       setCsvDialogOpen(false);

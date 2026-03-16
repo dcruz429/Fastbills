@@ -162,7 +162,7 @@ export default function ArbitrationPage() {
   });
 
   const importCsvMutation = useMutation({
-    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/arbitrations/import-csv", { rows }),
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/arbitrations/import-csv", { rows }).then(r => r.json()),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
       setCsvDialogOpen(false);
