@@ -2194,8 +2194,9 @@ export async function registerRoutes(
       const ticket = await storage.getTicket(parseInt(req.params.id));
       const isAdmin = user?.role === "admin";
       const isCreator = ticket?.createdById === req.session.userId;
-      if (!user || (!isAdmin && !isCreator)) {
-        return res.status(403).json({ message: "Only admins or the ticket creator can comment" });
+      const hasCeoAccess = !!(user as any)?.ceoBoxAccess;
+      if (!user || (!isAdmin && !isCreator && !hasCeoAccess)) {
+        return res.status(403).json({ message: "Access denied" });
       }
       if (!req.body.content || !req.body.content.trim()) {
         return res.status(400).json({ message: "Comment content is required" });
