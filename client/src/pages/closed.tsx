@@ -216,6 +216,8 @@ export default function ClosedPage() {
 
   const { data: closedList, isLoading } = useQuery<Closed[]>({ queryKey: ["/api/closed"] });
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const { data: allClinics } = useQuery<any[]>({ queryKey: ["/api/clinics"] });
+  const { data: allInsurances } = useQuery<any[]>({ queryKey: ["/api/insurances"] });
   const { data: rtpReasonOpts } = useQuery<DropdownOption[]>({ queryKey: ["/api/dropdown-options", "rtp_reason"] });
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
     queryKey: ["/api/closed", editingId, "activity"],
@@ -965,11 +967,27 @@ export default function ClosedPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Clinic</Label>
-                  <Input value={form.clinic} onChange={e => setForm(f => ({ ...f, clinic: e.target.value }))} data-testid="input-closed-clinic" />
+                  <Select value={form.clinic || "__none__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-closed-clinic"><SelectValue placeholder="Select clinic" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(allClinics || []).filter((c: any) => c.active !== false).map((c: any) => (
+                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Insurance</Label>
-                  <Input value={form.insurance} onChange={e => setForm(f => ({ ...f, insurance: e.target.value }))} data-testid="input-closed-insurance" />
+                  <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-closed-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(allInsurances || []).filter((i: any) => i.active !== false).map((i: any) => (
+                        <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Assigned To</Label>
@@ -995,13 +1013,9 @@ export default function ClosedPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 col-span-2">
                   <Label>Amount</Label>
                   <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} data-testid="input-closed-amount" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Source</Label>
-                  <Input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} data-testid="input-closed-source" />
                 </div>
                 <div className="space-y-1.5 col-span-2">
                   <Label>Outcome</Label>
