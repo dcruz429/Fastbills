@@ -278,7 +278,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                       id="rtp-checkbox"
                       checked={editData.rtp || false}
                       onCheckedChange={(checked) => setEditData({ ...editData, rtp: !!checked })}
-                      disabled={user?.role !== "verifier" && user?.role !== "admin" && user?.role !== "manager" && user?.role !== "assigner"}
+                      disabled={user?.role !== "verifier" && user?.role !== "admin" && user?.role !== "manager" && user?.role !== "assigner" && user?.role !== "account_manager" && user?.role !== "case_manager"}
                       data-testid="checkbox-rtp"
                     />
                     <Label htmlFor="rtp-checkbox" className="text-xs font-medium cursor-pointer">
@@ -329,7 +329,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Assigned To</Label>
-                {user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" ? (
+                {user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "case_manager" ? (
                   <Select
                     value={editData.assignedUserId?.toString() || "none"}
                     onValueChange={(v) => setEditData({ ...editData, assignedUserId: v === "none" ? null : Number(v) })}
