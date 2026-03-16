@@ -578,7 +578,7 @@ export async function registerRoutes(
         ...checkActs.map(a => ({ ...a, department: "Checks" })),
         ...closedActs.map(a => ({
           ...a,
-          department: a.closedSource?.startsWith("RTP") ? "RTP" : "Closed",
+          department: a.closedSource ? "RTP" : "Closed",
           closedSource: undefined,
         })),
       ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
