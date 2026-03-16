@@ -46,12 +46,26 @@ function fmtAmt(v: string | null | undefined) {
 
 type ColSpec = { header: string; sort?: string; renderCell: (d: any, rec: any) => JSX.Element | string | null };
 
+const STATUS_NORMALIZE: Record<string, string> = {
+  unassigned: "Unassigned",
+  assigned: "Assigned",
+  working_on_it: "Working on it",
+  done: "Done",
+  verified: "Assigned",
+  billed: "Assigned",
+  dropped: "Unassigned",
+};
+
+function normalizeStatus(s: string): string {
+  return STATUS_NORMALIZE[s] || s;
+}
+
 function getColSpecs(sectionKey: string): ColSpec[] {
   const patient: ColSpec = { header: "Patient", sort: "patientName", renderCell: (d, rec) => <span className="font-medium">{rec.patientName || d.patientName || "-"}</span> };
   const clinic: ColSpec = { header: "Clinic", sort: "clinic", renderCell: (d, rec) => rec.clinic || d.clinic || "-" };
   const insurance: ColSpec = { header: "Insurance", sort: "insurance", renderCell: (d, rec) => rec.insurance || d.insurance || "-" };
   const amount: ColSpec = { header: "Amount", sort: "amount", renderCell: (d, rec) => fmtAmt(rec.amount || d.amount) };
-  const status: ColSpec = { header: "Status", sort: "status", renderCell: (d, rec) => { const s = rec.status || d.status; return s ? <TrackerStatusBadge status={s} /> : "-"; } };
+  const status: ColSpec = { header: "Status", sort: "status", renderCell: (d, rec) => { const s = normalizeStatus(d.status || rec.status || ""); return s ? <TrackerStatusBadge status={s} /> : "-"; } };
   const assignedTo: ColSpec = { header: "Assigned To", sort: "assignedTo", renderCell: (d, rec) => rec.assignedTo || d.assignedTo || "-" };
   const date: ColSpec = { header: "Date", sort: "createdAt", renderCell: (d) => formatDate(d.createdAt) };
 
