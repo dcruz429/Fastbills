@@ -2191,8 +2191,11 @@ export async function registerRoutes(
   app.post("/api/tickets/:id/comments", requireAuth, upload.array("files", 5), async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
-        return res.status(403).json({ message: "Only admins can comment on tickets" });
+      const ticket = await storage.getTicket(parseInt(req.params.id));
+      const isAdmin = user?.role === "admin";
+      const isCreator = ticket?.createdById === req.session.userId;
+      if (!user || (!isAdmin && !isCreator)) {
+        return res.status(403).json({ message: "Only admins or the ticket creator can comment" });
       }
       if (!req.body.content || !req.body.content.trim()) {
         return res.status(400).json({ message: "Comment content is required" });
