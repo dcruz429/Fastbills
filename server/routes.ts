@@ -1338,10 +1338,12 @@ export async function registerRoutes(
       for (let i = 0; i < rows.length; i++) {
         try {
           const data: any = { ...rows[i] };
-          if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
           for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
           if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
-          const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.checkNumber || "").toLowerCase() === (data.checkNumber || "").toLowerCase());
+          const match = existing.find(r =>
+            data.checkNumber && (r.checkNumber || "").toLowerCase() === (data.checkNumber || "").toLowerCase() &&
+            (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase()
+          );
           if (match) { await storage.updateCheck(match.id, data); await storage.createCheckActivity({ checkId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
           else { const rec = await storage.createCheck(data); await storage.createCheckActivity({ checkId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
         } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }

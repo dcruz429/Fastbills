@@ -47,7 +47,7 @@ export function parseCsvText(
 
   const headers = parseRow(lines[0]);
   const mappedHeaders = headers.map((h) => {
-    const lower = h.toLowerCase().replace(/[_\-:]/g, " ").replace(/\s+/g, " ").trim();
+    const lower = h.toLowerCase().replace(/[_\-:.]/g, " ").replace(/\s+/g, " ").trim();
     return columnMap[lower] || lower.replace(/\s+(.)/g, (_, c) => c.toUpperCase());
   });
 
