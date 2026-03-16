@@ -900,7 +900,15 @@ export default function ClosedPage() {
                   </div>
                   <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs">Insurance</Label>
-                    <Input value={form.insurance} onChange={e => setForm(f => ({ ...f, insurance: e.target.value }))} className="h-8 text-xs" placeholder="Insurance" data-testid="input-closed-rtp-insurance" />
+                    <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-closed-rtp-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-- None --</SelectItem>
+                        {(allInsurances || []).filter((i: any) => i.active !== false).map((i: any) => (
+                          <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs">Outcome</Label>
