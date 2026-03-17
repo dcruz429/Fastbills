@@ -909,18 +909,6 @@ export default function ClosedPage() {
                     </Select>
                   </div>
                   <div className="space-y-1.5 col-span-2">
-                    <Label className="text-xs">Insurance</Label>
-                    <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
-                      <SelectTrigger className="h-8 text-xs" data-testid="select-closed-rtp-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">-- None --</SelectItem>
-                        {(allInsurances || []).filter((i: any) => i.active !== false).map((i: any) => (
-                          <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs">Outcome</Label>
                     <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
                       <SelectTrigger className="h-8 text-xs" data-testid="select-closed-outcome"><SelectValue placeholder="None" /></SelectTrigger>
@@ -928,6 +916,18 @@ export default function ClosedPage() {
                         <SelectItem value="__none__">-- None --</SelectItem>
                         {OUTCOME_OPTIONS.map(o => (
                           <SelectItem key={o} value={o}>{o}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs">Insurance</Label>
+                    <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-closed-rtp-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-- None --</SelectItem>
+                        {(allInsurances || []).filter((i: any) => i.active !== false).map((i: any) => (
+                          <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

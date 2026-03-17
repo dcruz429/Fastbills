@@ -823,10 +823,6 @@ export default function CollectionsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Input Date</Label>
-                  <Input type="date" value={form.inputDate} onChange={e => setForm(f => ({ ...f, inputDate: e.target.value }))} data-testid="input-collection-input-date" />
-                </div>
-                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Clinic</Label>
                   <Select value={form.clinic || "__none__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__none__" ? "" : v }))}>
                     <SelectTrigger data-testid="select-collection-clinic"><SelectValue placeholder="Select clinic" /></SelectTrigger>
@@ -838,8 +834,6 @@ export default function CollectionsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Division</Label>
                   <Select value={form.division || "__none__"} onValueChange={v => setForm(f => ({ ...f, division: v === "__none__" ? "" : v }))}>
@@ -852,18 +846,18 @@ export default function CollectionsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Insurance</Label>
-                  <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-collection-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Select insurance</SelectItem>
-                      {sortedInsurances.map(ins => (
-                        <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Insurance</Label>
+                <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger data-testid="select-collection-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Select insurance</SelectItem>
+                    {sortedInsurances.map(ins => (
+                      <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -887,24 +881,30 @@ export default function CollectionsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Issue Type</Label>
-                  <Select value={form.issueType || "__none__"} onValueChange={v => setForm(f => ({ ...f, issueType: v === "__none__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-collection-issue-type"><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <Label className="text-xs text-muted-foreground">Assigned to</Label>
+                  <Select value={form.assignedTo || "__none__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-assigned"><SelectValue placeholder="Select..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">-- None --</SelectItem>
-                      {(issueTypeOpts || []).map(o => o.value).map(o => (
-                        <SelectItem key={o} value={o}>{o}</SelectItem>
-                      ))}
+                      {(() => {
+                        const names = new Map(activeUsers.map(u => [u.fullName.replace(/\s+/g, ' ').trim().toLowerCase(), u.fullName]));
+                        if (form.assignedTo && !names.has(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase())) {
+                          names.set(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase(), form.assignedTo);
+                        }
+                        return [...names.values()].sort().map(name => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Type of Denial</Label>
-                  <Select value={form.typeOfDenial || "__none__"} onValueChange={v => setForm(f => ({ ...f, typeOfDenial: v === "__none__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-collection-type-denial"><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <Label className="text-xs text-muted-foreground">Action</Label>
+                  <Select value={form.action || "__none__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-activity"><SelectValue placeholder="Select..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">-- None --</SelectItem>
-                      {(denialTypeOpts || []).map(o => o.value).map(o => (
+                      {(actionOpts || []).map(o => o.value).map(o => (
                         <SelectItem key={o} value={o}>{o}</SelectItem>
                       ))}
                     </SelectContent>
@@ -913,12 +913,12 @@ export default function CollectionsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Action</Label>
-                  <Select value={form.action || "__none__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__none__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-collection-activity"><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={form.status || "__none__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-status"><SelectValue placeholder="Select..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">-- None --</SelectItem>
-                      {(actionOpts || []).map(o => o.value).map(o => (
+                      {(statusOpts || []).map(o => o.value).map(o => (
                         <SelectItem key={o} value={o}>{o}</SelectItem>
                       ))}
                     </SelectContent>
@@ -939,6 +939,36 @@ export default function CollectionsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Input Date</Label>
+                  <Input type="date" value={form.inputDate} onChange={e => setForm(f => ({ ...f, inputDate: e.target.value }))} data-testid="input-collection-input-date" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Issue Type</Label>
+                  <Select value={form.issueType || "__none__"} onValueChange={v => setForm(f => ({ ...f, issueType: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-issue-type"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(issueTypeOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Type of Denial</Label>
+                  <Select value={form.typeOfDenial || "__none__"} onValueChange={v => setForm(f => ({ ...f, typeOfDenial: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-collection-type-denial"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {(denialTypeOpts || []).map(o => o.value).map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Priority (auto)</Label>
                   <div className="flex items-center h-9 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-priority">
                     {form.inputDate ? (
@@ -948,6 +978,8 @@ export default function CollectionsPage() {
                     )}
                   </div>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Ageing (auto)</Label>
                   <div className="flex items-center h-9 px-3 rounded-md border bg-muted text-sm" data-testid="display-collection-ageing">
@@ -957,38 +989,6 @@ export default function CollectionsPage() {
                       <span className="text-xs text-muted-foreground">Set Input Date</span>
                     )}
                   </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Assigned to</Label>
-                  <Select value={form.assignedTo || "__none__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__none__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-collection-assigned"><SelectValue placeholder="Select..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">-- None --</SelectItem>
-                      {(() => {
-                        const names = new Map(activeUsers.map(u => [u.fullName.replace(/\s+/g, ' ').trim().toLowerCase(), u.fullName]));
-                        if (form.assignedTo && !names.has(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase())) {
-                          names.set(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase(), form.assignedTo);
-                        }
-                        return [...names.values()].sort().map(name => (
-                          <SelectItem key={name} value={name}>{name}</SelectItem>
-                        ));
-                      })()}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
-                  <Select value={form.status || "__none__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__none__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-collection-status"><SelectValue placeholder="Select..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">-- None --</SelectItem>
-                      {(statusOpts || []).map(o => o.value).map(o => (
-                        <SelectItem key={o} value={o}>{o}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 

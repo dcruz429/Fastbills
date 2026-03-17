@@ -696,6 +696,125 @@ export default function DenialsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Clinic</Label>
+                  <Select value={form.clinic || "__clear__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-clinic">
+                      <SelectValue placeholder="Select clinic..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {activeClinics.map(c => (
+                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Insurance</Label>
+                  <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Select insurance</SelectItem>
+                      {sortedInsurances.map(ins => (
+                        <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOS From</Label>
+                  <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-denial-dos-from" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">DOS To</Label>
+                  <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-denial-dos-to" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground"># of Visits</Label>
+                  <Input type="number" value={form.numberOfDays} onChange={e => setForm(f => ({ ...f, numberOfDays: e.target.value }))} data-testid="input-denial-days" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Amount</Label>
+                  <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-denial-amount" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Assigned To</Label>
+                  <Select value={form.assignedTo || "__clear__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-assigned-to">
+                      <SelectValue placeholder="Select user..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(() => {
+                        const names = new Map(activeUsers.map(u => [u.fullName.replace(/\s+/g, ' ').trim().toLowerCase(), u.fullName]));
+                        if (form.assignedTo && !names.has(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase())) {
+                          names.set(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase(), form.assignedTo);
+                        }
+                        return [...names.values()].sort().map(name => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ));
+                      })()}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Action</Label>
+                  <Select value={form.action || "__clear__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-action">
+                      <SelectValue placeholder="Select action..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {(actionOpts || []).map(o => (
+                        <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={form.status || "__clear__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-status">
+                      <SelectValue placeholder="Select status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {DENIAL_STATUS_OPTIONS.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Outcome</Label>
+                  <Select value={form.outcome || "__clear__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__clear__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-denial-outcome">
+                      <SelectValue placeholder="Select outcome..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">-- None --</SelectItem>
+                      {OUTCOME_OPTIONS.map(o => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Denial File Name</Label>
                   <Input value={form.denialFileName} onChange={e => setForm(f => ({ ...f, denialFileName: e.target.value }))} data-testid="input-denial-file-name" />
                 </div>
@@ -734,35 +853,6 @@ export default function DenialsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Clinic</Label>
-                  <Select value={form.clinic || "__clear__"} onValueChange={v => setForm(f => ({ ...f, clinic: v === "__clear__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-denial-clinic">
-                      <SelectValue placeholder="Select clinic..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__clear__">-- None --</SelectItem>
-                      {activeClinics.map(c => (
-                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Insurance</Label>
-                  <Select value={form.insurance || "__none__"} onValueChange={v => setForm(f => ({ ...f, insurance: v === "__none__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-denial-insurance"><SelectValue placeholder="Select insurance" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Select insurance</SelectItem>
-                      {sortedInsurances.map(ins => (
-                        <SelectItem key={ins.id} value={ins.name}>{ins.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Date of Letter</Label>
                   <Input type="date" value={form.dateOfLetter} onChange={e => setForm(f => ({ ...f, dateOfLetter: e.target.value }))} data-testid="input-denial-date-of-letter" />
                 </div>
@@ -782,98 +872,9 @@ export default function DenialsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Effective Date</Label>
-                  <Input type="date" value={form.effectiveDate} onChange={e => setForm(f => ({ ...f, effectiveDate: e.target.value }))} data-testid="input-denial-effective-date" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">DOS From</Label>
-                  <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-denial-dos-from" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">DOS To</Label>
-                  <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-denial-dos-to" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground"># of Visits</Label>
-                  <Input type="number" value={form.numberOfDays} onChange={e => setForm(f => ({ ...f, numberOfDays: e.target.value }))} data-testid="input-denial-days" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Amount</Label>
-                  <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-denial-amount" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Assigned To</Label>
-                  <Select value={form.assignedTo || "__clear__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__clear__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-denial-assigned-to">
-                      <SelectValue placeholder="Select user..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__clear__">-- None --</SelectItem>
-                      {(() => {
-                        const names = new Map(activeUsers.map(u => [u.fullName.replace(/\s+/g, ' ').trim().toLowerCase(), u.fullName]));
-                        if (form.assignedTo && !names.has(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase())) {
-                          names.set(form.assignedTo.replace(/\s+/g, ' ').trim().toLowerCase(), form.assignedTo);
-                        }
-                        return [...names.values()].sort().map(name => (
-                          <SelectItem key={name} value={name}>{name}</SelectItem>
-                        ));
-                      })()}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
-                  <Select value={form.status || "__clear__"} onValueChange={v => setForm(f => ({ ...f, status: v === "__clear__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-denial-status">
-                      <SelectValue placeholder="Select status..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__clear__">-- None --</SelectItem>
-                      {DENIAL_STATUS_OPTIONS.map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Action</Label>
-                  <Select value={form.action || "__clear__"} onValueChange={v => setForm(f => ({ ...f, action: v === "__clear__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-denial-action">
-                      <SelectValue placeholder="Select action..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__clear__">-- None --</SelectItem>
-                      {(actionOpts || []).map(o => (
-                        <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Outcome</Label>
-                  <Select value={form.outcome || "__clear__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__clear__" ? "" : v }))}>
-                    <SelectTrigger data-testid="select-denial-outcome">
-                      <SelectValue placeholder="Select outcome..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__clear__">-- None --</SelectItem>
-                      {OUTCOME_OPTIONS.map(o => (
-                        <SelectItem key={o} value={o}>{o}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Effective Date</Label>
+                <Input type="date" value={form.effectiveDate} onChange={e => setForm(f => ({ ...f, effectiveDate: e.target.value }))} data-testid="input-denial-effective-date" />
               </div>
 
               <div className="space-y-1.5">
