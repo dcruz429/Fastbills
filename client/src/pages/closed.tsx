@@ -713,7 +713,7 @@ export default function ClosedPage() {
                                   <TableCell className="text-xs">{(d as any).dosFrom ? formatDate((d as any).dosFrom) : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).dosTo ? formatDate((d as any).dosTo) : "-"}</TableCell>
                                   <TableCell className="text-xs">{fmtAmt(rec.amount || d.amount)}</TableCell>
-                                  <TableCell className="text-xs">{rec.assignedTo || d.assignedTo || "-"}</TableCell>
+                                  <TableCell className="text-xs">{d.assignedTo || rec.assignedTo || "-"}</TableCell>
                                   <TableCell className="text-xs">{statusVal ? <TrackerStatusBadge status={statusVal} /> : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).outcome || "-"}</TableCell>
                                   {extraCols.map(col => (
