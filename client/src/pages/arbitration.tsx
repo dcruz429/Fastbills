@@ -467,19 +467,23 @@ export default function ArbitrationPage() {
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
                   <TableHead className="min-w-[130px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient Name{renderSortIcon("patientName")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic{renderSortIcon("clinic")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance{renderSortIcon("insurance")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosFrom")} data-testid="sort-dosFrom">DOS From{renderSortIcon("dosFrom")}</TableHead>
+                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosTo")} data-testid="sort-dosTo">DOS To{renderSortIcon("dosTo")}</TableHead>
+                  <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("numberOfDays")} data-testid="sort-numberOfDays"># of Visits{renderSortIcon("numberOfDays")}</TableHead>
+                  <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount{renderSortIcon("amount")}</TableHead>
+                  <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To{renderSortIcon("assignedTo")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("activity")} data-testid="sort-activity">Action{renderSortIcon("activity")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status{renderSortIcon("status")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("outcome")} data-testid="sort-outcome">Outcome{renderSortIcon("outcome")}</TableHead>
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("denialFileName")} data-testid="sort-denialFileName">File Name{renderSortIcon("denialFileName")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dateInput")} data-testid="sort-dateInput">Date Input{renderSortIcon("dateInput")}</TableHead>
                   <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("intake")} data-testid="sort-intake">Intake{renderSortIcon("intake")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("doa")} data-testid="sort-doa">DOA{renderSortIcon("doa")}</TableHead>
-                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic{renderSortIcon("clinic")}</TableHead>
-                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance{renderSortIcon("insurance")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("dateOfLetter")} data-testid="sort-dateOfLetter">Date of Letter{renderSortIcon("dateOfLetter")}</TableHead>
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("typeOfDenial")} data-testid="sort-typeOfDenial">Type of Denial{renderSortIcon("typeOfDenial")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("effectiveDate")} data-testid="sort-effectiveDate">Effective Date{renderSortIcon("effectiveDate")}</TableHead>
-                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosFrom")} data-testid="sort-dosFrom">DOS From{renderSortIcon("dosFrom")}</TableHead>
-                  <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosTo")} data-testid="sort-dosTo">DOS To{renderSortIcon("dosTo")}</TableHead>
-                  <TableHead className="min-w-[60px] cursor-pointer select-none" onClick={() => handleSort("numberOfDays")} data-testid="sort-numberOfDays"># Visits{renderSortIcon("numberOfDays")}</TableHead>
-                  <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount{renderSortIcon("amount")}</TableHead>
                   <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("filedTo")} data-testid="sort-filedTo">Filed To{renderSortIcon("filedTo")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("arbStatus")} data-testid="sort-arbStatus">ARB Status{renderSortIcon("arbStatus")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("trialDate")} data-testid="sort-trialDate">Trial Date{renderSortIcon("trialDate")}</TableHead>
@@ -487,16 +491,13 @@ export default function ArbitrationPage() {
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("amountReceived")} data-testid="sort-amountReceived">Amt Received{renderSortIcon("amountReceived")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("checkedBy")} data-testid="sort-checkedBy">Checked By{renderSortIcon("checkedBy")}</TableHead>
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("comment")} data-testid="sort-comment">Comment{renderSortIcon("comment")}</TableHead>
-                  <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To{renderSortIcon("assignedTo")}</TableHead>
-                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status{renderSortIcon("status")}</TableHead>
-                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("activity")} data-testid="sort-activity">Action{renderSortIcon("activity")}</TableHead>
                   {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activeRecords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={25} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={26} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
@@ -506,21 +507,27 @@ export default function ArbitrationPage() {
                   return (
                   <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-${d.id}`}>
                     <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                    <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
+                    <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
+                    <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
+                    <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
+                    <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                    <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                    <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
+                    <TableCell className="text-xs">
+                      {(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}
+                    </TableCell>
+                    <TableCell className="text-xs">{(d as any).outcome || "-"}</TableCell>
                     <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
                     <TableCell className="text-xs">{d.intake || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
-                    <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
-                    <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
                     <TableCell className="text-xs">
                       {d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
-                    <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
-                    <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
-                    <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
-                    <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                     <TableCell className="text-xs">
                       {d.filedTo ? <TrackerStatusBadge status={d.filedTo} /> : "-"}
                     </TableCell>
@@ -534,11 +541,6 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">{d.amountReceived ? (() => { const n = parseFloat(d.amountReceived.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amountReceived : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                     <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
-                    <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                    <TableCell className="text-xs">
-                      {(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         {canDelete && (
@@ -573,19 +575,23 @@ export default function ArbitrationPage() {
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     <TableHead className="min-w-[130px]">Patient Name</TableHead>
+                    <TableHead className="min-w-[100px]">Clinic</TableHead>
+                    <TableHead className="min-w-[100px]">Insurance</TableHead>
+                    <TableHead className="min-w-[90px]">DOS From</TableHead>
+                    <TableHead className="min-w-[90px]">DOS To</TableHead>
+                    <TableHead className="min-w-[70px]"># of Visits</TableHead>
+                    <TableHead className="min-w-[80px]">Amount</TableHead>
+                    <TableHead className="min-w-[110px]">Assigned To</TableHead>
+                    <TableHead className="min-w-[100px]">Action</TableHead>
+                    <TableHead className="min-w-[100px]">Status</TableHead>
+                    <TableHead className="min-w-[100px]">Outcome</TableHead>
                     <TableHead className="min-w-[120px]">File Name</TableHead>
                     <TableHead className="min-w-[90px]">Date Input</TableHead>
                     <TableHead className="min-w-[80px]">Intake</TableHead>
                     <TableHead className="min-w-[90px]">DOA</TableHead>
-                    <TableHead className="min-w-[100px]">Clinic</TableHead>
-                    <TableHead className="min-w-[100px]">Insurance</TableHead>
                     <TableHead className="min-w-[100px]">Date of Letter</TableHead>
                     <TableHead className="min-w-[120px]">Type of Denial</TableHead>
                     <TableHead className="min-w-[100px]">Effective Date</TableHead>
-                    <TableHead className="min-w-[90px]">DOS From</TableHead>
-                    <TableHead className="min-w-[90px]">DOS To</TableHead>
-                    <TableHead className="min-w-[60px]"># Visits</TableHead>
-                    <TableHead className="min-w-[80px]">Amount</TableHead>
                     <TableHead className="min-w-[80px]">Filed To</TableHead>
                     <TableHead className="min-w-[90px]">ARB Status</TableHead>
                     <TableHead className="min-w-[90px]">Trial Date</TableHead>
@@ -593,9 +599,6 @@ export default function ArbitrationPage() {
                     <TableHead className="min-w-[90px]">Amt Received</TableHead>
                     <TableHead className="min-w-[90px]">Checked By</TableHead>
                     <TableHead className="min-w-[120px]">Comment</TableHead>
-                    <TableHead className="min-w-[110px]">Assigned To</TableHead>
-                    <TableHead className="min-w-[100px]">Status</TableHead>
-                    <TableHead className="min-w-[100px]">Action</TableHead>
                     {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -605,19 +608,23 @@ export default function ArbitrationPage() {
                     return (
                     <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-done-${d.id}`}>
                       <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
-                      <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
-                      <TableCell className="text-xs">{d.intake || "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
                       <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                       <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
-                      <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                       <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                       <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
+                      <TableCell className="text-xs">{(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{(d as any).outcome || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
+                      <TableCell className="text-xs">{d.intake || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
+                      <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                       <TableCell className="text-xs">{d.filedTo ? <TrackerStatusBadge status={d.filedTo} /> : "-"}</TableCell>
                       <TableCell className="text-xs">{d.arbStatus ? <TrackerStatusBadge status={d.arbStatus} /> : "-"}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.trialDate)}</TableCell>
@@ -625,9 +632,6 @@ export default function ArbitrationPage() {
                       <TableCell className="text-xs">{d.amountReceived ? (() => { const n = parseFloat(d.amountReceived.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amountReceived : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                       <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
                       <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
-                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                      <TableCell className="text-xs">{(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}</TableCell>
-                      <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           {canDelete && (

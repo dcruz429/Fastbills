@@ -642,22 +642,22 @@ export default function CollectionsPage() {
           <TableHeader className="sticky top-0 bg-background z-20 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <TableRow>
               <TableHead className="min-w-[160px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient's Name <SortIcon col="patientName" /></TableHead>
-              <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("inputDate")} data-testid="sort-inputDate">Input Date <SortIcon col="inputDate" /></TableHead>
               <TableHead className="min-w-[60px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic <SortIcon col="clinic" /></TableHead>
               <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("division")} data-testid="sort-division">Division <SortIcon col="division" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("insurance")} data-testid="sort-insurance">Insurance <SortIcon col="insurance" /></TableHead>
               <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosFrom")} data-testid="sort-dosFrom">DOS From <SortIcon col="dosFrom" /></TableHead>
               <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosTo")} data-testid="sort-dosTo">DOS To <SortIcon col="dosTo" /></TableHead>
-              <TableHead className="min-w-[50px] cursor-pointer select-none" onClick={() => handleSort("numberOfVisits")} data-testid="sort-numberOfVisits"># of Visits <SortIcon col="numberOfVisits" /></TableHead>
+              <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("numberOfVisits")} data-testid="sort-numberOfVisits"># of Visits <SortIcon col="numberOfVisits" /></TableHead>
               <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount <SortIcon col="amount" /></TableHead>
+              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To <SortIcon col="assignedTo" /></TableHead>
+              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("action")} data-testid="sort-action">Action <SortIcon col="action" /></TableHead>
+              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
+              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("outcome")} data-testid="sort-outcome">Outcome <SortIcon col="outcome" /></TableHead>
+              <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("inputDate")} data-testid="sort-inputDate">Input Date <SortIcon col="inputDate" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("issueType")} data-testid="sort-issueType">Issue Type <SortIcon col="issueType" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("typeOfDenial")} data-testid="sort-typeOfDenial">Type of Denial <SortIcon col="typeOfDenial" /></TableHead>
-              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("action")} data-testid="sort-action">Action <SortIcon col="action" /></TableHead>
-              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("outcome")} data-testid="sort-outcome">Outcome <SortIcon col="outcome" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("priority")} data-testid="sort-priority">Priority <SortIcon col="priority" /></TableHead>
               <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("ageing")} data-testid="sort-ageing">Ageing <SortIcon col="ageing" /></TableHead>
-              <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned to <SortIcon col="assignedTo" /></TableHead>
-              <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
               {user?.role === "admin" && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -674,7 +674,6 @@ export default function CollectionsPage() {
                 return (
                 <TableRow key={d.id} data-testid={`row-collection-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
                   <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
-                  <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
                   <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                   <TableCell className="text-xs">{d.division ? <Badge variant="outline" className="text-xs">{d.division}</Badge> : "-"}</TableCell>
                   <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
@@ -682,14 +681,15 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                   <TableCell className="text-xs text-center">{d.numberOfVisits ?? "-"}</TableCell>
                   <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                  <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                  <TableCell className="text-xs">{d.action || "-"}</TableCell>
+                  <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                  <TableCell className="text-xs">{d.outcome ? <Badge variant="secondary" className="text-xs">{d.outcome}</Badge> : "-"}</TableCell>
+                  <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
                   <TableCell className="text-xs">{d.issueType || "-"}</TableCell>
                   <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.action || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.outcome ? <Badge variant="secondary" className="text-xs">{d.outcome}</Badge> : "-"}</TableCell>
                   <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <TrackerPriorityBadge priority={p} /> : "-"; })()}</TableCell>
                   <TableCell className="text-xs font-medium" data-testid={`text-ageing-${d.id}`}>{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
-                  <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                   {user?.role === "admin" && (
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
@@ -723,22 +723,22 @@ export default function CollectionsPage() {
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     <TableHead className="min-w-[160px]">Patient's Name</TableHead>
-                    <TableHead className="min-w-[90px]">Input Date</TableHead>
                     <TableHead className="min-w-[60px]">Clinic</TableHead>
                     <TableHead className="min-w-[70px]">Division</TableHead>
                     <TableHead className="min-w-[120px]">Insurance</TableHead>
                     <TableHead className="min-w-[90px]">DOS From</TableHead>
                     <TableHead className="min-w-[90px]">DOS To</TableHead>
-                    <TableHead className="min-w-[50px]"># of Visits</TableHead>
+                    <TableHead className="min-w-[70px]"># of Visits</TableHead>
                     <TableHead className="min-w-[80px]">Amount</TableHead>
+                    <TableHead className="min-w-[120px]">Assigned To</TableHead>
+                    <TableHead className="min-w-[120px]">Action</TableHead>
+                    <TableHead className="min-w-[100px]">Status</TableHead>
+                    <TableHead className="min-w-[100px]">Outcome</TableHead>
+                    <TableHead className="min-w-[90px]">Input Date</TableHead>
                     <TableHead className="min-w-[120px]">Issue Type</TableHead>
                     <TableHead className="min-w-[120px]">Type of Denial</TableHead>
-                    <TableHead className="min-w-[120px]">Action</TableHead>
-                    <TableHead className="min-w-[100px]">Outcome</TableHead>
                     <TableHead className="min-w-[120px]">Priority</TableHead>
                     <TableHead className="min-w-[70px]">Ageing</TableHead>
-                    <TableHead className="min-w-[120px]">Assigned to</TableHead>
-                    <TableHead className="min-w-[100px]">Status</TableHead>
                     {user?.role === "admin" && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -748,7 +748,6 @@ export default function CollectionsPage() {
                     return (
                     <TableRow key={d.id} data-testid={`row-collection-done-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
                       <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
                       <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                       <TableCell className="text-xs">{d.division ? <Badge variant="outline" className="text-xs">{d.division}</Badge> : "-"}</TableCell>
                       <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
@@ -756,14 +755,15 @@ export default function CollectionsPage() {
                       <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                       <TableCell className="text-xs text-center">{d.numberOfVisits ?? "-"}</TableCell>
                       <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.action || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.outcome ? <Badge variant="secondary" className="text-xs">{d.outcome}</Badge> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
                       <TableCell className="text-xs">{d.issueType || "-"}</TableCell>
                       <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
-                      <TableCell className="text-xs">{d.action || "-"}</TableCell>
-                      <TableCell className="text-xs">{d.outcome ? <Badge variant="secondary" className="text-xs">{d.outcome}</Badge> : "-"}</TableCell>
                       <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <TrackerPriorityBadge priority={p} /> : "-"; })()}</TableCell>
                       <TableCell className="text-xs font-medium">{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
-                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                      <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                       {user?.role === "admin" && (
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-done-${d.id}`}>

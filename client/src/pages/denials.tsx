@@ -467,24 +467,24 @@ export default function DenialsPage() {
                 <TableRow>
                   {[
                     { key: "patientName", label: "Patient Name", minW: "130px" },
+                    { key: "clinic", label: "Clinic", minW: "100px" },
+                    { key: "insurance", label: "Insurance", minW: "100px" },
+                    { key: "dosFrom", label: "DOS From", minW: "90px" },
+                    { key: "dosTo", label: "DOS To", minW: "90px" },
+                    { key: "numberOfDays", label: "# of Visits", minW: "70px" },
+                    { key: "amount", label: "Amount", minW: "80px" },
+                    { key: "assignedTo", label: "Assigned To", minW: "110px" },
+                    { key: "action", label: "Action", minW: "120px" },
+                    { key: "status", label: "Status", minW: "100px" },
+                    { key: "outcome", label: "Outcome", minW: "100px" },
                     { key: "denialFileName", label: "File Name", minW: "120px" },
                     { key: "dateInput", label: "Date Input", minW: "90px" },
                     { key: "intake", label: "Intake", minW: "80px" },
                     { key: "doa", label: "DOA", minW: "90px" },
-                    { key: "clinic", label: "Clinic", minW: "100px" },
-                    { key: "insurance", label: "Insurance", minW: "100px" },
                     { key: "dateOfLetter", label: "Date of Letter", minW: "100px" },
                     { key: "typeOfDenial", label: "Type of Denial", minW: "120px" },
                     { key: "effectiveDate", label: "Effective Date", minW: "100px" },
-                    { key: "dosFrom", label: "DOS From", minW: "90px" },
-                    { key: "dosTo", label: "DOS To", minW: "90px" },
-                    { key: "numberOfDays", label: "# Visits", minW: "60px" },
-                    { key: "amount", label: "Amount", minW: "80px" },
-                    { key: "action", label: "Action", minW: "120px" },
-                    { key: "outcome", label: "Outcome", minW: "100px" },
                     { key: "comment", label: "Comment", minW: "120px" },
-                    { key: "assignedTo", label: "Assigned To", minW: "110px" },
-                    { key: "status", label: "Status", minW: "100px" },
                   ].map(col => (
                     <TableHead
                       key={col.key}
@@ -520,28 +520,28 @@ export default function DenialsPage() {
                     data-testid={`row-denial-${d.id}`}
                   >
                     <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                    <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
+                    <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
+                    <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
+                    <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
+                    <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                    <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                    <TableCell className="text-xs">{d.action || "-"}</TableCell>
+                    <TableCell className="text-xs">
+                      {(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}
+                    </TableCell>
+                    <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
                     <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
                     <TableCell className="text-xs">{d.intake || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
-                    <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
-                    <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
                     <TableCell className="text-xs">
                       {d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
-                    <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
-                    <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
-                    <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
-                    <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
-                    <TableCell className="text-xs">{d.action || "-"}</TableCell>
-                    <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
-                    <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                    <TableCell className="text-xs">
-                      {(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}
-                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600" onClick={() => setSendToArbId(d.id)} title="Send to Arbitration" data-testid={`button-send-arb-${d.id}`}>
@@ -580,24 +580,24 @@ export default function DenialsPage() {
                   <TableRow>
                     {[
                       { key: "patientName", label: "Patient Name", minW: "130px" },
+                      { key: "clinic", label: "Clinic", minW: "100px" },
+                      { key: "insurance", label: "Insurance", minW: "100px" },
+                      { key: "dosFrom", label: "DOS From", minW: "90px" },
+                      { key: "dosTo", label: "DOS To", minW: "90px" },
+                      { key: "numberOfDays", label: "# of Visits", minW: "70px" },
+                      { key: "amount", label: "Amount", minW: "80px" },
+                      { key: "assignedTo", label: "Assigned To", minW: "110px" },
+                      { key: "action", label: "Action", minW: "120px" },
+                      { key: "status", label: "Status", minW: "100px" },
+                      { key: "outcome", label: "Outcome", minW: "100px" },
                       { key: "denialFileName", label: "File Name", minW: "120px" },
                       { key: "dateInput", label: "Date Input", minW: "90px" },
                       { key: "intake", label: "Intake", minW: "80px" },
                       { key: "doa", label: "DOA", minW: "90px" },
-                      { key: "clinic", label: "Clinic", minW: "100px" },
-                      { key: "insurance", label: "Insurance", minW: "100px" },
                       { key: "dateOfLetter", label: "Date of Letter", minW: "100px" },
                       { key: "typeOfDenial", label: "Type of Denial", minW: "120px" },
                       { key: "effectiveDate", label: "Effective Date", minW: "100px" },
-                      { key: "dosFrom", label: "DOS From", minW: "90px" },
-                      { key: "dosTo", label: "DOS To", minW: "90px" },
-                      { key: "numberOfDays", label: "# Visits", minW: "60px" },
-                      { key: "amount", label: "Amount", minW: "80px" },
-                      { key: "action", label: "Action", minW: "120px" },
-                      { key: "outcome", label: "Outcome", minW: "100px" },
                       { key: "comment", label: "Comment", minW: "120px" },
-                      { key: "assignedTo", label: "Assigned To", minW: "110px" },
-                      { key: "status", label: "Status", minW: "100px" },
                     ].map(col => (
                       <TableHead key={col.key} style={{ minWidth: col.minW }}>{col.label}</TableHead>
                     ))}
@@ -610,24 +610,24 @@ export default function DenialsPage() {
                     return (
                     <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-denial-done-${d.id}`}>
                       <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
-                      <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
-                      <TableCell className="text-xs">{d.intake || "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
                       <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                       <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
-                      <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                       <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                       <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
-                      <TableCell className="text-xs">{d.action || "-"}</TableCell>
-                      <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
-                      <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                       <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.action || "-"}</TableCell>
                       <TableCell className="text-xs">{(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{d.outcome || "-"}</TableCell>
+                      <TableCell className="text-xs">{d.denialFileName || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dateInput)}</TableCell>
+                      <TableCell className="text-xs">{d.intake || "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.doa)}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.dateOfLetter)}</TableCell>
+                      <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
+                      <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                           {canDelete && (

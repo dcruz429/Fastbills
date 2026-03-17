@@ -60,44 +60,39 @@ function normalizeStatus(s: string): string {
   return STATUS_NORMALIZE[s] || s;
 }
 
-function getColSpecs(sectionKey: string): ColSpec[] {
-  const patient: ColSpec = { header: "Patient", sort: "patientName", renderCell: (d, rec) => <span className="font-medium">{rec.patientName || d.patientName || "-"}</span> };
-  const clinic: ColSpec = { header: "Clinic", sort: "clinic", renderCell: (d, rec) => rec.clinic || d.clinic || "-" };
-  const insurance: ColSpec = { header: "Insurance", sort: "insurance", renderCell: (d, rec) => rec.insurance || d.insurance || "-" };
-  const amount: ColSpec = { header: "Amount", sort: "amount", renderCell: (d, rec) => fmtAmt(rec.amount || d.amount) };
-  const status: ColSpec = { header: "Status", sort: "status", renderCell: (d, rec) => { const s = normalizeStatus(d.status || rec.status || ""); return s ? <TrackerStatusBadge status={s} /> : "-"; } };
-  const assignedTo: ColSpec = { header: "Assigned To", sort: "assignedTo", renderCell: (d, rec) => rec.assignedTo || d.assignedTo || "-" };
+function getExtraCols(sectionKey: string): ColSpec[] {
   const date: ColSpec = { header: "Date", sort: "createdAt", renderCell: (d) => formatDate(d.createdAt) };
 
   switch (sectionKey) {
     case "Verification/Billing":
-      return [patient, clinic, insurance, amount,
+      return [
         { header: "Priority", sort: "priority", renderCell: (d, rec) => rec.priority || "-" },
-        status, assignedTo, date];
+        date,
+      ];
     case "Posting":
-      return [patient, clinic,
+      return [
         { header: "File #", renderCell: (_, rec) => rec.fileNumber || "-" },
         { header: "Doc Type", renderCell: (_, rec) => rec.documentType || "-" },
         { header: "Priority", renderCell: (_, rec) => rec.priority || "-" },
-        status, assignedTo, date];
-    case "Collections":
-      return [patient, clinic, insurance, amount, status, assignedTo, date];
+        date,
+      ];
     case "Denials":
     case "Arbitration":
-      return [patient, clinic, insurance,
+      return [
         { header: "DOA", renderCell: (_, rec) => rec.doa ? formatDate(rec.doa) : "-" },
         { header: "Type", renderCell: (_, rec) => rec.typeOfDenial || "-" },
         { header: "Filed To", renderCell: (_, rec) => rec.filedTo || "-" },
         { header: "ARB Status", renderCell: (_, rec) => rec.arbStatus || "-" },
-        amount, date];
+        date,
+      ];
     case "Checks":
-      return [patient, clinic, insurance,
+      return [
         { header: "Check #", renderCell: (_, rec) => rec.checkNumber || "-" },
-        amount,
         { header: "Type", renderCell: (_, rec) => rec.type || "-" },
-        status, date];
+        date,
+      ];
     default:
-      return [patient, clinic, insurance, amount, status, assignedTo, date];
+      return [date];
   }
 }
 
@@ -649,7 +644,7 @@ export default function ClosedPage() {
                     {sectionItems.length === 0 ? (
                       <p className="text-center py-6 text-sm text-muted-foreground">No items</p>
                     ) : (() => {
-                      const cols = getColSpecs(section.key);
+                      const extraCols = getExtraCols(section.key);
                       return (
                         <Table>
                           <TableHeader>
@@ -663,7 +658,16 @@ export default function ClosedPage() {
                                   />
                                 </TableHead>
                               )}
-                              {cols.map(col => (
+                              <TableHead className="min-w-[130px] text-xs select-none cursor-pointer" onClick={() => handleSort("patientName")}>Patient <SortIcon col="patientName" /></TableHead>
+                              <TableHead className="min-w-[80px] text-xs select-none cursor-pointer" onClick={() => handleSort("clinic")}>Clinic <SortIcon col="clinic" /></TableHead>
+                              <TableHead className="min-w-[100px] text-xs select-none cursor-pointer" onClick={() => handleSort("insurance")}>Insurance <SortIcon col="insurance" /></TableHead>
+                              <TableHead className="min-w-[90px] text-xs">DOS From</TableHead>
+                              <TableHead className="min-w-[90px] text-xs">DOS To</TableHead>
+                              <TableHead className="min-w-[80px] text-xs select-none cursor-pointer" onClick={() => handleSort("amount")}>Amount <SortIcon col="amount" /></TableHead>
+                              <TableHead className="min-w-[110px] text-xs select-none cursor-pointer" onClick={() => handleSort("assignedTo")}>Assigned To <SortIcon col="assignedTo" /></TableHead>
+                              <TableHead className="min-w-[90px] text-xs select-none cursor-pointer" onClick={() => handleSort("status")}>Status <SortIcon col="status" /></TableHead>
+                              <TableHead className="min-w-[90px] text-xs">Outcome</TableHead>
+                              {extraCols.map(col => (
                                 <TableHead
                                   key={col.header}
                                   className={`min-w-[80px] text-xs select-none ${col.sort ? "cursor-pointer" : ""}`}
@@ -676,8 +680,6 @@ export default function ClosedPage() {
                                 Date Exported <SortIcon col="dateExported" />
                               </TableHead>
                               <TableHead className="min-w-[110px] text-xs">Reason</TableHead>
-                              <TableHead className="min-w-[90px] text-xs">DOS From</TableHead>
-                              <TableHead className="min-w-[90px] text-xs">DOS To</TableHead>
                               <TableHead className="min-w-[100px] text-xs">Regular Visit</TableHead>
                               <TableHead className="min-w-[90px] text-xs">Full Visit</TableHead>
                               <TableHead className="min-w-[110px] text-xs">Reported Date</TableHead>
@@ -688,6 +690,7 @@ export default function ClosedPage() {
                             {sectionItems.map(d => {
                               let rec: any = {};
                               try { if (d.recordData) rec = JSON.parse(d.recordData); } catch {}
+                              const statusVal = normalizeStatus(d.status || rec.status || "");
                               return (
                                 <TableRow
                                   key={d.id}
@@ -704,7 +707,16 @@ export default function ClosedPage() {
                                       />
                                     </TableCell>
                                   )}
-                                  {cols.map(col => (
+                                  <TableCell className="text-xs font-medium">{rec.patientName || d.patientName || "-"}</TableCell>
+                                  <TableCell className="text-xs">{rec.clinic || d.clinic || "-"}</TableCell>
+                                  <TableCell className="text-xs">{rec.insurance || d.insurance || "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).dosFrom ? formatDate((d as any).dosFrom) : "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).dosTo ? formatDate((d as any).dosTo) : "-"}</TableCell>
+                                  <TableCell className="text-xs">{fmtAmt(rec.amount || d.amount)}</TableCell>
+                                  <TableCell className="text-xs">{rec.assignedTo || d.assignedTo || "-"}</TableCell>
+                                  <TableCell className="text-xs">{statusVal ? <TrackerStatusBadge status={statusVal} /> : "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).outcome || "-"}</TableCell>
+                                  {extraCols.map(col => (
                                     <TableCell key={col.header} className="text-xs">
                                       {col.renderCell(d, rec)}
                                     </TableCell>
@@ -713,8 +725,6 @@ export default function ClosedPage() {
                                     {(d as any).dateExported ? formatDate((d as any).dateExported) : "-"}
                                   </TableCell>
                                   <TableCell className="text-xs">{(d as any).reason || "-"}</TableCell>
-                                  <TableCell className="text-xs">{(d as any).dosFrom ? formatDate((d as any).dosFrom) : "-"}</TableCell>
-                                  <TableCell className="text-xs">{(d as any).dosTo ? formatDate((d as any).dosTo) : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).regularVisit != null ? (d as any).regularVisit : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).fullVisit != null ? (d as any).fullVisit : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).reportedDate ? formatDate((d as any).reportedDate) : "-"}</TableCell>
