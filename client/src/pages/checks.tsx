@@ -82,6 +82,8 @@ export default function ChecksPage() {
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
   const [doneOpen, setDoneOpen] = useState(false);
+  const [doneSortCol, setDoneSortCol] = useState<string>("");
+  const [doneSortDir, setDoneSortDir] = useState<"asc" | "desc">("asc");
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvFileName, setCsvFileName] = useState("");
@@ -352,6 +354,25 @@ export default function ChecksPage() {
   const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
   const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
 
+  function toggleDoneSort(col: string) {
+    if (doneSortCol === col) { if (doneSortDir === "asc") setDoneSortDir("desc"); else { setDoneSortCol(""); setDoneSortDir("asc"); } }
+    else { setDoneSortCol(col); setDoneSortDir("asc"); }
+  }
+  const DoneSortIcon = ({ col }: { col: string }) => {
+    if (doneSortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline-block opacity-40" />;
+    return doneSortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-1 inline-block" /> : <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
+  };
+  const _doneDateCols = new Set(["inputDate", "checkDate", "scannedDate", "postedDate", "depositDate"]);
+  const _doneNumCols = new Set(["amount"]);
+  const doneSorted = doneSortCol ? [...doneRecords].sort((a, b) => {
+    const vA = (a as any)[doneSortCol] ?? ""; const vB = (b as any)[doneSortCol] ?? "";
+    let cmp = 0;
+    if (_doneDateCols.has(doneSortCol)) cmp = (vA ? new Date(vA).getTime() : 0) - (vB ? new Date(vB).getTime() : 0);
+    else if (_doneNumCols.has(doneSortCol)) cmp = (parseFloat(String(vA).replace(/[^0-9.-]/g, "")) || 0) - (parseFloat(String(vB).replace(/[^0-9.-]/g, "")) || 0);
+    else cmp = String(vA).toLowerCase().localeCompare(String(vB).toLowerCase());
+    return doneSortDir === "asc" ? cmp : -cmp;
+  }) : doneRecords;
+
   const currentEditCheck = editingId ? (checksList || []).find(d => d.id === editingId) : null;
   const notesList = currentEditCheck?.notes
     ? currentEditCheck.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse()
@@ -549,26 +570,15 @@ export default function ChecksPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="text-xs whitespace-nowrap">Clinic</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Input Date</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Check Date</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Insurance</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Check No.</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Amount</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">File Name</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Scanned Date</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Type</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Status</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Posted Date</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Assigned To</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Deposit Date</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Deposited By</TableHead>
+                    {([["clinic","Clinic"],["inputDate","Input Date"],["checkDate","Check Date"],["insurance","Insurance"],["checkNumber","Check No."],["amount","Amount"],["fileName","File Name"],["scannedDate","Scanned Date"],["type","Type"],["status","Status"],["postedDate","Posted Date"],["assignedTo","Assigned To"],["depositDate","Deposit Date"],["depositedBy","Deposited By"]] as [string,string][]).map(([col,label]) => (
+                      <TableHead key={col} className="text-xs whitespace-nowrap cursor-pointer select-none" onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
+                    ))}
                     <TableHead className="text-xs whitespace-nowrap">Action</TableHead>
                     {user.role === "admin" && <TableHead className="text-xs text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doneRecords.map(d => {
+                  {doneSorted.map(d => {
                     const isTransferred = (d.notes || "").startsWith("[Transferred from");
                     return (
                     <TableRow

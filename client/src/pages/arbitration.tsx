@@ -95,6 +95,8 @@ export default function ArbitrationPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
   const [doneOpen, setDoneOpen] = useState(false);
+  const [doneSortCol, setDoneSortCol] = useState<string>("");
+  const [doneSortDir, setDoneSortDir] = useState<"asc" | "desc">("asc");
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvFileName, setCsvFileName] = useState("");
@@ -353,6 +355,25 @@ export default function ArbitrationPage() {
   const activeRecords = sorted.filter(d => ((d as any).status || "").toLowerCase() !== "done");
   const doneRecords = sorted.filter(d => ((d as any).status || "").toLowerCase() === "done");
 
+  function toggleDoneSort(col: string) {
+    if (doneSortCol === col) { if (doneSortDir === "asc") setDoneSortDir("desc"); else { setDoneSortCol(""); setDoneSortDir("asc"); } }
+    else { setDoneSortCol(col); setDoneSortDir("asc"); }
+  }
+  const DoneSortIcon = ({ col }: { col: string }) => {
+    if (doneSortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline-block opacity-40" />;
+    return doneSortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-1 inline-block" /> : <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
+  };
+  const _doneDateCols = new Set(["dosFrom", "dosTo", "dateInput", "doa", "dateOfLetter", "effectiveDate", "trialDate"]);
+  const _doneNumCols = new Set(["numberOfDays", "amount", "amountReceived"]);
+  const doneSorted = doneSortCol ? [...doneRecords].sort((a, b) => {
+    const vA = (a as any)[doneSortCol] ?? ""; const vB = (b as any)[doneSortCol] ?? "";
+    let cmp = 0;
+    if (_doneDateCols.has(doneSortCol)) cmp = (vA ? new Date(vA).getTime() : 0) - (vB ? new Date(vB).getTime() : 0);
+    else if (_doneNumCols.has(doneSortCol)) cmp = (parseFloat(String(vA).replace(/[^0-9.-]/g, "")) || 0) - (parseFloat(String(vB).replace(/[^0-9.-]/g, "")) || 0);
+    else cmp = String(vA).toLowerCase().localeCompare(String(vB).toLowerCase());
+    return doneSortDir === "asc" ? cmp : -cmp;
+  }) : doneRecords;
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4">
@@ -588,36 +609,14 @@ export default function ArbitrationPage() {
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead className="min-w-[130px]">Patient Name</TableHead>
-                    <TableHead className="min-w-[100px]">Clinic</TableHead>
-                    <TableHead className="min-w-[100px]">Insurance</TableHead>
-                    <TableHead className="min-w-[90px]">DOS From</TableHead>
-                    <TableHead className="min-w-[90px]">DOS To</TableHead>
-                    <TableHead className="min-w-[70px]"># of Visits</TableHead>
-                    <TableHead className="min-w-[80px]">Amount</TableHead>
-                    <TableHead className="min-w-[110px]">Assigned To</TableHead>
-                    <TableHead className="min-w-[100px]">Action</TableHead>
-                    <TableHead className="min-w-[100px]">Status</TableHead>
-                    <TableHead className="min-w-[100px]">Outcome</TableHead>
-                    <TableHead className="min-w-[120px]">File Name</TableHead>
-                    <TableHead className="min-w-[90px]">Date Input</TableHead>
-                    <TableHead className="min-w-[80px]">Intake</TableHead>
-                    <TableHead className="min-w-[90px]">DOA</TableHead>
-                    <TableHead className="min-w-[100px]">Date of Letter</TableHead>
-                    <TableHead className="min-w-[120px]">Type of Denial</TableHead>
-                    <TableHead className="min-w-[100px]">Effective Date</TableHead>
-                    <TableHead className="min-w-[80px]">Filed To</TableHead>
-                    <TableHead className="min-w-[90px]">ARB Status</TableHead>
-                    <TableHead className="min-w-[90px]">Trial Date</TableHead>
-                    <TableHead className="min-w-[110px]">ARB Payment</TableHead>
-                    <TableHead className="min-w-[90px]">Amt Received</TableHead>
-                    <TableHead className="min-w-[90px]">Checked By</TableHead>
-                    <TableHead className="min-w-[120px]">Comment</TableHead>
+                    {([["patientName","Patient Name","130px"],["clinic","Clinic","100px"],["insurance","Insurance","100px"],["dosFrom","DOS From","90px"],["dosTo","DOS To","90px"],["numberOfDays","# of Visits","70px"],["amount","Amount","80px"],["assignedTo","Assigned To","110px"],["action","Action","100px"],["status","Status","100px"],["outcome","Outcome","100px"],["denialFileName","File Name","120px"],["dateInput","Date Input","90px"],["intake","Intake","80px"],["doa","DOA","90px"],["dateOfLetter","Date of Letter","100px"],["typeOfDenial","Type of Denial","120px"],["effectiveDate","Effective Date","100px"],["filedTo","Filed To","80px"],["arbStatus","ARB Status","90px"],["trialDate","Trial Date","90px"],["arbPaymentStatus","ARB Payment","110px"],["amountReceived","Amt Received","90px"],["checkedBy","Checked By","90px"],["comment","Comment","120px"]] as [string,string,string][]).map(([col,label,minW]) => (
+                      <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
+                    ))}
                     {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doneRecords.map(d => {
+                  {doneSorted.map(d => {
                     const isTransferred = (d.comments || "").startsWith("[Transferred from");
                     return (
                     <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-done-${d.id}`}>

@@ -121,6 +121,8 @@ export default function CollectionsPage() {
   const [filterPriority, setFilterPriority] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
   const [doneOpen, setDoneOpen] = useState(false);
+  const [doneSortCol, setDoneSortCol] = useState<string>("");
+  const [doneSortDir, setDoneSortDir] = useState<"asc" | "desc">("asc");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -505,6 +507,25 @@ export default function CollectionsPage() {
   const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
   const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
 
+  function toggleDoneSort(col: string) {
+    if (doneSortCol === col) { if (doneSortDir === "asc") setDoneSortDir("desc"); else { setDoneSortCol(""); setDoneSortDir("asc"); } }
+    else { setDoneSortCol(col); setDoneSortDir("asc"); }
+  }
+  const DoneSortIcon = ({ col }: { col: string }) => {
+    if (doneSortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline-block opacity-40" />;
+    return doneSortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-1 inline-block" /> : <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
+  };
+  const _doneDateCols = new Set(["dosFrom", "dosTo", "inputDate"]);
+  const _doneNumCols = new Set(["numberOfVisits", "amount"]);
+  const doneSorted = doneSortCol ? [...doneRecords].sort((a, b) => {
+    const vA = (a as any)[doneSortCol] ?? ""; const vB = (b as any)[doneSortCol] ?? "";
+    let cmp = 0;
+    if (_doneDateCols.has(doneSortCol)) cmp = (vA ? new Date(vA).getTime() : 0) - (vB ? new Date(vB).getTime() : 0);
+    else if (_doneNumCols.has(doneSortCol)) cmp = (parseFloat(String(vA).replace(/[^0-9.-]/g, "")) || 0) - (parseFloat(String(vB).replace(/[^0-9.-]/g, "")) || 0);
+    else cmp = String(vA).toLowerCase().localeCompare(String(vB).toLowerCase());
+    return doneSortDir === "asc" ? cmp : -cmp;
+  }) : doneRecords;
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4 animate-fade-in">
@@ -733,28 +754,16 @@ export default function CollectionsPage() {
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead className="min-w-[160px]">Patient's Name</TableHead>
-                    <TableHead className="min-w-[60px]">Clinic</TableHead>
-                    <TableHead className="min-w-[70px]">Division</TableHead>
-                    <TableHead className="min-w-[120px]">Insurance</TableHead>
-                    <TableHead className="min-w-[90px]">DOS From</TableHead>
-                    <TableHead className="min-w-[90px]">DOS To</TableHead>
-                    <TableHead className="min-w-[70px]"># of Visits</TableHead>
-                    <TableHead className="min-w-[80px]">Amount</TableHead>
-                    <TableHead className="min-w-[120px]">Assigned To</TableHead>
-                    <TableHead className="min-w-[120px]">Action</TableHead>
-                    <TableHead className="min-w-[100px]">Status</TableHead>
-                    <TableHead className="min-w-[100px]">Outcome</TableHead>
-                    <TableHead className="min-w-[90px]">Input Date</TableHead>
-                    <TableHead className="min-w-[120px]">Issue Type</TableHead>
-                    <TableHead className="min-w-[120px]">Type of Denial</TableHead>
+                    {([["patientName","Patient's Name","160px"],["clinic","Clinic","60px"],["division","Division","70px"],["insurance","Insurance","120px"],["dosFrom","DOS From","90px"],["dosTo","DOS To","90px"],["numberOfVisits","# of Visits","70px"],["amount","Amount","80px"],["assignedTo","Assigned To","120px"],["action","Action","120px"],["status","Status","100px"],["outcome","Outcome","100px"],["inputDate","Input Date","90px"],["issueType","Issue Type","120px"],["typeOfDenial","Type of Denial","120px"]] as [string,string,string][]).map(([col,label,minW]) => (
+                      <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
+                    ))}
                     <TableHead className="min-w-[120px]">Priority</TableHead>
                     <TableHead className="min-w-[70px]">Ageing</TableHead>
                     {user?.role === "admin" && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doneRecords.map(d => {
+                  {doneSorted.map(d => {
                     const isTransferred = (d.notes || "").startsWith("[Transferred from");
                     return (
                     <TableRow key={d.id} data-testid={`row-collection-done-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
