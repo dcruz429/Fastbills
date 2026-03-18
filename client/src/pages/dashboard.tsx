@@ -257,7 +257,7 @@ export default function DashboardPage() {
     { name: "Arbitration", count: allArbitrations.length, color: "hsl(140 60% 40%)" },
     { name: "Posting", count: allPostings.length, color: "hsl(270 60% 55%)" },
     ...(canSeeChecks ? [{ name: "Checks", count: allChecks.length, color: "hsl(175 60% 40%)" }] : []),
-    { name: "Closed", count: allClosed.length, color: "hsl(0 0% 50%)" },
+    { name: "RTP", count: allClosed.length, color: "hsl(0 0% 50%)" },
   ].filter(t => t.count > 0);
 
   const clinicGroups: Record<string, number> = {};
@@ -335,7 +335,7 @@ export default function DashboardPage() {
         <StatCard label="Active Records" value={totalActiveRecords} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-active-records" />
         <StatCard label="Unassigned" value={totalUnassigned} icon={UserX} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-unassigned" />
         <StatCard label="Today's Actions" value={todayActivities} icon={Activity} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-100 dark:bg-emerald-900/20" testId="stat-today-actions" onClick={() => navigate("/productivity")} />
-        <StatCard label="Closed" value={allClosed.length} icon={Archive} color="text-gray-600 dark:text-gray-400" bgColor="bg-gray-100 dark:bg-gray-900/20" testId="stat-closed" onClick={() => navigate("/closed")} />
+        <StatCard label="RTP" value={allClosed.length} icon={Archive} color="text-gray-600 dark:text-gray-400" bgColor="bg-gray-100 dark:bg-gray-900/20" testId="stat-closed" onClick={() => navigate("/closed")} />
         <StatCard label="Overdue Tasks" value={overdueTasks} icon={AlertTriangle} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-overdue" subtitle="Verification & Billing" />
         <StatCard label="Critical Priority" value={criticalTasks} icon={Zap} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-critical" />
         <StatCard label="Escalated (3+ days)" value={escalatedTasks} icon={Flame} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-escalated" />
@@ -354,7 +354,7 @@ export default function DashboardPage() {
           {canSeeChecks && (
             <TrackerCard title="Checks" icon={CheckCircle2} iconColor="text-teal-600" total={allChecks.length} statusCounts={checkStatusCounts} onClick={() => navigate("/checks")} testId="tracker-checks" />
           )}
-          <TrackerCard title="Closed" icon={Archive} iconColor="text-gray-500" total={allClosed.length} statusCounts={getStatusCounts(allClosed, "status")} onClick={() => navigate("/closed")} testId="tracker-closed" />
+          <TrackerCard title="RTP" icon={Archive} iconColor="text-gray-500" total={allClosed.length} statusCounts={getStatusCounts(allClosed, "status")} onClick={() => navigate("/closed")} testId="tracker-closed" />
         </div>
       </div>
 
