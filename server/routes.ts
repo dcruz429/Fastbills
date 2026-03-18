@@ -1798,7 +1798,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/announcements", requireAuth, async (req, res) => {
+  app.post("/api/announcements", requireAuth, upload.array("attachments"), async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
@@ -1808,13 +1808,18 @@ export async function registerRoutes(
       if (!title || !body || !targetType) {
         return res.status(400).json({ message: "Title, body, and target type are required" });
       }
+      const files = req.files as Express.Multer.File[] | undefined;
+      const uploaded = files && files.length > 0 ? await saveUploadedFiles(files) : [];
+      const parsedRoles = targetRoles ? (typeof targetRoles === "string" ? JSON.parse(targetRoles) : targetRoles) : null;
+      const parsedUserIds = targetUserIds ? (typeof targetUserIds === "string" ? JSON.parse(targetUserIds) : targetUserIds) : null;
       const announcement = await storage.createAnnouncement({
         title,
         body,
         authorId: user.id,
         targetType,
-        targetRoles: targetRoles || null,
-        targetUserIds: targetUserIds || null,
+        targetRoles: parsedRoles || null,
+        targetUserIds: parsedUserIds || null,
+        attachments: uploaded.length > 0 ? uploaded : null,
       });
       res.json(announcement);
     } catch (e: any) {

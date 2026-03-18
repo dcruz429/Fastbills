@@ -364,6 +364,7 @@ export const announcements = pgTable("announcements", {
   targetType: text("target_type").notNull(),
   targetRoles: text("target_roles").array(),
   targetUserIds: integer("target_user_ids").array(),
+  attachments: text("attachments").array(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

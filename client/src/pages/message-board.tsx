@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState } from "react";
+import { queryClient } from "@/lib/queryClient";
+import { useState, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import type { AnnouncementWithRelations, User } from "@shared/schema";
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, CheckCircle2, Eye, Users, User as UserIcon, Megaphone } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Eye, Users, User as UserIcon, Megaphone, Paperclip, FileText, Image, FileSpreadsheet, X, Download } from "lucide-react";
 
 function formatDateTime(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -37,6 +37,73 @@ const ROLE_LABELS: Record<string, string> = {
   assigner: "Case Coordinator",
 };
 
+function parseAttachment(att: string) {
+  const parts = att.split("|");
+  return { url: parts[0], name: parts[1] || parts[0].split("/").pop() || "file" };
+}
+
+function isImage(name: string) {
+  return /\.(png|jpe?g|gif|webp|svg)$/i.test(name);
+}
+
+function getFileIcon(name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext))
+    return <Image className="h-4 w-4 text-blue-500" />;
+  if (["xls", "xlsx", "csv"].includes(ext))
+    return <FileSpreadsheet className="h-4 w-4 text-green-600" />;
+  return <FileText className="h-4 w-4 text-gray-500" />;
+}
+
+function AttachmentPreview({ attachments }: { attachments: string[] | null | undefined }) {
+  if (!attachments || attachments.length === 0) return null;
+
+  const images = attachments.filter(att => isImage(parseAttachment(att).name));
+  const files = attachments.filter(att => !isImage(parseAttachment(att).name));
+
+  return (
+    <div className="mt-3 space-y-2">
+      {images.length > 0 && (
+        <div className={`grid gap-2 ${images.length === 1 ? "grid-cols-1" : images.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+          {images.map((att, i) => {
+            const { url, name } = parseAttachment(att);
+            return (
+              <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block" data-testid={`link-announcement-image-${i}`}>
+                <img
+                  src={url}
+                  alt={name}
+                  className="rounded-lg object-cover w-full max-h-64 border border-border hover:opacity-90 transition-opacity"
+                />
+              </a>
+            );
+          })}
+        </div>
+      )}
+      {files.length > 0 && (
+        <div className="space-y-1">
+          {files.map((att, i) => {
+            const { url, name } = parseAttachment(att);
+            return (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm bg-muted/50 rounded px-2 py-1.5 hover:bg-muted transition-colors"
+                data-testid={`link-announcement-file-${i}`}
+              >
+                {getFileIcon(name)}
+                <span className="truncate flex-1">{name}</span>
+                <Download className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MessageBoardPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,6 +114,8 @@ export default function MessageBoardPage() {
   const [targetType, setTargetType] = useState("all");
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: announcements, isLoading } = useQuery<AnnouncementWithRelations[]>({
     queryKey: ["/api/announcements"],
@@ -58,25 +127,40 @@ export default function MessageBoardPage() {
   const isAdmin = user?.role === "admin" || user?.role === "manager" || user?.role === "account_manager" || user?.role === "payment_specialist";
   const canDelete = user?.role === "admin";
 
+  function resetForm() {
+    setTitle("");
+    setBody("");
+    setTargetType("all");
+    setSelectedRoles([]);
+    setSelectedUserIds([]);
+    setAttachedFiles([]);
+  }
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/announcements", {
-        title,
-        body,
-        targetType,
-        targetRoles: targetType === "role" ? selectedRoles : null,
-        targetUserIds: targetType === "users" ? selectedUserIds : null,
+      const fd = new FormData();
+      fd.append("title", title);
+      fd.append("body", body);
+      fd.append("targetType", targetType);
+      if (targetType === "role") fd.append("targetRoles", JSON.stringify(selectedRoles));
+      if (targetType === "users") fd.append("targetUserIds", JSON.stringify(selectedUserIds));
+      attachedFiles.forEach(f => fd.append("attachments", f));
+      const res = await fetch("/api/announcements", {
+        method: "POST",
+        credentials: "include",
+        body: fd,
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Unknown error" }));
+        throw new Error(err.message || "Failed to post announcement");
+      }
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
       queryClient.invalidateQueries({ queryKey: ["/api/announcements/unread-count"] });
       setCreateOpen(false);
-      setTitle("");
-      setBody("");
-      setTargetType("all");
-      setSelectedRoles([]);
-      setSelectedUserIds([]);
+      resetForm();
       toast({ title: "Announcement posted" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -84,7 +168,8 @@ export default function MessageBoardPage() {
 
   const ackMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest("POST", `/api/announcements/${id}/ack`);
+      const res = await fetch(`/api/announcements/${id}/ack`, { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to acknowledge");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
@@ -94,7 +179,8 @@ export default function MessageBoardPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest("DELETE", `/api/announcements/${id}`);
+      const res = await fetch(`/api/announcements/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to delete");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
@@ -110,6 +196,10 @@ export default function MessageBoardPage() {
   const toggleUser = (uid: number) => {
     setSelectedUserIds(prev => prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]);
   };
+
+  function removeFile(idx: number) {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
+  }
 
   const targetLabel = (a: AnnouncementWithRelations) => {
     if (a.targetType === "all") return "All Staff";
@@ -167,6 +257,12 @@ export default function MessageBoardPage() {
                            a.targetType === "role" ? <><Users className="h-3 w-3 mr-1" />{targetLabel(a)}</> :
                            <><UserIcon className="h-3 w-3 mr-1" />{targetLabel(a)}</>}
                         </Badge>
+                        {(a as any).attachments && (a as any).attachments.length > 0 && (
+                          <Badge variant="secondary" className="text-xs gap-1">
+                            <Paperclip className="h-3 w-3" />
+                            {(a as any).attachments.length} attachment{(a as any).attachments.length > 1 ? "s" : ""}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -195,23 +291,26 @@ export default function MessageBoardPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="whitespace-pre-wrap text-sm mb-3" data-testid={`text-announcement-body-${a.id}`}>{a.body}</p>
-                  {!hasAcked ? (
-                    <Button
-                      size="sm"
-                      onClick={() => ackMutation.mutate(a.id)}
-                      disabled={ackMutation.isPending}
-                      data-testid={`button-ack-${a.id}`}
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1" />
-                      Acknowledge
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-1 text-xs text-emerald-600">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>You acknowledged this</span>
-                    </div>
-                  )}
+                  <p className="whitespace-pre-wrap text-sm" data-testid={`text-announcement-body-${a.id}`}>{a.body}</p>
+                  <AttachmentPreview attachments={(a as any).attachments} />
+                  <div className="mt-3">
+                    {!hasAcked ? (
+                      <Button
+                        size="sm"
+                        onClick={() => ackMutation.mutate(a.id)}
+                        disabled={ackMutation.isPending}
+                        data-testid={`button-ack-${a.id}`}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        Acknowledge
+                      </Button>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-emerald-600">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>You acknowledged this</span>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -219,7 +318,7 @@ export default function MessageBoardPage() {
         </div>
       )}
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) resetForm(); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>New Announcement</DialogTitle>
@@ -285,9 +384,53 @@ export default function MessageBoardPage() {
                 </div>
               </div>
             )}
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => fileInputRef.current?.click()}
+                  data-testid="button-attachment"
+                >
+                  <Paperclip className="h-4 w-4" />
+                  Attachment
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                  className="hidden"
+                  onChange={e => {
+                    if (e.target.files) {
+                      setAttachedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                      e.target.value = "";
+                    }
+                  }}
+                  data-testid="input-file-attachment"
+                />
+              </div>
+              {attachedFiles.length > 0 && (
+                <div className="space-y-1">
+                  {attachedFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm bg-muted/50 rounded px-2 py-1.5">
+                      {isImage(f.name) ? <Image className="h-4 w-4 text-blue-500 shrink-0" /> : <FileText className="h-4 w-4 text-gray-500 shrink-0" />}
+                      <span className="truncate flex-1 text-xs">{f.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+                      <button type="button" onClick={() => removeFile(i)} className="shrink-0 text-muted-foreground hover:text-destructive" data-testid={`button-remove-file-${i}`}>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setCreateOpen(false); resetForm(); }}>Cancel</Button>
             <Button
               onClick={() => createMutation.mutate()}
               disabled={!title.trim() || !body.trim() || createMutation.isPending || (targetType === "role" && selectedRoles.length === 0) || (targetType === "users" && selectedUserIds.length === 0)}
