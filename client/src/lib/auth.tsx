@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getQueryFn } from "./queryClient";
 import type { User, LoginData } from "@shared/schema";
 
-const AFK_TIMEOUT = 5 * 60 * 1000;
+const AFK_TIMEOUT = 10 * 60 * 1000;
 
 type AuthContextType = {
   user: User | null;
