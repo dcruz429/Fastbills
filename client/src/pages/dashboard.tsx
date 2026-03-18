@@ -332,14 +332,14 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Active Records" value={totalActiveRecords} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-active-records" />
-        <StatCard label="Unassigned" value={totalUnassigned} icon={UserX} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-unassigned" />
+        <StatCard label="Active Records" value={totalActiveRecords} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-active-records" onClick={() => navigate("/")} />
+        <StatCard label="Unassigned" value={totalUnassigned} icon={UserX} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-unassigned" onClick={() => navigate("/workload")} />
         <StatCard label="Today's Actions" value={todayActivities} icon={Activity} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-100 dark:bg-emerald-900/20" testId="stat-today-actions" onClick={() => navigate("/productivity")} />
         <StatCard label="RTP" value={allClosed.length} icon={Archive} color="text-gray-600 dark:text-gray-400" bgColor="bg-gray-100 dark:bg-gray-900/20" testId="stat-closed" onClick={() => navigate("/closed")} />
-        <StatCard label="Overdue Tasks" value={overdueTasks} icon={AlertTriangle} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-overdue" subtitle="Verification & Billing" />
-        <StatCard label="Critical Priority" value={criticalTasks} icon={Zap} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-critical" />
-        <StatCard label="Escalated (3+ days)" value={escalatedTasks} icon={Flame} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-escalated" />
-        <StatCard label="Total Records" value={totalAllRecords + allClosed.length} icon={TrendingUp} color="text-purple-600 dark:text-purple-400" bgColor="bg-purple-100 dark:bg-purple-900/20" testId="stat-total-all" />
+        <StatCard label="Overdue Tasks" value={overdueTasks} icon={AlertTriangle} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-overdue" subtitle="Verification & Billing" onClick={() => navigate("/verification")} />
+        <StatCard label="Critical Priority" value={criticalTasks} icon={Zap} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-critical" onClick={() => navigate("/billing-queue")} />
+        <StatCard label="Escalated (3+ days)" value={escalatedTasks} icon={Flame} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-escalated" onClick={() => navigate("/billing-queue")} />
+        <StatCard label="Total Records" value={totalAllRecords + allClosed.length} icon={TrendingUp} color="text-purple-600 dark:text-purple-400" bgColor="bg-purple-100 dark:bg-purple-900/20" testId="stat-total-all" onClick={() => navigate("/reports")} />
       </div>
 
       <div>
