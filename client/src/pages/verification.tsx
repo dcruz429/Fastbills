@@ -35,6 +35,8 @@ import {
   Clock,
   AlertTriangle,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -97,6 +99,8 @@ export default function VerificationPage() {
   const [filterEscalated, setFilterEscalated] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>("patientName");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [doneSortCol, setDoneSortCol] = useState<SortField | null>("patientName");
+  const [doneSortDir, setDoneSortDir] = useState<SortDir>("asc");
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
@@ -165,10 +169,26 @@ export default function VerificationPage() {
     }
   }
 
+  function toggleDoneSort(col: SortField) {
+    if (doneSortCol === col) {
+      if (doneSortDir === "asc") setDoneSortDir("desc");
+      else { setDoneSortCol(null); setDoneSortDir("asc"); }
+    } else {
+      setDoneSortCol(col);
+      setDoneSortDir("asc");
+    }
+  }
+
+  const DoneSortIcon = ({ col }: { col: SortField }) => {
+    if (doneSortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline-block opacity-40" />;
+    if (doneSortDir === "asc") return <ArrowUp className="h-3 w-3 ml-1 inline-block" />;
+    return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
+  };
+
   const activeTasks = filteredTasks.filter(t => t.status !== "done");
   const doneTasks = filteredTasks.filter(t => t.status === "done");
   const activeSorted = sortField ? sortTasks(activeTasks, sortField, sortDir) : activeTasks;
-  const doneSorted = sortField ? sortTasks(doneTasks, sortField, sortDir) : doneTasks;
+  const doneSorted = doneSortCol ? sortTasks(doneTasks, doneSortCol, doneSortDir) : doneTasks;
 
   const importCsvMutation = useMutation({
     mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/tasks/import-csv", { rows, bucket: "for_verification" }).then(r => r.json()),
@@ -479,15 +499,15 @@ export default function VerificationPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-xs text-muted-foreground">
-                          <th className="text-left py-2 px-3 font-medium">Patient Name</th>
-                          <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Clinic</th>
-                          <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">Insurance</th>
-                          <th className="text-left py-2 px-2 font-medium hidden lg:table-cell">IE Date</th>
-                          <th className="text-left py-2 px-2 font-medium">Due Date</th>
-                          <th className="text-left py-2 px-2 font-medium">DOA</th>
-                          <th className="text-left py-2 px-2 font-medium">Priority</th>
-                          <th className="text-left py-2 px-2 font-medium">Status</th>
-                          <th className="text-left py-2 px-3 font-medium hidden md:table-cell">Assigned</th>
+                          <th className="text-left py-2 px-3 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => toggleDoneSort("patientName")}>Patient Name<DoneSortIcon col="patientName" /></th>
+                          <th className="text-left py-2 px-3 font-medium cursor-pointer select-none hover:text-foreground hidden md:table-cell" onClick={() => toggleDoneSort("clinic")}>Clinic<DoneSortIcon col="clinic" /></th>
+                          <th className="text-left py-2 px-2 font-medium cursor-pointer select-none hover:text-foreground hidden lg:table-cell" onClick={() => toggleDoneSort("insurance")}>Insurance<DoneSortIcon col="insurance" /></th>
+                          <th className="text-left py-2 px-2 font-medium cursor-pointer select-none hover:text-foreground hidden lg:table-cell" onClick={() => toggleDoneSort("ieDate")}>IE Date<DoneSortIcon col="ieDate" /></th>
+                          <th className="text-left py-2 px-2 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => toggleDoneSort("dueDate")}>Due Date<DoneSortIcon col="dueDate" /></th>
+                          <th className="text-left py-2 px-2 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => toggleDoneSort("doa")}>DOA<DoneSortIcon col="doa" /></th>
+                          <th className="text-left py-2 px-2 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => toggleDoneSort("priority")}>Priority<DoneSortIcon col="priority" /></th>
+                          <th className="text-left py-2 px-2 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => toggleDoneSort("status")}>Status<DoneSortIcon col="status" /></th>
+                          <th className="text-left py-2 px-3 font-medium cursor-pointer select-none hover:text-foreground hidden md:table-cell" onClick={() => toggleDoneSort("assigned")}>Assigned<DoneSortIcon col="assigned" /></th>
                           <th className="w-8"></th>
                         </tr>
                       </thead>
