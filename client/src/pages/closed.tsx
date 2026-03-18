@@ -86,11 +86,7 @@ function getExtraCols(sectionKey: string): ColSpec[] {
         date,
       ];
     case "Collections":
-      return [
-        { header: "# of Visits", renderCell: (_, rec) => rec.numberOfVisits != null ? String(rec.numberOfVisits) : "-" },
-        { header: "Action", renderCell: (_, rec) => rec.action || "-" },
-        date,
-      ];
+      return [date];
     case "Checks":
       return [
         { header: "Check #", renderCell: (_, rec) => rec.checkNumber || "-" },
@@ -689,8 +685,10 @@ export default function ClosedPage() {
                               <TableHead className="min-w-[100px] text-xs select-none cursor-pointer" onClick={() => handleSort("insurance")}>Insurance <SortIcon col="insurance" /></TableHead>
                               <TableHead className="min-w-[90px] text-xs">DOS From</TableHead>
                               <TableHead className="min-w-[90px] text-xs">DOS To</TableHead>
+                              <TableHead className="min-w-[80px] text-xs"># of Visits</TableHead>
                               <TableHead className="min-w-[80px] text-xs select-none cursor-pointer" onClick={() => handleSort("amount")}>Amount <SortIcon col="amount" /></TableHead>
                               <TableHead className="min-w-[110px] text-xs select-none cursor-pointer" onClick={() => handleSort("assignedTo")}>Assigned To <SortIcon col="assignedTo" /></TableHead>
+                              <TableHead className="min-w-[100px] text-xs">Action</TableHead>
                               <TableHead className="min-w-[90px] text-xs select-none cursor-pointer" onClick={() => handleSort("status")}>Status <SortIcon col="status" /></TableHead>
                               <TableHead className="min-w-[90px] text-xs">Outcome</TableHead>
                               {extraCols.map(col => (
@@ -736,10 +734,12 @@ export default function ClosedPage() {
                                   <TableCell className="text-xs font-medium">{rec.patientName || d.patientName || "-"}</TableCell>
                                   <TableCell className="text-xs">{rec.clinic || d.clinic || "-"}</TableCell>
                                   <TableCell className="text-xs">{rec.insurance || d.insurance || "-"}</TableCell>
-                                  <TableCell className="text-xs">{(d as any).dosFrom ? formatDate((d as any).dosFrom) : "-"}</TableCell>
-                                  <TableCell className="text-xs">{(d as any).dosTo ? formatDate((d as any).dosTo) : "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).dosFrom ? formatDate((d as any).dosFrom) : (rec.dosFrom ? formatDate(rec.dosFrom) : "-")}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).dosTo ? formatDate((d as any).dosTo) : (rec.dosTo ? formatDate(rec.dosTo) : "-")}</TableCell>
+                                  <TableCell className="text-xs">{rec.numberOfVisits != null ? String(rec.numberOfVisits) : "-"}</TableCell>
                                   <TableCell className="text-xs">{fmtAmt(rec.amount || d.amount)}</TableCell>
                                   <TableCell className="text-xs">{d.assignedTo || rec.assignedTo || "-"}</TableCell>
+                                  <TableCell className="text-xs">{rec.action || "-"}</TableCell>
                                   <TableCell className="text-xs">{statusVal ? <TrackerStatusBadge status={statusVal} /> : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).outcome || "-"}</TableCell>
                                   {extraCols.map(col => (
