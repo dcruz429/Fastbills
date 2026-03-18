@@ -199,7 +199,7 @@ export default function BoardPage() {
   };
 
   const importCsvMutation = useMutation({
-    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/tasks/import-csv", { rows, bucket: "ready_for_billing" }),
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/tasks/import-csv", { rows, bucket: "ready_for_billing" }).then(r => r.json()),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setCsvDialogOpen(false);

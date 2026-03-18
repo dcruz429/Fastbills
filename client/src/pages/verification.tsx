@@ -171,7 +171,7 @@ export default function VerificationPage() {
   const doneSorted = sortField ? sortTasks(doneTasks, sortField, sortDir) : doneTasks;
 
   const importCsvMutation = useMutation({
-    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/tasks/import-csv", { rows, bucket: "for_verification" }),
+    mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/tasks/import-csv", { rows, bucket: "for_verification" }).then(r => r.json()),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setCsvDialogOpen(false);
