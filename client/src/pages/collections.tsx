@@ -194,8 +194,7 @@ export default function CollectionsPage() {
 
   const importMutation = useMutation({
     mutationFn: (rows: Record<string, string>[]) => apiRequest("POST", "/api/collections/import-csv", { rows }).then(r => r.json()),
-    onSuccess: async (res) => {
-      const result = await res.json();
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
       setCsvDialogOpen(false);
       setCsvPreview([]);
@@ -210,9 +209,8 @@ export default function CollectionsPage() {
   });
 
   const removeDuplicatesMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/collections/remove-duplicates"),
-    onSuccess: async (res) => {
-      const result = await res.json();
+    mutationFn: () => apiRequest("POST", "/api/collections/remove-duplicates").then(r => r.json()),
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
       toast({ title: `Removed ${result.removed} duplicate(s)` });
     },
@@ -220,9 +218,8 @@ export default function CollectionsPage() {
   });
 
   const fixAssignedMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/collections/fix-assigned"),
-    onSuccess: async (res) => {
-      const result = await res.json();
+    mutationFn: () => apiRequest("POST", "/api/collections/fix-assigned").then(r => r.json()),
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
       toast({ title: `Fixed ${result.fixed} assignment(s)` });
     },
