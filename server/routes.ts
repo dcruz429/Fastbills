@@ -2529,7 +2529,7 @@ export async function registerRoutes(
       const fullName = user.fullName;
 
       const allTasks = await storage.getAllTasks();
-      const myTasks = allTasks.filter((t: any) => t.assignedUserId === user.id && t.status !== "done");
+      const myTasks = allTasks.filter((t: any) => t.assignedUserId === user.id && t.status !== "done" && t.bucket !== "done");
 
       const allChecks = await db.select().from(checks);
       const myChecks = allChecks.filter((c: any) => c.assignedTo === fullName && (c.status || "").toLowerCase() !== "done");
