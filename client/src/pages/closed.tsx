@@ -85,6 +85,12 @@ function getExtraCols(sectionKey: string): ColSpec[] {
         { header: "ARB Status", renderCell: (_, rec) => rec.arbStatus || "-" },
         date,
       ];
+    case "Collections":
+      return [
+        { header: "# of Visits", renderCell: (_, rec) => rec.numberOfVisits != null ? String(rec.numberOfVisits) : "-" },
+        { header: "Action", renderCell: (_, rec) => rec.action || "-" },
+        date,
+      ];
     case "Checks":
       return [
         { header: "Check #", renderCell: (_, rec) => rec.checkNumber || "-" },
@@ -198,6 +204,7 @@ export default function ClosedPage() {
   const [filterSource, setFilterSource] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [filterClinic, setFilterClinic] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
@@ -439,7 +446,7 @@ export default function ClosedPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const activeFilterCount = [filterStatus, filterSource, filterAssignedTo, filterOutcome]
+  const activeFilterCount = [filterStatus, filterSource, filterAssignedTo, filterOutcome, filterClinic]
     .filter(v => v && v !== "__all__").length;
 
   function clearFilters() {
@@ -447,6 +454,7 @@ export default function ClosedPage() {
     setFilterSource("");
     setFilterAssignedTo("");
     setFilterOutcome("");
+    setFilterClinic("");
   }
 
   const SOURCE_SECTIONS = [
@@ -477,6 +485,11 @@ export default function ClosedPage() {
     if (filterSource && filterSource !== "__all__" && d.source !== filterSource) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
     if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
+    if (filterClinic && filterClinic !== "__all__") {
+      const recClinic = (() => { try { return JSON.parse(d.recordData || "{}").clinic || ""; } catch { return ""; } })();
+      const clinicVal = (d.clinic || recClinic || "").toLowerCase().trim();
+      if (clinicVal !== filterClinic.toLowerCase().trim()) return false;
+    }
     return true;
   });
 
@@ -582,6 +595,19 @@ export default function ClosedPage() {
           <SelectContent>
             <SelectItem value="__all__">All Outcomes</SelectItem>
             {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterClinic || "__all__"} onValueChange={v => setFilterClinic(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-clinic"><SelectValue placeholder="All Clinics" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Clinics</SelectItem>
+            {Array.from(new Set(
+              (closedList || []).map(d => {
+                let recClinic = "";
+                try { recClinic = JSON.parse(d.recordData || "{}").clinic || ""; } catch {}
+                return (d.clinic || recClinic || "").trim();
+              }).filter(Boolean)
+            )).sort().map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
         {activeFilterCount > 0 && (
