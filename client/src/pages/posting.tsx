@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -91,6 +91,21 @@ export default function PostingPage() {
   const canEdit = isAdminOrManager;
 
   const { data: postingList, isLoading } = useQuery<Posting[]>({ queryKey: ["/api/postings"] });
+
+  const autoEditHandled = useRef(false);
+  useEffect(() => {
+    if (autoEditHandled.current || !postingList) return;
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get("edit");
+    if (!editId) return;
+    const rec = postingList.find((p) => p.id === parseInt(editId));
+    if (rec) {
+      autoEditHandled.current = true;
+      openEdit(rec);
+      window.history.replaceState({}, "", "/posting");
+    }
+  }, [postingList]);
+
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({

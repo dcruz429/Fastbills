@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -112,6 +112,20 @@ export default function ArbitrationPage() {
   const { data: arbitrations, isLoading } = useQuery<Arbitration[]>({
     queryKey: ["/api/arbitrations"],
   });
+
+  const autoEditHandled = useRef(false);
+  useEffect(() => {
+    if (autoEditHandled.current || !arbitrations) return;
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get("edit");
+    if (!editId) return;
+    const rec = arbitrations.find((a) => a.id === parseInt(editId));
+    if (rec) {
+      autoEditHandled.current = true;
+      openEdit(rec);
+      window.history.replaceState({}, "", "/arbitration");
+    }
+  }, [arbitrations]);
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });

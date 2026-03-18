@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -101,6 +101,21 @@ export default function ChecksPage() {
   const canEdit = CHECKS_ROLES.includes(user.role);
 
   const { data: checksList, isLoading } = useQuery<Check[]>({ queryKey: ["/api/checks"] });
+
+  const autoEditHandled = useRef(false);
+  useEffect(() => {
+    if (autoEditHandled.current || !checksList) return;
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get("edit");
+    if (!editId) return;
+    const rec = checksList.find((c) => c.id === parseInt(editId));
+    if (rec) {
+      autoEditHandled.current = true;
+      openEdit(rec);
+      window.history.replaceState({}, "", "/checks");
+    }
+  }, [checksList]);
+
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
   const { data: allInsurances } = useQuery<Insurance[]>({ queryKey: ["/api/insurances"] });

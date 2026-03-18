@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -117,8 +118,17 @@ interface MyAssignments {
   arbitrations: any[];
 }
 
+const trackerRoutes: Record<string, string> = {
+  postings: "/posting",
+  collections: "/collections",
+  denials: "/denials",
+  arbitrations: "/arbitration",
+  checks: "/checks",
+};
+
 export default function MyTasksPage() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filterTracker, setFilterTracker] = useState("all");
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
@@ -295,6 +305,10 @@ export default function MyTasksPage() {
                 config={config}
                 isOpen={isOpen}
                 onToggle={() => toggleSection(key)}
+                onRowClick={(item) => {
+                  const route = trackerRoutes[key];
+                  if (route) navigate(`${route}?edit=${item.id}`);
+                }}
               />
             );
           })
@@ -477,12 +491,14 @@ function TrackerSection({
   config,
   isOpen,
   onToggle,
+  onRowClick,
 }: {
   trackerKey: string;
   items: any[];
   config: typeof trackerConfig.checks;
   isOpen: boolean;
   onToggle: () => void;
+  onRowClick?: (item: any) => void;
 }) {
   const columns = getTrackerColumns(trackerKey);
 
@@ -520,7 +536,12 @@ function TrackerSection({
                   </thead>
                   <tbody>
                     {items.map((item, idx) => (
-                      <tr key={item.id || idx} className="border-b last:border-0 even:bg-muted/20" data-testid={`${trackerKey}-row-${item.id}`}>
+                      <tr
+                        key={item.id || idx}
+                        className={cn("border-b last:border-0 even:bg-muted/20 transition-colors duration-150", onRowClick && "cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10")}
+                        onClick={() => onRowClick?.(item)}
+                        data-testid={`${trackerKey}-row-${item.id}`}
+                      >
                         {columns.map((col) => (
                           <td key={col.key} className={cn("py-2.5 px-3 text-muted-foreground", col.hide)}>
                             {col.render ? col.render(item) : (item[col.key] || "-")}

@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -106,6 +106,20 @@ export default function DenialsPage() {
   const { data: denials, isLoading } = useQuery<Denial[]>({
     queryKey: ["/api/denials"],
   });
+
+  const autoEditHandled = useRef(false);
+  useEffect(() => {
+    if (autoEditHandled.current || !denials) return;
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get("edit");
+    if (!editId) return;
+    const rec = denials.find((d) => d.id === parseInt(editId));
+    if (rec) {
+      autoEditHandled.current = true;
+      openEdit(rec);
+      window.history.replaceState({}, "", "/denials");
+    }
+  }, [denials]);
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });

@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -137,6 +137,20 @@ export default function CollectionsPage() {
   const { data: dataList, isLoading } = useQuery<Collection[]>({
     queryKey: ["/api/collections"],
   });
+
+  const autoEditHandled = useRef(false);
+  useEffect(() => {
+    if (autoEditHandled.current || !dataList) return;
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get("edit");
+    if (!editId) return;
+    const rec = dataList.find((c) => c.id === parseInt(editId));
+    if (rec) {
+      autoEditHandled.current = true;
+      handleEdit(rec);
+      window.history.replaceState({}, "", "/collections");
+    }
+  }, [dataList]);
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
