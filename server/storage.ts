@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -252,7 +252,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllInsurances(): Promise<Insurance[]> {
-    return db.select().from(insurances);
+    return db.select().from(insurances).orderBy(asc(insurances.name));
   }
 
   async createInsurance(data: InsertInsurance): Promise<Insurance> {
