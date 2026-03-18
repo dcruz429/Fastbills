@@ -2064,10 +2064,17 @@ export async function registerRoutes(
   app.patch("/api/tickets/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
-        return res.status(403).json({ message: "Only admins can update tickets" });
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const ticketToCheck = await storage.getTicket(parseInt(req.params.id));
+      if (!ticketToCheck) return res.status(404).json({ message: "Ticket not found" });
+      const isAdmin = ["admin", "manager", "account_manager", "case_manager"].includes(user.role);
+      const isCreator = ticketToCheck.createdById === user.id;
+      if (!isAdmin && !isCreator) {
+        return res.status(403).json({ message: "Only admins or the ticket creator can update this ticket" });
       }
-      const allowedFields = ["status", "title", "description", "category", "priority"];
+      const allowedFields = isAdmin
+        ? ["status", "title", "description", "category", "priority"]
+        : ["title", "description", "category", "priority"];
       const validStatuses = ["open", "working_on_it", "done", "closed"];
       const validCategories = ["bug", "feature_request", "ui_change", "question", "other"];
       const validPriorities = ["low", "medium", "high", "urgent"];
@@ -2084,8 +2091,7 @@ export async function registerRoutes(
       if (data.priority && !validPriorities.includes(data.priority)) {
         return res.status(400).json({ message: "Invalid priority" });
       }
-      const existing = await storage.getTicket(parseInt(req.params.id));
-      if (!existing) return res.status(404).json({ message: "Ticket not found" });
+      const existing = ticketToCheck;
       const fieldLabels: Record<string, string> = { status: "Status", title: "Title", description: "Description", category: "Category", priority: "Priority" };
       for (const key of Object.keys(data)) {
         const oldVal = String((existing as any)[key] ?? "");

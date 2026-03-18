@@ -38,6 +38,8 @@ import {
   ArrowUpDown,
   Search,
   History,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatEST } from "@/lib/date-utils";
@@ -225,9 +227,19 @@ function CreateTicketDialog({ open, onClose }: { open: boolean; onClose: () => v
 }
 
 function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClose: () => void }) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [comment, setComment] = useState("");
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(ticket.title);
+  const [editDescription, setEditDescription] = useState(ticket.description || "");
+  const [editCategory, setEditCategory] = useState(ticket.category);
+  const [editPriority, setEditPriority] = useState(ticket.priority);
+
+  const isAdmin = user && ["admin", "manager", "account_manager", "case_manager"].includes(user.role);
+  const isCreator = user && ticket.createdById === user.id;
+  const canEdit = isAdmin || isCreator;
 
   const { data: comments, isLoading: commentsLoading } = useQuery<TicketCommentWithUser[]>({
     queryKey: ["/api/tickets", ticket.id, "comments"],
@@ -248,6 +260,26 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
       Object.assign(ticket, updated);
       toast({ title: "Status updated" });
     },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", `/api/tickets/${ticket.id}`, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        category: editCategory,
+        priority: editPriority,
+      });
+      return res.json();
+    },
+    onSuccess: (updated: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticket.id, "activity"] });
+      Object.assign(ticket, updated);
+      setIsEditing(false);
+      toast({ title: "Ticket updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const commentMutation = useMutation({
@@ -315,38 +347,137 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="ml-auto w-full max-w-xl bg-background border-l shadow-xl flex flex-col relative animate-in slide-in-from-right duration-200">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold truncate pr-4" data-testid="text-ticket-detail-title">{ticket.title}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-ticket-detail">
-            <X className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center justify-between p-4 border-b gap-2">
+          {isEditing ? (
+            <Input
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              className="text-lg font-bold flex-1"
+              data-testid="input-edit-ticket-title"
+              autoFocus
+            />
+          ) : (
+            <h2 className="text-lg font-bold truncate flex-1" data-testid="text-ticket-detail-title">{ticket.title}</h2>
+          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {canEdit && !isEditing && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => { setEditTitle(ticket.title); setEditDescription(ticket.description || ""); setEditCategory(ticket.category); setEditPriority(ticket.priority); setIsEditing(true); }}
+                data-testid="button-edit-ticket"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {isEditing && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-emerald-600"
+                  onClick={() => editMutation.mutate()}
+                  disabled={!editTitle.trim() || editMutation.isPending}
+                  data-testid="button-save-edit-ticket"
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsEditing(false)}
+                  data-testid="button-cancel-edit-ticket"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            {!isEditing && (
+              <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-ticket-detail">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
           <div className="flex flex-wrap gap-2 items-center">
-            <CategoryBadge category={ticket.category} />
-            <PriorityBadgeTicket priority={ticket.priority} />
+            <CategoryBadge category={isEditing ? editCategory : ticket.category} />
+            <PriorityBadgeTicket priority={isEditing ? editPriority : ticket.priority} />
             <StatusBadgeTicket status={ticket.status} />
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Status</label>
-            <Select value={ticket.status} onValueChange={(v) => statusMutation.mutate(v)}>
-              <SelectTrigger className="mt-1" data-testid="select-ticket-status-update">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(TICKET_STATUS_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isAdmin && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <Select value={ticket.status} onValueChange={(v) => statusMutation.mutate(v)}>
+                <SelectTrigger className="mt-1" data-testid="select-ticket-status-update">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TICKET_STATUS_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Description</label>
-            <p className="mt-1 text-sm whitespace-pre-wrap" data-testid="text-ticket-description">{ticket.description}</p>
-          </div>
+          {isEditing ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Category</label>
+                  <Select value={editCategory} onValueChange={setEditCategory}>
+                    <SelectTrigger className="mt-1" data-testid="select-edit-ticket-category">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(TICKET_CATEGORY_LABELS).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Priority</label>
+                  <Select value={editPriority} onValueChange={setEditPriority}>
+                    <SelectTrigger className="mt-1" data-testid="select-edit-ticket-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(TICKET_PRIORITY_LABELS).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Description</label>
+                <Textarea
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  rows={5}
+                  className="mt-1"
+                  data-testid="input-edit-ticket-description"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => editMutation.mutate()} disabled={!editTitle.trim() || editMutation.isPending} data-testid="button-save-edit-ticket-bottom">
+                  {editMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Description</label>
+              <p className="mt-1 text-sm whitespace-pre-wrap" data-testid="text-ticket-description">{ticket.description}</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
