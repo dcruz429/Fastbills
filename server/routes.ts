@@ -494,7 +494,7 @@ export async function registerRoutes(
 
       const [verifActs, billActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
         db.select({
-          id: taskActivity.id, userId: taskActivity.userId, action: taskActivity.action,
+          id: taskActivity.id, recordId: taskActivity.taskId, userId: taskActivity.userId, action: taskActivity.action,
           timestamp: taskActivity.timestamp, userName: users.fullName, patientName: tasks.patientName,
         }).from(taskActivity)
           .leftJoin(users, eq(taskActivity.userId, users.id))
@@ -503,7 +503,7 @@ export async function registerRoutes(
           .orderBy(desc(taskActivity.timestamp)),
 
         db.select({
-          id: taskActivity.id, userId: taskActivity.userId, action: taskActivity.action,
+          id: taskActivity.id, recordId: taskActivity.taskId, userId: taskActivity.userId, action: taskActivity.action,
           timestamp: taskActivity.timestamp, userName: users.fullName, patientName: tasks.patientName,
           bucket: tasks.bucket,
         }).from(taskActivity)
@@ -513,7 +513,7 @@ export async function registerRoutes(
           .orderBy(desc(taskActivity.timestamp)),
 
         db.select({
-          id: denialActivity.id, userId: denialActivity.userId, action: denialActivity.action,
+          id: denialActivity.id, recordId: denialActivity.denialId, userId: denialActivity.userId, action: denialActivity.action,
           timestamp: denialActivity.timestamp, userName: users.fullName, patientName: denials.patientName,
         }).from(denialActivity)
           .leftJoin(users, eq(denialActivity.userId, users.id))
@@ -522,7 +522,7 @@ export async function registerRoutes(
           .orderBy(desc(denialActivity.timestamp)),
 
         db.select({
-          id: arbitrationActivity.id, userId: arbitrationActivity.userId, action: arbitrationActivity.action,
+          id: arbitrationActivity.id, recordId: arbitrationActivity.arbitrationId, userId: arbitrationActivity.userId, action: arbitrationActivity.action,
           timestamp: arbitrationActivity.timestamp, userName: users.fullName, patientName: arbitrations.patientName,
         }).from(arbitrationActivity)
           .leftJoin(users, eq(arbitrationActivity.userId, users.id))
@@ -531,7 +531,7 @@ export async function registerRoutes(
           .orderBy(desc(arbitrationActivity.timestamp)),
 
         db.select({
-          id: collectionActivity.id, userId: collectionActivity.userId, action: collectionActivity.action,
+          id: collectionActivity.id, recordId: collectionActivity.collectionId, userId: collectionActivity.userId, action: collectionActivity.action,
           timestamp: collectionActivity.timestamp, userName: users.fullName, patientName: collections.patientName,
         }).from(collectionActivity)
           .leftJoin(users, eq(collectionActivity.userId, users.id))
@@ -540,7 +540,7 @@ export async function registerRoutes(
           .orderBy(desc(collectionActivity.timestamp)),
 
         db.select({
-          id: postingActivity.id, userId: postingActivity.userId, action: postingActivity.action,
+          id: postingActivity.id, recordId: postingActivity.postingId, userId: postingActivity.userId, action: postingActivity.action,
           timestamp: postingActivity.timestamp, userName: users.fullName, patientName: postings.patientName,
         }).from(postingActivity)
           .leftJoin(users, eq(postingActivity.userId, users.id))
@@ -549,7 +549,7 @@ export async function registerRoutes(
           .orderBy(desc(postingActivity.timestamp)),
 
         db.select({
-          id: checkActivity.id, userId: checkActivity.userId, action: checkActivity.action,
+          id: checkActivity.id, recordId: checkActivity.checkId, userId: checkActivity.userId, action: checkActivity.action,
           timestamp: checkActivity.timestamp, userName: users.fullName, patientName: checks.patientName,
         }).from(checkActivity)
           .leftJoin(users, eq(checkActivity.userId, users.id))
@@ -558,7 +558,7 @@ export async function registerRoutes(
           .orderBy(desc(checkActivity.timestamp)),
 
         db.select({
-          id: closedActivity.id, userId: closedActivity.userId, action: closedActivity.action,
+          id: closedActivity.id, recordId: closedActivity.closedId, userId: closedActivity.userId, action: closedActivity.action,
           timestamp: closedActivity.timestamp, userName: users.fullName,
           patientName: closed.patientName, closedSource: closed.source,
         }).from(closedActivity)
@@ -568,6 +568,7 @@ export async function registerRoutes(
           .orderBy(desc(closedActivity.timestamp)),
       ]);
 
+      // Merge and sort newest first
       const all = [
         ...verifActs.map(a => ({ ...a, department: "Verification" })),
         ...billActs.map(a => ({ ...a, department: a.bucket === "for_verification" ? "Verification" : "Billing", bucket: undefined })),
@@ -583,7 +584,18 @@ export async function registerRoutes(
         })),
       ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-      res.json(all);
+      // Deduplicate: for each record, only keep the most recent "Done" entry.
+      // Since all[] is already sorted newest-first, the first occurrence of each
+      // (department + recordId) pair is the correct one to count.
+      const seen = new Set<string>();
+      const deduped = all.filter(a => {
+        const key = `${a.department}:${a.recordId ?? a.id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      res.json(deduped);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
