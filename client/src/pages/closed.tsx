@@ -956,6 +956,10 @@ export default function ClosedPage() {
                     </Select>
                   </div>
                   <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs">Action</Label>
+                    <Input value={form.action} onChange={e => setForm(f => ({ ...f, action: e.target.value }))} placeholder="e.g. Sent to billing" className="h-8 text-xs" data-testid="input-closed-action" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs">Outcome</Label>
                     <Select value={form.outcome || "__none__"} onValueChange={v => setForm(f => ({ ...f, outcome: v === "__none__" ? "" : v }))}>
                       <SelectTrigger className="h-8 text-xs" data-testid="select-closed-outcome"><SelectValue placeholder="None" /></SelectTrigger>
@@ -963,6 +967,18 @@ export default function ClosedPage() {
                         <SelectItem value="__none__">-- None --</SelectItem>
                         {OUTCOME_OPTIONS.map(o => (
                           <SelectItem key={o} value={o}>{o}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs">Priority</Label>
+                    <Select value={form.priority || "__none__"} onValueChange={v => setForm(f => ({ ...f, priority: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-closed-priority"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-- None --</SelectItem>
+                        {["Low", "Medium", "High", "Critical"].map(p => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -979,6 +995,18 @@ export default function ClosedPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">DOS From</Label>
+                    <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-dos-from" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">DOS To</Label>
+                    <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-dos-to" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs"># of Visits</Label>
+                    <Input type="number" min={0} value={form.numberOfVisits} onChange={e => setForm(f => ({ ...f, numberOfVisits: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-number-of-visits" />
+                  </div>
                   <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs">Reason</Label>
                     <Select value={form.reason || "__none__"} onValueChange={v => setForm(f => ({ ...f, reason: v === "__none__" ? "" : v }))}>
@@ -990,14 +1018,6 @@ export default function ClosedPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">DOS From</Label>
-                    <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-dos-from" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">DOS To</Label>
-                    <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} className="h-8 text-xs" data-testid="input-closed-dos-to" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Regular Visit (0-100)</Label>
