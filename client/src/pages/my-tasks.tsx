@@ -342,6 +342,7 @@ function TasksSection({
 }) {
   const [sortField, setSortField] = useState<"patientName" | "clinic" | "dueDate" | "priority" | "status" | "bucket" | null>("dueDate");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [doneOpen, setDoneOpen] = useState(false);
 
   const priorityOrder: Record<string, number> = { low: 0, medium: 1, high: 2, critical: 3 };
   const statusOrder: Record<string, number> = { unassigned: 0, assigned: 1, working_on_it: 2, verified: 3, billed: 4, dropped: 5 };
@@ -360,6 +361,9 @@ function TasksSection({
     }
     return sortDir === "asc" ? cmp : -cmp;
   });
+
+  const activeTasks = sorted.filter(t => t.status !== "done" && t.bucket !== "done");
+  const doneTasks = sorted.filter(t => t.status === "done" || t.bucket === "done");
 
   function handleSort(field: typeof sortField) {
     if (sortField === field) {
@@ -388,6 +392,71 @@ function TasksSection({
     </th>
   );
 
+  function TaskRow({ task, muted = false }: { task: TaskWithRelations; muted?: boolean }) {
+    const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.bucket !== "done";
+    const isTransferred = (task.notes || "").startsWith("[Transferred from");
+    const BucketIcon = bucketIcons[task.bucket] || FileCheck;
+    return (
+      <tr
+        key={task.id}
+        className={cn(
+          "border-b last:border-0 cursor-pointer transition-colors duration-150",
+          muted ? "opacity-60 hover:opacity-100 even:bg-muted/10 hover:bg-primary/5 dark:hover:bg-primary/10" :
+          isOverdue
+            ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30"
+            : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10",
+          isTransferred && "text-blue-600 dark:text-blue-400"
+        )}
+        onClick={() => onSelectTask(task)}
+        data-testid={`task-row-${task.id}`}
+      >
+        <td className="py-2.5 px-3">
+          <div className="flex items-center gap-2">
+            {isOverdue && <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+            <span className="font-medium truncate max-w-[180px]">{task.patientName}</span>
+            {task.notes && <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0" />}
+          </div>
+        </td>
+        <td className="py-2.5 px-2">
+          <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded", bucketColors[task.bucket] || "")}>
+            <BucketIcon className="h-3 w-3" />
+            {bucketLabels[task.bucket] || task.bucket}
+          </span>
+        </td>
+        <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">{task.clinic?.name || "-"}</td>
+        <td className="py-2.5 px-2">
+          <span className={cn("text-xs", isOverdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-muted-foreground")}>
+            {task.dueDate ? formatEST(new Date(task.dueDate), "MM/dd") : "-"}
+          </span>
+        </td>
+        <td className="py-2.5 px-2"><PriorityBadge priority={task.priority} /></td>
+        <td className="py-2.5 px-2">
+          <div className="flex items-center gap-1">
+            <StatusBadge status={task.status} />
+            {task.status === "dropped" && task.rtp && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400">RTP</span>
+            )}
+          </div>
+        </td>
+        <td className="py-2.5 px-3">{isOverdue && <Clock className="h-3.5 w-3.5 text-red-500" />}</td>
+      </tr>
+    );
+  }
+
+  const tableHeader = (
+    <thead>
+      <tr className="border-b text-xs text-muted-foreground">
+        <SortHeader field="patientName" label="Patient Name" cls="px-3" />
+        <SortHeader field="bucket" label="Bucket" cls="px-2" />
+        <SortHeader field="clinic" label="Clinic" cls="px-3" hide="hidden md:table-cell" />
+        <SortHeader field="dueDate" label="Due Date" cls="px-2" />
+        <SortHeader field="priority" label="Priority" cls="px-2" />
+        <SortHeader field="status" label="Status" cls="px-2" />
+        <th className="py-2 px-3 w-8"></th>
+      </tr>
+    </thead>
+  );
+
   return (
     <Collapsible open={isOpen} onOpenChange={onToggle}>
       <Card className={cn("border shadow-sm", config.border)}>
@@ -406,77 +475,45 @@ function TasksSection({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="p-0">
-            {tasks.length === 0 ? (
+            {activeTasks.length === 0 && doneTasks.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">No tasks assigned to you</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-xs text-muted-foreground">
-                      <SortHeader field="patientName" label="Patient Name" cls="px-3" />
-                      <SortHeader field="bucket" label="Bucket" cls="px-2" />
-                      <SortHeader field="clinic" label="Clinic" cls="px-3" hide="hidden md:table-cell" />
-                      <SortHeader field="dueDate" label="Due Date" cls="px-2" />
-                      <SortHeader field="priority" label="Priority" cls="px-2" />
-                      <SortHeader field="status" label="Status" cls="px-2" />
-                      <th className="py-2 px-3 w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sorted.map((task) => {
-                      const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.bucket !== "done";
-                      const isTransferred = (task.notes || "").startsWith("[Transferred from");
-                      const BucketIcon = bucketIcons[task.bucket] || FileCheck;
-                      return (
-                        <tr
-                          key={task.id}
-                          className={cn(
-                            "border-b last:border-0 cursor-pointer transition-colors duration-150",
-                            isOverdue
-                              ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100/80 dark:hover:bg-red-950/30"
-                              : "even:bg-muted/20 hover:bg-primary/5 dark:hover:bg-primary/10",
-                            isTransferred && "text-blue-600 dark:text-blue-400"
-                          )}
-                          onClick={() => onSelectTask(task)}
-                          data-testid={`task-row-${task.id}`}
-                        >
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2">
-                              {isOverdue && <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
-                              <span className="font-medium truncate max-w-[180px]">{task.patientName}</span>
-                              {task.notes && <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0" />}
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-2">
-                            <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded", bucketColors[task.bucket] || "")}>
-                              <BucketIcon className="h-3 w-3" />
-                              {bucketLabels[task.bucket] || task.bucket}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-muted-foreground hidden md:table-cell">{task.clinic?.name || "-"}</td>
-                          <td className="py-2.5 px-2">
-                            <span className={cn("text-xs", isOverdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-muted-foreground")}>
-                              {task.dueDate ? formatEST(new Date(task.dueDate), "MM/dd") : "-"}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-2"><PriorityBadge priority={task.priority} /></td>
-                          <td className="py-2.5 px-2">
-                            <div className="flex items-center gap-1">
-                              <StatusBadge status={task.status} />
-                              {task.status === "dropped" && task.rtp && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400">RTP</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3">{isOverdue && <Clock className="h-3.5 w-3.5 text-red-500" />}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {activeTasks.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      {tableHeader}
+                      <tbody>
+                        {activeTasks.map(task => <TaskRow key={task.id} task={task} />)}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {doneTasks.length > 0 && (
+                  <Collapsible open={doneOpen} onOpenChange={setDoneOpen}>
+                    <CollapsibleTrigger className="w-full text-left" data-testid="done-section-trigger-tasks">
+                      <div className="flex items-center gap-2 px-4 py-2 border-t bg-green-50/50 dark:bg-green-950/20 hover:bg-green-100/50 dark:hover:bg-green-950/30 transition-colors cursor-pointer select-none">
+                        {doneOpen ? <ChevronDown className="h-3.5 w-3.5 text-green-600 dark:text-green-400" /> : <ChevronRight className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />}
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                        <span className="text-xs font-bold tracking-wide text-green-700 dark:text-green-400">DONE</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{doneTasks.length} item{doneTasks.length !== 1 ? "s" : ""}</span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="overflow-x-auto border-t">
+                        <table className="w-full text-sm">
+                          {tableHeader}
+                          <tbody>
+                            {doneTasks.map(task => <TaskRow key={task.id} task={task} muted />)}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+              </>
             )}
           </CardContent>
         </CollapsibleContent>
@@ -501,6 +538,41 @@ function TrackerSection({
   onRowClick?: (item: any) => void;
 }) {
   const columns = getTrackerColumns(trackerKey);
+  const [doneOpen, setDoneOpen] = useState(false);
+
+  const activeItems = items.filter(item => item.status !== "Done");
+  const doneItems = items.filter(item => item.status === "Done");
+
+  const tableHeader = (
+    <thead>
+      <tr className="border-b text-xs text-muted-foreground">
+        {columns.map((col) => (
+          <th key={col.key} className={cn("text-left py-2 font-medium px-3", col.hide)}>{col.label}</th>
+        ))}
+      </tr>
+    </thead>
+  );
+
+  function ItemRow({ item, idx, muted = false }: { item: any; idx: number; muted?: boolean }) {
+    return (
+      <tr
+        key={item.id || idx}
+        className={cn(
+          "border-b last:border-0 transition-colors duration-150",
+          muted ? "opacity-60 hover:opacity-100 even:bg-muted/10 hover:bg-primary/5 dark:hover:bg-primary/10" : "even:bg-muted/20",
+          onRowClick && "cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10"
+        )}
+        onClick={() => onRowClick?.(item)}
+        data-testid={`${trackerKey}-row-${item.id}`}
+      >
+        {columns.map((col) => (
+          <td key={col.key} className={cn("py-2.5 px-3 text-muted-foreground", col.hide)}>
+            {col.render ? col.render(item) : (item[col.key] || "-")}
+          </td>
+        ))}
+      </tr>
+    );
+  }
 
   return (
     <Collapsible open={isOpen} onOpenChange={onToggle}>
@@ -520,38 +592,45 @@ function TrackerSection({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="p-0">
-            {items.length === 0 ? (
+            {activeItems.length === 0 && doneItems.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">No items assigned to you</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-xs text-muted-foreground">
-                      {columns.map((col) => (
-                        <th key={col.key} className={cn("text-left py-2 font-medium px-3", col.hide)}>{col.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item, idx) => (
-                      <tr
-                        key={item.id || idx}
-                        className={cn("border-b last:border-0 even:bg-muted/20 transition-colors duration-150", onRowClick && "cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10")}
-                        onClick={() => onRowClick?.(item)}
-                        data-testid={`${trackerKey}-row-${item.id}`}
-                      >
-                        {columns.map((col) => (
-                          <td key={col.key} className={cn("py-2.5 px-3 text-muted-foreground", col.hide)}>
-                            {col.render ? col.render(item) : (item[col.key] || "-")}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {activeItems.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      {tableHeader}
+                      <tbody>
+                        {activeItems.map((item, idx) => <ItemRow key={item.id || idx} item={item} idx={idx} />)}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {doneItems.length > 0 && (
+                  <Collapsible open={doneOpen} onOpenChange={setDoneOpen}>
+                    <CollapsibleTrigger className="w-full text-left" data-testid={`done-section-trigger-${trackerKey}`}>
+                      <div className="flex items-center gap-2 px-4 py-2 border-t bg-green-50/50 dark:bg-green-950/20 hover:bg-green-100/50 dark:hover:bg-green-950/30 transition-colors cursor-pointer select-none">
+                        {doneOpen ? <ChevronDown className="h-3.5 w-3.5 text-green-600 dark:text-green-400" /> : <ChevronRight className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />}
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                        <span className="text-xs font-bold tracking-wide text-green-700 dark:text-green-400">DONE</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{doneItems.length} item{doneItems.length !== 1 ? "s" : ""}</span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="overflow-x-auto border-t">
+                        <table className="w-full text-sm">
+                          {tableHeader}
+                          <tbody>
+                            {doneItems.map((item, idx) => <ItemRow key={item.id || idx} item={item} idx={idx} muted />)}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+              </>
             )}
           </CardContent>
         </CollapsibleContent>
