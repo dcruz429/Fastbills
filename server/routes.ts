@@ -1243,25 +1243,17 @@ export async function registerRoutes(
           );
           if (match) {
             await storage.updateCollection(match.id, data);
-            await storage.createCollectionActivity({
-              collectionId: match.id,
-              userId: req.session.userId!,
-              action: "Collection updated (CSV import)",
-              field: null,
-              oldValue: null,
-              newValue: null,
-            });
+            await storage.createCollectionActivity({ collectionId: match.id, userId: req.session.userId!, action: "Collection updated (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done" && match.status !== "Done") {
+              await storage.createCollectionActivity({ collectionId: match.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: "Done" });
+            }
             results.updated++;
           } else {
             const collection = await storage.createCollection(data);
-            await storage.createCollectionActivity({
-              collectionId: collection.id,
-              userId: req.session.userId!,
-              action: "Collection created (CSV import)",
-              field: null,
-              oldValue: null,
-              newValue: null,
-            });
+            await storage.createCollectionActivity({ collectionId: collection.id, userId: req.session.userId!, action: "Collection created (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done") {
+              await storage.createCollectionActivity({ collectionId: collection.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: "Done" });
+            }
             results.success++;
           }
         } catch (e: any) {
@@ -1291,8 +1283,21 @@ export async function registerRoutes(
           for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
           if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
           const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase());
-          if (match) { await storage.updateDenial(match.id, data); await storage.createDenialActivity({ denialId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
-          else { const rec = await storage.createDenial(data); await storage.createDenialActivity({ denialId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+          if (match) {
+            await storage.updateDenial(match.id, data);
+            await storage.createDenialActivity({ denialId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done" && match.status !== "Done") {
+              await storage.createDenialActivity({ denialId: match.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: "Done" });
+            }
+            results.updated++;
+          } else {
+            const rec = await storage.createDenial(data);
+            await storage.createDenialActivity({ denialId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done") {
+              await storage.createDenialActivity({ denialId: rec.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: "Done" });
+            }
+            results.success++;
+          }
         } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
       }
       res.json(results);
@@ -1316,8 +1321,21 @@ export async function registerRoutes(
           for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
           if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
           const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase());
-          if (match) { await storage.updateArbitration(match.id, data); await storage.createArbitrationActivity({ arbitrationId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
-          else { const rec = await storage.createArbitration(data); await storage.createArbitrationActivity({ arbitrationId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+          if (match) {
+            await storage.updateArbitration(match.id, data);
+            await storage.createArbitrationActivity({ arbitrationId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done" && match.status !== "Done") {
+              await storage.createArbitrationActivity({ arbitrationId: match.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: "Done" });
+            }
+            results.updated++;
+          } else {
+            const rec = await storage.createArbitration(data);
+            await storage.createArbitrationActivity({ arbitrationId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done") {
+              await storage.createArbitrationActivity({ arbitrationId: rec.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: "Done" });
+            }
+            results.success++;
+          }
         } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
       }
       res.json(results);
@@ -1341,8 +1359,21 @@ export async function registerRoutes(
           for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
           if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
           const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.fileNumber || "").toLowerCase() === (data.fileNumber || "").toLowerCase());
-          if (match) { await storage.updatePosting(match.id, data); await storage.createPostingActivity({ postingId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
-          else { const rec = await storage.createPosting(data); await storage.createPostingActivity({ postingId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+          if (match) {
+            await storage.updatePosting(match.id, data);
+            await storage.createPostingActivity({ postingId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done" && match.status !== "Done") {
+              await storage.createPostingActivity({ postingId: match.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: "Done" });
+            }
+            results.updated++;
+          } else {
+            const rec = await storage.createPosting(data);
+            await storage.createPostingActivity({ postingId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done") {
+              await storage.createPostingActivity({ postingId: rec.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: "Done" });
+            }
+            results.success++;
+          }
         } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
       }
       res.json(results);
@@ -1368,8 +1399,21 @@ export async function registerRoutes(
             data.checkNumber && (r.checkNumber || "").toLowerCase() === (data.checkNumber || "").toLowerCase() &&
             (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase()
           );
-          if (match) { await storage.updateCheck(match.id, data); await storage.createCheckActivity({ checkId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
-          else { const rec = await storage.createCheck(data); await storage.createCheckActivity({ checkId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+          if (match) {
+            await storage.updateCheck(match.id, data);
+            await storage.createCheckActivity({ checkId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done" && match.status !== "Done") {
+              await storage.createCheckActivity({ checkId: match.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: "Done" });
+            }
+            results.updated++;
+          } else {
+            const rec = await storage.createCheck(data);
+            await storage.createCheckActivity({ checkId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done") {
+              await storage.createCheckActivity({ checkId: rec.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: "Done" });
+            }
+            results.success++;
+          }
         } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
       }
       res.json(results);
@@ -1391,8 +1435,21 @@ export async function registerRoutes(
           if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
           if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
           const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase());
-          if (match) { await storage.updateClosed(match.id, data); await storage.createClosedActivity({ closedId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null }); results.updated++; }
-          else { const rec = await storage.createClosed(data); await storage.createClosedActivity({ closedId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null }); results.success++; }
+          if (match) {
+            await storage.updateClosed(match.id, data);
+            await storage.createClosedActivity({ closedId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done" && match.status !== "Done") {
+              await storage.createClosedActivity({ closedId: match.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: "Done" });
+            }
+            results.updated++;
+          } else {
+            const rec = await storage.createClosed(data);
+            await storage.createClosedActivity({ closedId: rec.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status === "Done") {
+              await storage.createClosedActivity({ closedId: rec.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: "Done" });
+            }
+            results.success++;
+          }
         } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
       }
       res.json(results);
@@ -1475,13 +1532,20 @@ export async function registerRoutes(
             return t.clinicId === data.clinicId;
           });
 
+          const DONE_STATUSES = ["done", "billed", "verified"];
           if (match) {
             await storage.updateTask(match.id, data);
             await storage.createTaskActivity({ taskId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status && DONE_STATUSES.includes(data.status) && !DONE_STATUSES.includes(match.status || "")) {
+              await storage.createTaskActivity({ taskId: match.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: data.status });
+            }
             results.updated++;
           } else {
             const task = await storage.createTask({ ...data, uploaderId: req.session.userId! });
             await storage.createTaskActivity({ taskId: task.id, userId: req.session.userId!, action: "Created (CSV import)", field: null, oldValue: null, newValue: null });
+            if (data.status && DONE_STATUSES.includes(data.status)) {
+              await storage.createTaskActivity({ taskId: task.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: data.status });
+            }
             results.success++;
           }
         } catch (e: any) { results.errors.push(`Row ${i + 1}: ${e.message}`); }
