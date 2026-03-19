@@ -1222,6 +1222,7 @@ export async function registerRoutes(
       const dateFields = ["inputDate", "dosFrom", "dosTo"];
       const results: { success: number; updated: number; errors: string[] } = { success: 0, updated: 0, errors: [] };
       const existingCollections = await storage.getAllCollections();
+      const allUsersCol = await storage.getAllUsers();
       for (let i = 0; i < rows.length; i++) {
         try {
           const data: any = { ...rows[i] };
@@ -1241,18 +1242,19 @@ export async function registerRoutes(
             c.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() &&
             (c.clinic || "").toLowerCase().trim() === (data.clinic || "").toLowerCase().trim()
           );
+          const colCreditId = allUsersCol.find(u => u.fullName?.toLowerCase() === (data.assignedTo || "").toLowerCase())?.id ?? req.session.userId!;
           if (match) {
             await storage.updateCollection(match.id, data);
             await storage.createCollectionActivity({ collectionId: match.id, userId: req.session.userId!, action: "Collection updated (CSV import)", field: null, oldValue: null, newValue: null });
             if (data.status === "Done" && match.status !== "Done") {
-              await storage.createCollectionActivity({ collectionId: match.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: "Done" });
+              await storage.createCollectionActivity({ collectionId: match.id, userId: colCreditId, action: "Status → Done (CSV import)", field: "status", oldValue: match.status || null, newValue: "Done" });
             }
             results.updated++;
           } else {
             const collection = await storage.createCollection(data);
             await storage.createCollectionActivity({ collectionId: collection.id, userId: req.session.userId!, action: "Collection created (CSV import)", field: null, oldValue: null, newValue: null });
             if (data.status === "Done") {
-              await storage.createCollectionActivity({ collectionId: collection.id, userId: req.session.userId!, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: "Done" });
+              await storage.createCollectionActivity({ collectionId: collection.id, userId: colCreditId, action: "Status → Done (CSV import)", field: "status", oldValue: null, newValue: "Done" });
             }
             results.success++;
           }
