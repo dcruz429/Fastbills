@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import {
   ChevronDown, ChevronUp, CalendarDays, Trophy, Users, CheckCircle2, TrendingUp,
   FileText, ShieldAlert, Scale, CreditCard, Package, ClipboardList, Archive, RotateCcw, BadgeCheck,
@@ -104,8 +104,21 @@ function formatTs(ts: string) {
   };
 }
 
+const DEPT_ROUTES: Record<string, string> = {
+  Verification: "/verification",
+  Billing: "/",
+  Posting: "/posting",
+  Collections: "/collections",
+  Denials: "/denials",
+  Arbitration: "/arbitration",
+  Checks: "/checks",
+  RTP: "/closed",
+  Closed: "/closed",
+};
+
 export default function ProductivityPage() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const now = new Date();
 
   const [timeRange, setTimeRange] = useState<TimeRange>("day");
@@ -494,9 +507,25 @@ export default function ProductivityPage() {
                           <TableCell className="font-medium text-sm">{u.name}</TableCell>
                           {DEPARTMENTS.filter(d => activeDepts.includes(d.key)).map(d => (
                             <TableCell key={d.key} className="text-center text-sm">
-                              <span className={u.totals[d.key] ? `font-semibold ${d.color}` : "text-muted-foreground"}>
-                                {u.totals[d.key] || "—"}
-                              </span>
+                              {u.totals[d.key] ? (
+                                <button
+                                  className={`font-semibold ${d.color} hover:underline cursor-pointer`}
+                                  onClick={() => {
+                                    const path = DEPT_ROUTES[d.key];
+                                    if (path) {
+                                      const params = new URLSearchParams();
+                                      params.set("assignedToId", String(u.userId));
+                                      params.set("assignedToName", u.name || "");
+                                      setLocation(`${path}?${params.toString()}`);
+                                    }
+                                  }}
+                                  data-testid={`cell-dept-${d.key}-user-${u.userId}`}
+                                >
+                                  {u.totals[d.key]}
+                                </button>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                           ))}
                           <TableCell className="text-center font-bold text-sm">{u.total}</TableCell>

@@ -85,7 +85,10 @@ export default function DenialsPage() {
   const [filterFiledTo, setFilterFiledTo] = useState("");
   const [filterArbStatus, setFilterArbStatus] = useState("");
   const [filterArbPaymentStatus, setFilterArbPaymentStatus] = useState("");
-  const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("assignedToName") || "";
+  });
   const [filterStatus, setFilterStatus] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
   const [mainOpen, setMainOpen] = useState(true);

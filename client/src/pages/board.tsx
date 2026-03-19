@@ -107,7 +107,10 @@ export default function BoardPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterClinic, setFilterClinic] = useState("all");
-  const [filterAssignedTo, setFilterAssignedTo] = useState("all");
+  const [filterAssignedTo, setFilterAssignedTo] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("assignedToId") || "all";
+  });
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [filterEscalated, setFilterEscalated] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>("patientName");

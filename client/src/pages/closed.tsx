@@ -198,7 +198,10 @@ export default function ClosedPage() {
   const [newNote, setNewNote] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterSource, setFilterSource] = useState("");
-  const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("assignedToName") || "";
+  });
   const [filterOutcome, setFilterOutcome] = useState("");
   const [filterClinic, setFilterClinic] = useState("");
   const [filterReason, setFilterReason] = useState("");

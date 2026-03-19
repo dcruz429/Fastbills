@@ -80,7 +80,10 @@ export default function ChecksPage() {
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterInsurance, setFilterInsurance] = useState("");
-  const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("assignedToName") || "";
+  });
   const [filterOutcome, setFilterOutcome] = useState("");
   const [mainOpen, setMainOpen] = useState(true);
   const [doneOpen, setDoneOpen] = useState(false);

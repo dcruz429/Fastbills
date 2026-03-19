@@ -118,7 +118,10 @@ export default function CollectionsPage() {
   const [filterInsurance, setFilterInsurance] = useState("");
   const [filterIssueType, setFilterIssueType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("assignedToName") || "";
+  });
   const [filterPriority, setFilterPriority] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
   const [mainOpen, setMainOpen] = useState(true);

@@ -77,7 +77,10 @@ export default function PostingPage() {
   const [filterDocumentType, setFilterDocumentType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
-  const [filterAssignedTo, setFilterAssignedTo] = useState("");
+  const [filterAssignedTo, setFilterAssignedTo] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("assignedToName") || "";
+  });
   const [filterOutcome, setFilterOutcome] = useState("");
   const [mainOpen, setMainOpen] = useState(true);
   const [doneOpen, setDoneOpen] = useState(false);
