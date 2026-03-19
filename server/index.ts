@@ -63,6 +63,9 @@ app.use((req, res, next) => {
   const { seed } = await import("./seed");
   await seed().catch((e) => console.error("Seed error:", e));
 
+  const { backfillDoneActivities } = await import("./backfill");
+  await backfillDoneActivities().catch((e) => console.error("Backfill error:", e));
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
