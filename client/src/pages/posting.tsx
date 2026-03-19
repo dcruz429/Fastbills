@@ -21,7 +21,8 @@ import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-ba
 import { ScrollSync } from "@/components/scroll-sync";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, CheckCircle2, Upload } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, ChevronRight, CheckCircle2, Upload, FileText } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { parseCsvText } from "@/lib/csv-import";
 
 function formatDate(d: string | Date | null | undefined) {
@@ -78,6 +79,7 @@ export default function PostingPage() {
   const [filterPriority, setFilterPriority] = useState("");
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [mainOpen, setMainOpen] = useState(true);
   const [doneOpen, setDoneOpen] = useState(false);
   const [doneSortCol, setDoneSortCol] = useState<string>("");
   const [doneSortDir, setDoneSortDir] = useState<"asc" | "desc">("asc");
@@ -423,8 +425,20 @@ export default function PostingPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 gap-2">
-      <ScrollSync className="border rounded-lg">
+      <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto pb-6">
+      <Collapsible open={mainOpen} onOpenChange={setMainOpen}>
+        <Card className="border border-purple-200 dark:border-purple-800/30 shadow-sm shrink-0">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="flex flex-row items-center gap-2 py-2.5 px-4 cursor-pointer select-none bg-purple-50 dark:bg-purple-950/20" data-testid="posting-main-section-header">
+              {mainOpen ? <ChevronDown className="h-4 w-4 text-purple-600 dark:text-purple-400" /> : <ChevronRight className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+              <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              <span className="text-sm font-bold tracking-wide text-purple-600 dark:text-purple-400">POSTINGS</span>
+              <span className="text-xs text-muted-foreground ml-auto font-medium">{activeRecords.length} record{activeRecords.length !== 1 ? "s" : ""}</span>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="p-0">
+      <ScrollSync>
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
@@ -483,18 +497,24 @@ export default function PostingPage() {
           </TableBody>
         </Table>
       </ScrollSync>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {doneRecords.length > 0 && (
-        <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen}>
+          <Card className="border border-emerald-200 dark:border-emerald-800/30 shadow-sm shrink-0">
           <CollapsibleTrigger asChild>
-            <button className="w-full flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 rounded-lg text-sm font-semibold transition-colors text-emerald-700 dark:text-emerald-400" data-testid="collapsible-done-section">
-              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "" : "-rotate-90"}`} />
-              <CheckCircle2 className="h-4 w-4" />
-              <span>DONE</span>
-              <span className="text-xs font-normal ml-auto">({doneRecords.length})</span>
-            </button>
+            <CardHeader className="flex flex-row items-center gap-2 py-2.5 px-4 cursor-pointer select-none bg-emerald-50 dark:bg-emerald-950/20" data-testid="collapsible-done-section">
+              {doneOpen ? <ChevronDown className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> : <ChevronRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-sm font-bold tracking-wide text-emerald-700 dark:text-emerald-400">DONE</span>
+              <span className="text-xs text-muted-foreground ml-auto font-medium">{doneRecords.length} record{doneRecords.length !== 1 ? "s" : ""}</span>
+            </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
+            <CardContent className="p-0">
             <div className="overflow-auto max-h-80 border-t">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
@@ -538,7 +558,9 @@ export default function PostingPage() {
                 </TableBody>
               </Table>
             </div>
+            </CardContent>
           </CollapsibleContent>
+          </Card>
         </Collapsible>
       )}
       </div>

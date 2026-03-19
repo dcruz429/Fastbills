@@ -29,6 +29,7 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
+  ChevronRight,
   MessageSquare,
   ShieldCheck,
   CheckCircle2,
@@ -101,6 +102,7 @@ export default function VerificationPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [doneSortCol, setDoneSortCol] = useState<SortField | null>("patientName");
   const [doneSortDir, setDoneSortDir] = useState<SortDir>("asc");
+  const [mainOpen, setMainOpen] = useState(true);
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
@@ -335,11 +337,14 @@ export default function VerificationPage() {
           </div>
         ) : (
           <>
+            <Collapsible open={mainOpen} onOpenChange={setMainOpen}>
             <Card className="border shadow-sm border-amber-200 dark:border-amber-800/30 shrink-0">
+              <CollapsibleTrigger asChild>
               <CardHeader
-                className="flex flex-row items-center gap-2 py-2.5 px-4 bg-amber-50 dark:bg-amber-950/20"
+                className="flex flex-row items-center gap-2 py-2.5 px-4 bg-amber-50 dark:bg-amber-950/20 cursor-pointer select-none"
                 data-testid="verification-header"
               >
+                {mainOpen ? <ChevronDown className="h-4 w-4 text-amber-600 dark:text-amber-400" /> : <ChevronRight className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
                 <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 <span className="text-sm font-bold tracking-wide text-amber-600 dark:text-amber-400">
                   FOR VERIFICATION
@@ -348,6 +353,8 @@ export default function VerificationPage() {
                   {activeSorted.length} task{activeSorted.length !== 1 ? "s" : ""}
                 </span>
               </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
               <CardContent className="p-0">
                 {activeSorted.length === 0 ? (
                   <div className="py-10 text-center">
@@ -482,19 +489,23 @@ export default function VerificationPage() {
                   </div>
                 )}
               </CardContent>
+              </CollapsibleContent>
             </Card>
+            </Collapsible>
 
             {doneSorted.length > 0 && (
-              <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">
+              <Collapsible open={doneOpen} onOpenChange={setDoneOpen}>
+                <Card className="border border-emerald-200 dark:border-emerald-800/30 shadow-sm shrink-0">
                 <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 transition-colors rounded-lg font-semibold text-sm text-emerald-700 dark:text-emerald-400" data-testid="toggle-done-section">
-                    <ChevronDown className={cn("h-4 w-4 transition-transform", doneOpen ? "" : "-rotate-90")} />
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>DONE</span>
-                    <span className="text-xs font-normal ml-auto">({doneSorted.length})</span>
-                  </button>
+                  <CardHeader className="flex flex-row items-center gap-2 py-2.5 px-4 cursor-pointer select-none bg-emerald-50 dark:bg-emerald-950/20" data-testid="toggle-done-section">
+                    {doneOpen ? <ChevronDown className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> : <ChevronRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-sm font-bold tracking-wide text-emerald-700 dark:text-emerald-400">DONE</span>
+                    <span className="text-xs text-muted-foreground ml-auto font-medium">{doneSorted.length} task{doneSorted.length !== 1 ? "s" : ""}</span>
+                  </CardHeader>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
+                  <CardContent className="p-0">
                   <div className="overflow-x-auto border-t">
                     <table className="w-full text-sm">
                       <thead>
@@ -554,7 +565,9 @@ export default function VerificationPage() {
                       </tbody>
                     </table>
                   </div>
+                  </CardContent>
                 </CollapsibleContent>
+                </Card>
               </Collapsible>
             )}
           </>

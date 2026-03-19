@@ -10,13 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, CheckCircle2, Upload } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, ChevronDown, ChevronRight, CheckCircle2, Upload, Scale } from "lucide-react";
 import { parseCsvText } from "@/lib/csv-import";
 import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
@@ -94,6 +94,7 @@ export default function ArbitrationPage() {
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [mainOpen, setMainOpen] = useState(true);
   const [doneOpen, setDoneOpen] = useState(false);
   const [doneSortCol, setDoneSortCol] = useState<string>("");
   const [doneSortDir, setDoneSortDir] = useState<"asc" | "desc">("asc");
@@ -494,9 +495,19 @@ export default function ArbitrationPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 gap-2">
-      <Card className="flex-1 min-h-0 flex flex-col">
-        <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto pb-6">
+      <Collapsible open={mainOpen} onOpenChange={setMainOpen}>
+        <Card className="border border-indigo-200 dark:border-indigo-800/30 shadow-sm shrink-0">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="flex flex-row items-center gap-2 py-2.5 px-4 cursor-pointer select-none bg-indigo-50 dark:bg-indigo-950/20" data-testid="arbitration-main-section-header">
+              {mainOpen ? <ChevronDown className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> : <ChevronRight className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+              <Scale className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="text-sm font-bold tracking-wide text-indigo-600 dark:text-indigo-400">ARBITRATION</span>
+              <span className="text-xs text-muted-foreground ml-auto font-medium">{activeRecords.length} record{activeRecords.length !== 1 ? "s" : ""}</span>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="p-0">
           <ScrollSync>
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
@@ -591,20 +602,24 @@ export default function ArbitrationPage() {
               </TableBody>
             </Table>
           </ScrollSync>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {doneRecords.length > 0 && (
-        <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen}>
+          <Card className="border border-emerald-200 dark:border-emerald-800/30 shadow-sm shrink-0">
           <CollapsibleTrigger asChild>
-            <button className="w-full flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 rounded-lg text-sm font-semibold transition-colors text-emerald-700 dark:text-emerald-400" data-testid="collapsible-done-section">
-              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "" : "-rotate-90"}`} />
-              <CheckCircle2 className="h-4 w-4" />
-              <span>DONE</span>
-              <span className="text-xs font-normal ml-auto">({doneRecords.length})</span>
-            </button>
+            <CardHeader className="flex flex-row items-center gap-2 py-2.5 px-4 cursor-pointer select-none bg-emerald-50 dark:bg-emerald-950/20" data-testid="collapsible-done-section">
+              {doneOpen ? <ChevronDown className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> : <ChevronRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-sm font-bold tracking-wide text-emerald-700 dark:text-emerald-400">DONE</span>
+              <span className="text-xs text-muted-foreground ml-auto font-medium">{doneRecords.length} record{doneRecords.length !== 1 ? "s" : ""}</span>
+            </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
+            <CardContent className="p-0">
             <div className="overflow-auto max-h-80 border-t">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
@@ -660,7 +675,9 @@ export default function ArbitrationPage() {
                 </TableBody>
               </Table>
             </div>
+            </CardContent>
           </CollapsibleContent>
+          </Card>
         </Collapsible>
       )}
       </div>

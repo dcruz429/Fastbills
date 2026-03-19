@@ -16,7 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, Clock, User as UserIcon, MessageSquare, Filter, Copy, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, ChevronRight, Clock, User as UserIcon, MessageSquare, Filter, Copy, CheckCircle2, Banknote } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -120,6 +121,7 @@ export default function CollectionsPage() {
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [mainOpen, setMainOpen] = useState(true);
   const [doneOpen, setDoneOpen] = useState(false);
   const [doneSortCol, setDoneSortCol] = useState<string>("");
   const [doneSortDir, setDoneSortDir] = useState<"asc" | "desc">("asc");
@@ -668,8 +670,20 @@ export default function CollectionsPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 gap-2">
-      <ScrollSync className="border rounded-lg">
+      <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto pb-6">
+      <Collapsible open={mainOpen} onOpenChange={setMainOpen}>
+        <Card className="border border-orange-200 dark:border-orange-800/30 shadow-sm shrink-0">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="flex flex-row items-center gap-2 py-2.5 px-4 cursor-pointer select-none bg-orange-50 dark:bg-orange-950/20" data-testid="collections-main-section-header">
+              {mainOpen ? <ChevronDown className="h-4 w-4 text-orange-600 dark:text-orange-400" /> : <ChevronRight className="h-4 w-4 text-orange-600 dark:text-orange-400" />}
+              <Banknote className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <span className="text-sm font-bold tracking-wide text-orange-600 dark:text-orange-400">COLLECTIONS</span>
+              <span className="text-xs text-muted-foreground ml-auto font-medium">{activeRecords.length} record{activeRecords.length !== 1 ? "s" : ""}</span>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="p-0">
+      <ScrollSync className="border-0">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-20 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <TableRow>
@@ -738,18 +752,24 @@ export default function CollectionsPage() {
           </TableBody>
         </Table>
       </ScrollSync>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {doneRecords.length > 0 && (
-        <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen}>
+          <Card className="border border-emerald-200 dark:border-emerald-800/30 shadow-sm shrink-0">
           <CollapsibleTrigger asChild>
-            <button className="w-full flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 rounded-lg text-sm font-semibold transition-colors text-emerald-700 dark:text-emerald-400" data-testid="collapsible-done-section">
-              <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "" : "-rotate-90"}`} />
-              <CheckCircle2 className="h-4 w-4" />
-              <span>DONE</span>
-              <span className="text-xs font-normal ml-auto">({doneRecords.length})</span>
-            </button>
+            <CardHeader className="flex flex-row items-center gap-2 py-2.5 px-4 cursor-pointer select-none bg-emerald-50 dark:bg-emerald-950/20" data-testid="collapsible-done-section">
+              {doneOpen ? <ChevronDown className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> : <ChevronRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-sm font-bold tracking-wide text-emerald-700 dark:text-emerald-400">DONE</span>
+              <span className="text-xs text-muted-foreground ml-auto font-medium">{doneRecords.length} record{doneRecords.length !== 1 ? "s" : ""}</span>
+            </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
+            <CardContent className="p-0">
             <div className="overflow-auto max-h-80 border-t">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
@@ -797,7 +817,9 @@ export default function CollectionsPage() {
                 </TableBody>
               </Table>
             </div>
+            </CardContent>
           </CollapsibleContent>
+          </Card>
         </Collapsible>
       )}
       </div>
