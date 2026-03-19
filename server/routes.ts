@@ -10,7 +10,6 @@ import { z } from "zod";
 import { db } from "./db";
 import { fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS, ceoBox, CEO_USERS, DR_AL_NAME } from "@shared/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -493,31 +492,20 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Alias users table for the task queries (which join it twice)
-      const assignedUser = alias(users, "assigned_user");
-
-      const [verifActs, billActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
-        // Verification: credit the task's assignee (by ID — reliable)
+      // Single task query covers both Verification and Billing.
+      // Credit the ACTOR (whoever clicked Done/Verified), not the assignee.
+      // Department is determined by bucket + status value in the merge step below.
+      const [taskActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
         db.select({
           id: taskActivity.id, recordId: taskActivity.taskId,
-          userId: assignedUser.id, action: taskActivity.action,
-          timestamp: taskActivity.timestamp, userName: assignedUser.fullName, patientName: tasks.patientName,
+          userId: taskActivity.userId, action: taskActivity.action,
+          timestamp: taskActivity.timestamp, userName: users.fullName,
+          patientName: tasks.patientName, bucket: tasks.bucket,
+          taskNewValue: taskActivity.newValue,
         }).from(taskActivity)
           .leftJoin(tasks, eq(taskActivity.taskId, tasks.id))
-          .leftJoin(assignedUser, eq(assignedUser.id, tasks.assignedUserId))
-          .where(and(eq(taskActivity.field, "status"), eq(taskActivity.newValue, "verified")))
-          .orderBy(desc(taskActivity.timestamp)),
-
-        // Billing: credit the task's assignee (by ID — reliable)
-        db.select({
-          id: taskActivity.id, recordId: taskActivity.taskId,
-          userId: assignedUser.id, action: taskActivity.action,
-          timestamp: taskActivity.timestamp, userName: assignedUser.fullName, patientName: tasks.patientName,
-          bucket: tasks.bucket,
-        }).from(taskActivity)
-          .leftJoin(tasks, eq(taskActivity.taskId, tasks.id))
-          .leftJoin(assignedUser, eq(assignedUser.id, tasks.assignedUserId))
-          .where(and(eq(taskActivity.field, "status"), inArray(taskActivity.newValue, ["billed", "done"])))
+          .leftJoin(users, eq(users.id, taskActivity.userId))
+          .where(and(eq(taskActivity.field, "status"), inArray(taskActivity.newValue, ["billed", "done", "verified"])))
           .orderBy(desc(taskActivity.timestamp)),
 
         // Denials: credit whoever set the status to Done (activity.userId — reliable ID join)
@@ -590,8 +578,12 @@ export async function registerRoutes(
 
       // Merge and sort newest first
       const all = [
-        ...verifActs.map(a => ({ ...a, department: "Verification" })),
-        ...billActs.map(a => ({ ...a, department: a.bucket === "for_verification" ? "Verification" : "Billing", bucket: undefined })),
+        ...taskActs.map(a => ({
+          ...a,
+          department: (a.bucket === "for_verification" || (a as any).taskNewValue === "verified") ? "Verification" : "Billing",
+          bucket: undefined,
+          taskNewValue: undefined,
+        })),
         ...denialActs.map(a => ({ ...a, department: "Denials" })),
         ...arbActs.map(a => ({ ...a, department: "Arbitration" })),
         ...collActs.map(a => ({ ...a, department: "Collections" })),
