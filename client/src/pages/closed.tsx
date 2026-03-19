@@ -201,6 +201,7 @@ export default function ClosedPage() {
   const [filterAssignedTo, setFilterAssignedTo] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
   const [filterClinic, setFilterClinic] = useState("");
+  const [filterReason, setFilterReason] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
@@ -442,7 +443,7 @@ export default function ClosedPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const activeFilterCount = [filterStatus, filterSource, filterAssignedTo, filterOutcome, filterClinic]
+  const activeFilterCount = [filterStatus, filterSource, filterAssignedTo, filterOutcome, filterClinic, filterReason]
     .filter(v => v && v !== "__all__").length;
 
   function clearFilters() {
@@ -451,6 +452,7 @@ export default function ClosedPage() {
     setFilterAssignedTo("");
     setFilterOutcome("");
     setFilterClinic("");
+    setFilterReason("");
   }
 
   const SOURCE_SECTIONS = [
@@ -486,6 +488,7 @@ export default function ClosedPage() {
       const clinicVal = (d.clinic || recClinic || "").toLowerCase().trim();
       if (clinicVal !== filterClinic.toLowerCase().trim()) return false;
     }
+    if (filterReason && filterReason !== "__all__" && (d.reason || "") !== filterReason) return false;
     return true;
   });
 
@@ -604,6 +607,15 @@ export default function ClosedPage() {
                 return (d.clinic || recClinic || "").trim();
               }).filter(Boolean)
             )).sort().map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterReason || "__all__"} onValueChange={v => setFilterReason(v)}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-closed-reason"><SelectValue placeholder="All Reasons" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Reasons</SelectItem>
+            {Array.from(new Set((closedList || []).map(d => d.reason).filter(Boolean) as string[])).sort().map(r => (
+              <SelectItem key={r} value={r}>{r}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {activeFilterCount > 0 && (
