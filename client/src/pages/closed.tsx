@@ -66,7 +66,7 @@ function getExtraCols(sectionKey: string): ColSpec[] {
   switch (sectionKey) {
     case "Verification/Billing":
       return [
-        { header: "Priority", sort: "priority", renderCell: (d, rec) => rec.priority || "-" },
+        { header: "Priority", sort: "priority", renderCell: (d, rec) => (d as any).priority || rec.priority || "-" },
         date,
       ];
     case "Posting":
@@ -170,15 +170,18 @@ const emptyForm = {
   patientName: "",
   clinic: "",
   insurance: "",
-  assignedTo: "",
-  status: "",
-  amount: "",
-  source: "",
-  outcome: "",
-  notes: "",
-  reason: "",
   dosFrom: "",
   dosTo: "",
+  numberOfVisits: "",
+  amount: "",
+  assignedTo: "",
+  action: "",
+  status: "",
+  outcome: "",
+  priority: "",
+  source: "",
+  notes: "",
+  reason: "",
   regularVisit: "",
   fullVisit: "",
   reportedDate: "",
@@ -412,15 +415,18 @@ export default function ClosedPage() {
       patientName: d.patientName || "",
       clinic: d.clinic || "",
       insurance: d.insurance || "",
-      assignedTo: d.assignedTo || "",
-      status: d.status || "",
-      amount: d.amount || "",
-      source: d.source || "",
-      outcome: d.outcome || "",
-      notes: d.notes || "",
-      reason: (d as any).reason || "",
       dosFrom: (d as any).dosFrom || "",
       dosTo: (d as any).dosTo || "",
+      numberOfVisits: (d as any).numberOfVisits != null ? String((d as any).numberOfVisits) : "",
+      amount: d.amount || "",
+      assignedTo: d.assignedTo || "",
+      action: (d as any).action || "",
+      status: d.status || "",
+      outcome: d.outcome || "",
+      priority: (d as any).priority || "",
+      source: d.source || "",
+      notes: d.notes || "",
+      reason: (d as any).reason || "",
       regularVisit: (d as any).regularVisit != null ? String((d as any).regularVisit) : "",
       fullVisit: (d as any).fullVisit != null ? String((d as any).fullVisit) : "",
       reportedDate: (d as any).reportedDate || "",
@@ -751,10 +757,10 @@ export default function ClosedPage() {
                                   <TableCell className="text-xs">{rec.insurance || d.insurance || "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).dosFrom ? formatDate((d as any).dosFrom) : (rec.dosFrom ? formatDate(rec.dosFrom) : "-")}</TableCell>
                                   <TableCell className="text-xs">{(d as any).dosTo ? formatDate((d as any).dosTo) : (rec.dosTo ? formatDate(rec.dosTo) : "-")}</TableCell>
-                                  <TableCell className="text-xs">{rec.numberOfVisits != null ? String(rec.numberOfVisits) : "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).numberOfVisits != null ? String((d as any).numberOfVisits) : (rec.numberOfVisits != null ? String(rec.numberOfVisits) : "-")}</TableCell>
                                   <TableCell className="text-xs">{fmtAmt(rec.amount || d.amount)}</TableCell>
                                   <TableCell className="text-xs">{d.assignedTo || rec.assignedTo || "-"}</TableCell>
-                                  <TableCell className="text-xs">{rec.action || "-"}</TableCell>
+                                  <TableCell className="text-xs">{(d as any).action || rec.action || "-"}</TableCell>
                                   <TableCell className="text-xs">{statusVal ? <TrackerStatusBadge status={statusVal} /> : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).outcome || "-"}</TableCell>
                                   {extraCols.map(col => (
@@ -1049,6 +1055,22 @@ export default function ClosedPage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
+                  <Label>DOS From</Label>
+                  <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-closed-dos-from" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>DOS To</Label>
+                  <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-closed-dos-to" />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label># of Visits</Label>
+                  <Input type="number" min={0} value={form.numberOfVisits} onChange={e => setForm(f => ({ ...f, numberOfVisits: e.target.value }))} data-testid="input-closed-number-of-visits" />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Amount</Label>
+                  <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} data-testid="input-closed-amount" />
+                </div>
+                <div className="space-y-1.5">
                   <Label>Assigned To</Label>
                   <Select value={form.assignedTo || "__none__"} onValueChange={v => setForm(f => ({ ...f, assignedTo: v === "__none__" ? "" : v }))}>
                     <SelectTrigger data-testid="select-closed-assigned-to"><SelectValue placeholder="Select user" /></SelectTrigger>
@@ -1073,8 +1095,8 @@ export default function ClosedPage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5 col-span-2">
-                  <Label>Amount</Label>
-                  <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} data-testid="input-closed-amount" />
+                  <Label>Action</Label>
+                  <Input value={form.action} onChange={e => setForm(f => ({ ...f, action: e.target.value }))} placeholder="e.g. Sent to billing" data-testid="input-closed-action" />
                 </div>
                 <div className="space-y-1.5 col-span-2">
                   <Label>Outcome</Label>
@@ -1084,6 +1106,18 @@ export default function ClosedPage() {
                       <SelectItem value="__none__">-- None --</SelectItem>
                       {OUTCOME_OPTIONS.map(o => (
                         <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>Priority</Label>
+                  <Select value={form.priority || "__none__"} onValueChange={v => setForm(f => ({ ...f, priority: v === "__none__" ? "" : v }))}>
+                    <SelectTrigger data-testid="select-closed-priority"><SelectValue placeholder="Select priority" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">-- None --</SelectItem>
+                      {["Low", "Medium", "High", "Critical"].map(p => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -1099,14 +1133,6 @@ export default function ClosedPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>DOS From</Label>
-                  <Input type="date" value={form.dosFrom} onChange={e => setForm(f => ({ ...f, dosFrom: e.target.value }))} data-testid="input-closed-dos-from" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>DOS To</Label>
-                  <Input type="date" value={form.dosTo} onChange={e => setForm(f => ({ ...f, dosTo: e.target.value }))} data-testid="input-closed-dos-to" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Regular Visit (0-100)</Label>

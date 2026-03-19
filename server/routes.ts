@@ -2508,6 +2508,8 @@ export async function registerRoutes(
       else if (body.regularVisit === "") body.regularVisit = null;
       if (body.fullVisit !== undefined && body.fullVisit !== "") body.fullVisit = parseInt(body.fullVisit) || null;
       else if (body.fullVisit === "") body.fullVisit = null;
+      if (body.numberOfVisits !== undefined && body.numberOfVisits !== "") body.numberOfVisits = parseInt(body.numberOfVisits) || null;
+      else if (body.numberOfVisits === "") body.numberOfVisits = null;
       const record = await storage.createClosed(body);
       await storage.createClosedActivity({
         closedId: record.id,
@@ -2573,8 +2575,13 @@ export async function registerRoutes(
       } else if (data.fullVisit === "") {
         data.fullVisit = null;
       }
+      if (data.numberOfVisits !== undefined && data.numberOfVisits !== "") {
+        data.numberOfVisits = parseInt(data.numberOfVisits) || null;
+      } else if (data.numberOfVisits === "") {
+        data.numberOfVisits = null;
+      }
 
-      const trackFields = ["patientName", "clinic", "insurance", "assignedTo", "status", "amount", "notes", "outcome", "activity", "reason", "dosFrom", "dosTo", "regularVisit", "fullVisit", "reportedDate"];
+      const trackFields = ["patientName", "clinic", "insurance", "dosFrom", "dosTo", "numberOfVisits", "amount", "assignedTo", "action", "status", "outcome", "priority", "notes", "reason", "regularVisit", "fullVisit", "reportedDate"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];
