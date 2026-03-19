@@ -915,6 +915,9 @@ export async function registerRoutes(
         oldValue: null,
         newValue: null,
       });
+      if (data.status === "Done") {
+        await storage.createDenialActivity({ denialId: denial.id, userId: req.session.userId!, action: "Status set to Done", field: "status", oldValue: null, newValue: "Done" });
+      }
 
       res.json(denial);
     } catch (e: any) {
@@ -1085,6 +1088,9 @@ export async function registerRoutes(
         oldValue: null,
         newValue: null,
       });
+      if (data.status === "Done") {
+        await storage.createArbitrationActivity({ arbitrationId: arb.id, userId: req.session.userId!, action: "Status set to Done", field: "status", oldValue: null, newValue: "Done" });
+      }
       res.json(arb);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1203,6 +1209,9 @@ export async function registerRoutes(
         oldValue: null,
         newValue: null,
       });
+      if (data.status === "Done") {
+        await storage.createCollectionActivity({ collectionId: collection.id, userId: req.session.userId!, action: "Status set to Done", field: "status", oldValue: null, newValue: "Done" });
+      }
       res.json(collection);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1751,6 +1760,9 @@ export async function registerRoutes(
         oldValue: null,
         newValue: null,
       });
+      if (data.status === "Done") {
+        await storage.createPostingActivity({ postingId: posting.id, userId: req.session.userId!, action: "Status set to Done", field: "status", oldValue: null, newValue: "Done" });
+      }
       res.json(posting);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2368,6 +2380,9 @@ export async function registerRoutes(
         oldValue: null,
         newValue: null,
       });
+      if (data.status === "Done") {
+        await storage.createCheckActivity({ checkId: check.id, userId: req.session.userId!, action: "Status set to Done", field: "status", oldValue: null, newValue: "Done" });
+      }
       res.json(check);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2502,6 +2517,9 @@ export async function registerRoutes(
         oldValue: null,
         newValue: null,
       });
+      if (body.status === "Done") {
+        await storage.createClosedActivity({ closedId: record.id, userId: req.session.userId!, action: "Status set to Done", field: "status", oldValue: null, newValue: "Done" });
+      }
       res.json(record);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
