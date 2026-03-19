@@ -493,12 +493,11 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Alias users table so we can join it twice in some queries
-      // (once for the assignee of the record, once to look up by name)
+      // Alias users table for the task queries (which join it twice)
       const assignedUser = alias(users, "assigned_user");
 
       const [verifActs, billActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
-        // Verification: credit the task's assignee, not whoever changed the status
+        // Verification: credit the task's assignee (by ID — reliable)
         db.select({
           id: taskActivity.id, recordId: taskActivity.taskId,
           userId: assignedUser.id, action: taskActivity.action,
@@ -509,7 +508,7 @@ export async function registerRoutes(
           .where(and(eq(taskActivity.field, "status"), eq(taskActivity.newValue, "verified")))
           .orderBy(desc(taskActivity.timestamp)),
 
-        // Billing: credit the task's assignee, not whoever changed the status
+        // Billing: credit the task's assignee (by ID — reliable)
         db.select({
           id: taskActivity.id, recordId: taskActivity.taskId,
           userId: assignedUser.id, action: taskActivity.action,
@@ -521,70 +520,70 @@ export async function registerRoutes(
           .where(and(eq(taskActivity.field, "status"), inArray(taskActivity.newValue, ["billed", "done"])))
           .orderBy(desc(taskActivity.timestamp)),
 
-        // Denials: credit the record's assignedTo (matched by name to users)
+        // Denials: credit whoever set the status to Done (activity.userId — reliable ID join)
         db.select({
           id: denialActivity.id, recordId: denialActivity.denialId,
-          userId: assignedUser.id, action: denialActivity.action,
-          timestamp: denialActivity.timestamp, userName: assignedUser.fullName, patientName: denials.patientName,
+          userId: denialActivity.userId, action: denialActivity.action,
+          timestamp: denialActivity.timestamp, userName: users.fullName, patientName: denials.patientName,
         }).from(denialActivity)
           .leftJoin(denials, eq(denialActivity.denialId, denials.id))
-          .leftJoin(assignedUser, eq(assignedUser.fullName, denials.assignedTo))
+          .leftJoin(users, eq(users.id, denialActivity.userId))
           .where(and(eq(denialActivity.field, "status"), eq(denialActivity.newValue, "Done")))
           .orderBy(desc(denialActivity.timestamp)),
 
-        // Arbitration: credit the record's assignedTo
+        // Arbitration: credit whoever set the status to Done (activity.userId — reliable ID join)
         db.select({
           id: arbitrationActivity.id, recordId: arbitrationActivity.arbitrationId,
-          userId: assignedUser.id, action: arbitrationActivity.action,
-          timestamp: arbitrationActivity.timestamp, userName: assignedUser.fullName, patientName: arbitrations.patientName,
+          userId: arbitrationActivity.userId, action: arbitrationActivity.action,
+          timestamp: arbitrationActivity.timestamp, userName: users.fullName, patientName: arbitrations.patientName,
         }).from(arbitrationActivity)
           .leftJoin(arbitrations, eq(arbitrationActivity.arbitrationId, arbitrations.id))
-          .leftJoin(assignedUser, eq(assignedUser.fullName, arbitrations.assignedTo))
+          .leftJoin(users, eq(users.id, arbitrationActivity.userId))
           .where(and(eq(arbitrationActivity.field, "status"), eq(arbitrationActivity.newValue, "Done")))
           .orderBy(desc(arbitrationActivity.timestamp)),
 
-        // Collections: credit the record's assignedTo
+        // Collections: credit whoever set the status to Done (activity.userId — reliable ID join)
         db.select({
           id: collectionActivity.id, recordId: collectionActivity.collectionId,
-          userId: assignedUser.id, action: collectionActivity.action,
-          timestamp: collectionActivity.timestamp, userName: assignedUser.fullName, patientName: collections.patientName,
+          userId: collectionActivity.userId, action: collectionActivity.action,
+          timestamp: collectionActivity.timestamp, userName: users.fullName, patientName: collections.patientName,
         }).from(collectionActivity)
           .leftJoin(collections, eq(collectionActivity.collectionId, collections.id))
-          .leftJoin(assignedUser, eq(assignedUser.fullName, collections.assignedTo))
+          .leftJoin(users, eq(users.id, collectionActivity.userId))
           .where(and(eq(collectionActivity.field, "status"), eq(collectionActivity.newValue, "Done")))
           .orderBy(desc(collectionActivity.timestamp)),
 
-        // Posting: credit the record's assignedTo
+        // Posting: credit whoever set the status to Done (activity.userId — reliable ID join)
         db.select({
           id: postingActivity.id, recordId: postingActivity.postingId,
-          userId: assignedUser.id, action: postingActivity.action,
-          timestamp: postingActivity.timestamp, userName: assignedUser.fullName, patientName: postings.patientName,
+          userId: postingActivity.userId, action: postingActivity.action,
+          timestamp: postingActivity.timestamp, userName: users.fullName, patientName: postings.patientName,
         }).from(postingActivity)
           .leftJoin(postings, eq(postingActivity.postingId, postings.id))
-          .leftJoin(assignedUser, eq(assignedUser.fullName, postings.assignedTo))
+          .leftJoin(users, eq(users.id, postingActivity.userId))
           .where(and(eq(postingActivity.field, "status"), eq(postingActivity.newValue, "Done")))
           .orderBy(desc(postingActivity.timestamp)),
 
-        // Checks: credit the record's assignedTo
+        // Checks: credit whoever set the status to Done (activity.userId — reliable ID join)
         db.select({
           id: checkActivity.id, recordId: checkActivity.checkId,
-          userId: assignedUser.id, action: checkActivity.action,
-          timestamp: checkActivity.timestamp, userName: assignedUser.fullName, patientName: checks.patientName,
+          userId: checkActivity.userId, action: checkActivity.action,
+          timestamp: checkActivity.timestamp, userName: users.fullName, patientName: checks.patientName,
         }).from(checkActivity)
           .leftJoin(checks, eq(checkActivity.checkId, checks.id))
-          .leftJoin(assignedUser, eq(assignedUser.fullName, checks.assignedTo))
+          .leftJoin(users, eq(users.id, checkActivity.userId))
           .where(and(eq(checkActivity.field, "status"), eq(checkActivity.newValue, "Done")))
           .orderBy(desc(checkActivity.timestamp)),
 
-        // Closed/RTP: credit the record's assignedTo
+        // Closed/RTP: credit whoever set the status to Done (activity.userId — reliable ID join)
         db.select({
           id: closedActivity.id, recordId: closedActivity.closedId,
-          userId: assignedUser.id, action: closedActivity.action,
-          timestamp: closedActivity.timestamp, userName: assignedUser.fullName,
+          userId: closedActivity.userId, action: closedActivity.action,
+          timestamp: closedActivity.timestamp, userName: users.fullName,
           patientName: closed.patientName, closedSource: closed.source,
         }).from(closedActivity)
           .leftJoin(closed, eq(closedActivity.closedId, closed.id))
-          .leftJoin(assignedUser, eq(assignedUser.fullName, closed.assignedTo))
+          .leftJoin(users, eq(users.id, closedActivity.userId))
           .where(and(eq(closedActivity.field, "status"), eq(closedActivity.newValue, "Done")))
           .orderBy(desc(closedActivity.timestamp)),
       ]);
