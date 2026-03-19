@@ -1196,6 +1196,48 @@ export default function ClosedPage() {
             {editingId && (
               <>
                 <Separator className="my-4" />
+
+                {/* Notes timeline */}
+                {editingRecord?.notes && (() => {
+                  const blocks = editingRecord.notes
+                    .split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/)
+                    .filter(Boolean)
+                    .reverse();
+                  if (blocks.length === 0) return null;
+                  return (
+                    <div className="pb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                        <Label className="text-sm font-medium">Notes</Label>
+                      </div>
+                      <div className="space-y-2 max-h-64 overflow-y-auto" data-testid="closed-notes-display">
+                        {blocks.map((block, idx) => {
+                          const m = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
+                          if (m) {
+                            return (
+                              <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50 space-y-0.5" data-testid={`closed-note-item-${idx}`}>
+                                <div className="flex items-center gap-1.5 text-muted-foreground flex-wrap">
+                                  <UserIcon className="h-3 w-3" />
+                                  <span className="font-medium text-foreground">{m[1]}</span>
+                                  <span className="mx-0.5">·</span>
+                                  <Clock className="h-3 w-3" />
+                                  <span>{new Date(m[2]).toLocaleString()}</span>
+                                </div>
+                                <p className="text-foreground whitespace-pre-wrap">{m[3].trim()}</p>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={idx} className="text-xs p-2.5 rounded-md bg-muted/50" data-testid={`closed-note-item-${idx}`}>
+                              <p className="text-foreground whitespace-pre-wrap">{block.trim()}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="pb-4">
                   <div className="flex items-center gap-2 mb-3">
                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
