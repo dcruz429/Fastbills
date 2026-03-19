@@ -492,8 +492,8 @@ export default function ClosedPage() {
     return true;
   });
 
-  const dateColumns = new Set(["createdAt", "dateExported"]);
-  const numberColumns = new Set(["amount"]);
+  const dateColumns = new Set(["createdAt", "dateExported", "reportedDate"]);
+  const numberColumns = new Set(["amount", "regularVisit", "fullVisit"]);
 
   const filtered = [...filteredUnsorted].sort((a, b) => {
     if (!sortCol || !sortDir) return 0;
@@ -715,10 +715,10 @@ export default function ClosedPage() {
                               <TableHead className="min-w-[100px] text-xs select-none cursor-pointer" onClick={() => handleSort("dateExported")}>
                                 Date Exported <SortIcon col="dateExported" />
                               </TableHead>
-                              <TableHead className="min-w-[110px] text-xs">Reason</TableHead>
-                              <TableHead className="min-w-[100px] text-xs">Regular Visit</TableHead>
-                              <TableHead className="min-w-[90px] text-xs">Full Visit</TableHead>
-                              <TableHead className="min-w-[110px] text-xs">Reported Date</TableHead>
+                              <TableHead className="min-w-[110px] text-xs select-none cursor-pointer" onClick={() => handleSort("reason")}>Reason <SortIcon col="reason" /></TableHead>
+                              <TableHead className="min-w-[100px] text-xs select-none cursor-pointer" onClick={() => handleSort("regularVisit")}>Regular Visit <SortIcon col="regularVisit" /></TableHead>
+                              <TableHead className="min-w-[90px] text-xs select-none cursor-pointer" onClick={() => handleSort("fullVisit")}>Full Visit <SortIcon col="fullVisit" /></TableHead>
+                              <TableHead className="min-w-[110px] text-xs select-none cursor-pointer" onClick={() => handleSort("reportedDate")}>Reported Date <SortIcon col="reportedDate" /></TableHead>
                               {user.role === "admin" && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
                             </TableRow>
                           </TableHeader>
