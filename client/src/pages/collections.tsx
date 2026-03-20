@@ -134,6 +134,7 @@ export default function CollectionsPage() {
   }
 
   const canEdit = EDIT_ROLES.includes(user.role);
+  const canDelete = ["admin", "case_manager", "account_manager"].includes(user.role);
 
   const { data: activityData, isLoading: activityLoading } = useQuery<any[]>({
     queryKey: ["/api/collections", editingId, "activity"],
@@ -707,7 +708,7 @@ export default function CollectionsPage() {
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("typeOfDenial")} data-testid="sort-typeOfDenial">Type of Denial <SortIcon col="typeOfDenial" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("priority")} data-testid="sort-priority">Priority <SortIcon col="priority" /></TableHead>
               <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("ageing")} data-testid="sort-ageing">Ageing <SortIcon col="ageing" /></TableHead>
-              {user?.role === "admin" && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
+              {canDelete && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -739,7 +740,7 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
                   <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <TrackerPriorityBadge priority={p} /> : "-"; })()}</TableCell>
                   <TableCell className="text-xs font-medium" data-testid={`text-ageing-${d.id}`}>{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
-                  {user?.role === "admin" && (
+                  {canDelete && (
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-${d.id}`}>
@@ -782,7 +783,7 @@ export default function CollectionsPage() {
                     ))}
                     <TableHead className="min-w-[120px]">Priority</TableHead>
                     <TableHead className="min-w-[70px]">Ageing</TableHead>
-                    {user?.role === "admin" && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
+                    {canDelete && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -807,7 +808,7 @@ export default function CollectionsPage() {
                       <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
                       <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <TrackerPriorityBadge priority={p} /> : "-"; })()}</TableCell>
                       <TableCell className="text-xs font-medium">{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
-                      {user?.role === "admin" && (
+                      {canDelete && (
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-done-${d.id}`}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1048,7 +1049,7 @@ export default function CollectionsPage() {
               </Button>
               )}
 
-              {editingId && user?.role === "admin" && (
+              {editingId && canDelete && (
                 <Button
                   variant="destructive"
                   className="w-full"

@@ -274,7 +274,7 @@ export default function DenialsPage() {
     }
   }
 
-  const canDelete = user?.role === "admin";
+  const canDelete = ["admin", "case_manager", "account_manager"].includes(user?.role || "");
 
   const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo"]);
   const numberColumns = new Set(["numberOfDays"]);

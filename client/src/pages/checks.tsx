@@ -106,6 +106,7 @@ export default function ChecksPage() {
   }
 
   const canEdit = CHECKS_ROLES.includes(user.role);
+  const canDelete = ["admin", "case_manager", "account_manager"].includes(user.role);
 
   const { data: checksList, isLoading } = useQuery<Check[]>({ queryKey: ["/api/checks"] });
 
@@ -524,13 +525,13 @@ export default function ChecksPage() {
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("depositDate")} data-testid="sort-depositDate">Deposit Date <SortIcon col="depositDate" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("depositedBy")} data-testid="sort-depositedBy">Deposited By <SortIcon col="depositedBy" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("activity")} data-testid="sort-activity">Action <SortIcon col="activity" /></TableHead>
-              {user.role === "admin" && <TableHead className="text-xs text-right">Actions</TableHead>}
+              {canDelete && <TableHead className="text-xs text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {activeRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={user.role === "admin" ? 16 : 15} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={canDelete ? 16 : 15} className="text-center text-sm text-muted-foreground py-8">
                   No checks found
                 </TableCell>
               </TableRow>
@@ -558,7 +559,7 @@ export default function ChecksPage() {
                 <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
                 <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
                 <TableCell className="text-xs">{d.activity || "-"}</TableCell>
-                {user.role === "admin" && (
+                {canDelete && (
                   <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-check-${d.id}`}>
                       <Trash2 className="h-4 w-4" />
@@ -597,7 +598,7 @@ export default function ChecksPage() {
                       <TableHead key={col} className="text-xs whitespace-nowrap cursor-pointer select-none" onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
                     ))}
                     <TableHead className="text-xs whitespace-nowrap">Action</TableHead>
-                    {user.role === "admin" && <TableHead className="text-xs text-right">Actions</TableHead>}
+                    {canDelete && <TableHead className="text-xs text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -625,7 +626,7 @@ export default function ChecksPage() {
                       <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
                       <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
                       <TableCell className="text-xs">{d.activity || "-"}</TableCell>
-                      {user.role === "admin" && (
+                      {canDelete && (
                         <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-check-done-${d.id}`}>
                             <Trash2 className="h-4 w-4" />

@@ -218,6 +218,7 @@ export default function ClosedPage() {
   }
 
   const isAdmin = ADMIN_ROLES.includes(user.role);
+  const canDelete = ["admin", "case_manager", "account_manager"].includes(user.role);
 
   const { data: closedList, isLoading } = useQuery<Closed[]>({ queryKey: ["/api/closed"] });
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
@@ -538,7 +539,7 @@ export default function ClosedPage() {
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <h1 className="text-2xl font-bold" data-testid="text-closed-title">RTP (Return to Partner)</h1>
         <div className="flex items-center gap-2">
-          {user.role === "admin" && selectedIds.size > 0 && (
+          {canDelete && selectedIds.size > 0 && (
             <Button
               variant="outline"
               onClick={handleExport}
@@ -689,7 +690,7 @@ export default function ClosedPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              {user.role === "admin" && (
+                              {canDelete && (
                                 <TableHead className="w-10 text-xs" onClick={e => e.stopPropagation()}>
                                   <Checkbox
                                     checked={sectionItems.length > 0 && sectionItems.every(d => selectedIds.has(d.id))}
@@ -725,7 +726,7 @@ export default function ClosedPage() {
                               <TableHead className="min-w-[100px] text-xs select-none cursor-pointer" onClick={() => handleSort("regularVisit")}>Regular Visit <SortIcon col="regularVisit" /></TableHead>
                               <TableHead className="min-w-[90px] text-xs select-none cursor-pointer" onClick={() => handleSort("fullVisit")}>Full Visit <SortIcon col="fullVisit" /></TableHead>
                               <TableHead className="min-w-[110px] text-xs select-none cursor-pointer" onClick={() => handleSort("reportedDate")}>Reported Date <SortIcon col="reportedDate" /></TableHead>
-                              {user.role === "admin" && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
+                              {canDelete && <TableHead className="min-w-[60px] text-right text-xs">Actions</TableHead>}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -740,7 +741,7 @@ export default function ClosedPage() {
                                   onClick={() => openEdit(d)}
                                   data-testid={`row-closed-${d.id}`}
                                 >
-                                  {user.role === "admin" && (
+                                  {canDelete && (
                                     <TableCell onClick={e => e.stopPropagation()}>
                                       <Checkbox
                                         checked={selectedIds.has(d.id)}
@@ -772,7 +773,7 @@ export default function ClosedPage() {
                                   <TableCell className="text-xs">{(d as any).regularVisit != null ? (d as any).regularVisit : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).fullVisit != null ? (d as any).fullVisit : "-"}</TableCell>
                                   <TableCell className="text-xs">{(d as any).reportedDate ? formatDate((d as any).reportedDate) : "-"}</TableCell>
-                                  {user.role === "admin" && (
+                                  {canDelete && (
                                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                                       <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-closed-${d.id}`}>
                                         <Trash2 className="h-3.5 w-3.5" />
@@ -1183,7 +1184,7 @@ export default function ClosedPage() {
               <Button variant="outline" onClick={() => { setDrawerOpen(false); setEditingId(null); setForm({ ...emptyForm }); }} data-testid="button-cancel-closed">
                 Cancel
               </Button>
-              {editingId && user.role === "admin" && (
+              {editingId && canDelete && (
                 <Button variant="destructive" onClick={() => setDeleteConfirmId(editingId)} data-testid="button-delete-closed-drawer">
                   <Trash2 className="h-4 w-4 mr-1" /> Delete
                 </Button>

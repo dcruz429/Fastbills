@@ -454,7 +454,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
 
-            {user?.role === "admin" && (
+            {["admin", "case_manager", "account_manager"].includes(user?.role || "") && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button

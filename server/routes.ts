@@ -792,7 +792,7 @@ export async function registerRoutes(
   app.delete("/api/tasks/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete tasks" });
       }
       const id = parseInt(req.params.id);
@@ -1027,7 +1027,7 @@ export async function registerRoutes(
   app.delete("/api/denials/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete denials" });
       }
       await storage.deleteDenial(parseInt(req.params.id));
@@ -1152,7 +1152,7 @@ export async function registerRoutes(
   app.delete("/api/arbitrations/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete arbitrations" });
       }
       await storage.deleteArbitration(parseInt(req.params.id));
@@ -1708,7 +1708,7 @@ export async function registerRoutes(
   app.delete("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete collections" });
       }
       await storage.deleteCollection(parseInt(req.params.id));
@@ -1850,7 +1850,7 @@ export async function registerRoutes(
   app.delete("/api/postings/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete postings" });
       }
       await storage.deletePosting(parseInt(req.params.id));
@@ -2479,7 +2479,7 @@ export async function registerRoutes(
   app.delete("/api/checks/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete checks" });
       }
       await storage.deleteCheck(parseInt(req.params.id));
@@ -2610,7 +2610,7 @@ export async function registerRoutes(
   app.delete("/api/closed/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.role !== "admin") {
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete closed records" });
       }
       await storage.deleteClosed(parseInt(req.params.id));

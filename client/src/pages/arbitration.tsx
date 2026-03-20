@@ -276,7 +276,7 @@ export default function ArbitrationPage() {
     }
   }
 
-  const canDelete = user?.role === "admin";
+  const canDelete = ["admin", "case_manager", "account_manager"].includes(user?.role || "");
 
   const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
   const numberColumns = new Set(["numberOfDays"]);

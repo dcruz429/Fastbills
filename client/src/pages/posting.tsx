@@ -96,6 +96,7 @@ export default function PostingPage() {
 
   const isAdminOrManager = user.role === "admin" || user.role === "manager" || user.role === "assigner" || user.role === "account_manager" || user.role === "case_manager" || user.role === "payment_specialist";
   const canEdit = isAdminOrManager;
+  const canDelete = ["admin", "case_manager", "account_manager"].includes(user.role);
 
   const { data: postingList, isLoading } = useQuery<Posting[]>({ queryKey: ["/api/postings"] });
 
@@ -457,13 +458,13 @@ export default function PostingPage() {
               <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("depositDate")} data-testid="sort-depositDate">Deposit Date <SortIcon col="depositDate" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("depositedBy")} data-testid="sort-depositedBy">Deposited By <SortIcon col="depositedBy" /></TableHead>
               <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("activity")} data-testid="sort-activity">Action <SortIcon col="activity" /></TableHead>
-              {user.role === "admin" && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
+              {canDelete && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {activeRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={user.role === "admin" ? 13 : 12} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canDelete ? 13 : 12} className="text-center py-8 text-muted-foreground">
                   No postings found
                 </TableCell>
               </TableRow>
@@ -487,7 +488,7 @@ export default function PostingPage() {
                   <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
                   <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
                   <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
-                  {user.role === "admin" && (
+                  {canDelete && (
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-posting-${d.id}`}>
                         <Trash2 className="h-3.5 w-3.5" />
@@ -526,7 +527,7 @@ export default function PostingPage() {
                       <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
                     ))}
                     <TableHead className="min-w-[100px]">Action</TableHead>
-                    {user.role === "admin" && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
+                    {canDelete && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -549,7 +550,7 @@ export default function PostingPage() {
                       <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
                       <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
                       <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
-                      {user.role === "admin" && (
+                      {canDelete && (
                         <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-posting-done-${d.id}`}>
                             <Trash2 className="h-3.5 w-3.5" />
@@ -717,7 +718,7 @@ export default function PostingPage() {
               <Button className="w-full" onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-posting">
                 {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingId ? "Save Changes" : "Create"}
               </Button>
-              {editingId && user.role === "admin" && (
+              {editingId && canDelete && (
                 <Button variant="destructive" className="w-full" onClick={() => setDeleteConfirmId(editingId)} data-testid="button-delete-posting-drawer">
                   <Trash2 className="h-4 w-4 mr-2" /> Delete Posting
                 </Button>
