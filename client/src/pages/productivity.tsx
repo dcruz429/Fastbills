@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { Redirect, useLocation } from "wouter";
 import {
   ChevronDown, ChevronUp, CalendarDays, Trophy, Users, CheckCircle2, TrendingUp,
-  FileText, ShieldAlert, Scale, CreditCard, Package, ClipboardList, Archive, RotateCcw, BadgeCheck,
+  FileText, ShieldAlert, Scale, CreditCard, Package, ClipboardList, RotateCcw, BadgeCheck,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -41,7 +41,6 @@ const DEPARTMENTS = [
   { key: "Arbitration", label: "Arbitration", icon: Scale, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950", badge: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
   { key: "Checks", label: "Checks", icon: ClipboardList, color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-950", badge: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200" },
   { key: "RTP", label: "RTP", icon: RotateCcw, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950", badge: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
-  { key: "Closed", label: "Closed", icon: Archive, color: "text-gray-600", bg: "bg-gray-50 dark:bg-gray-900", badge: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200" },
 ];
 
 const DEPT_CHART_COLORS: Record<string, string> = {
@@ -53,7 +52,6 @@ const DEPT_CHART_COLORS: Record<string, string> = {
   Arbitration: "hsl(140 60% 42%)",
   Checks: "hsl(175 60% 40%)",
   RTP: "hsl(25 85% 52%)",
-  Closed: "hsl(0 0% 50%)",
 };
 
 function getDept(key: string) {
