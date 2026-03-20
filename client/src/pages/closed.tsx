@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, FileText, CreditCard, ClipboardList, ShieldAlert, Scale, Package, Archive, RotateCcw, Download, CheckSquare, Upload } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, FileText, CreditCard, ClipboardList, ShieldAlert, Scale, Package, RotateCcw, Download, CheckSquare, Upload } from "lucide-react";
 import { parseCsvText } from "@/lib/csv-import";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -471,7 +471,6 @@ export default function ClosedPage() {
     { key: "Denials", label: "DENIALS", icon: ShieldAlert, color: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800" },
     { key: "Arbitration", label: "ARBITRATIONS", icon: Scale, color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800" },
     { key: "Checks", label: "CHECKS", icon: ClipboardList, color: "bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800" },
-    { key: "__other__", label: "OTHER / LEGACY", icon: Archive, color: "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800" },
   ];
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
@@ -646,7 +645,7 @@ export default function ClosedPage() {
 
       <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar space-y-4">
         {(() => {
-          const knownKeys = SOURCE_SECTIONS.map(s => s.key).filter(k => k !== "__other__");
+          const knownKeys = SOURCE_SECTIONS.map(s => s.key);
           const groupedBySource: Record<string, typeof filtered> = {};
           for (const section of SOURCE_SECTIONS) {
             groupedBySource[section.key] = [];
@@ -656,13 +655,11 @@ export default function ClosedPage() {
             const matchedKey = knownKeys.find(k => k === src);
             if (matchedKey) {
               groupedBySource[matchedKey].push(d);
-            } else {
-              groupedBySource["__other__"].push(d);
             }
           }
 
           const sectionsToShow = filterSource && filterSource !== "__all__"
-            ? SOURCE_SECTIONS.filter(s => s.key === filterSource || (s.key === "__other__" && !knownKeys.includes(filterSource)))
+            ? SOURCE_SECTIONS.filter(s => s.key === filterSource)
             : SOURCE_SECTIONS;
 
           return sectionsToShow.map(section => {
