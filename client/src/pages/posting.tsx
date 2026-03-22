@@ -476,18 +476,18 @@ export default function PostingPage() {
                   onClick={() => canEdit && openEdit(d)}
                   data-testid={`row-posting-${d.id}`}
                 >
-                  <TableCell className="text-xs font-medium">{d.fileNumber || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
-                  <TableCell className="text-xs">{formatDate(d.scannedDate)}</TableCell>
-                  <TableCell className="text-xs">{d.documentType || "-"}</TableCell>
-                  <TableCell className="text-xs">{formatDate(d.postedDate)}</TableCell>
-                  <TableCell className="text-xs">{d.priority ? <TrackerPriorityBadge priority={d.priority} /> : "-"}</TableCell>
-                  <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                  <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
-                  <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
-                  <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
-                  <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
-                  <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
+                  <TableCell className="text-sm font-medium">{d.fileNumber || "-"}</TableCell>
+                  <TableCell className="text-sm">{d.clinic || "-"}</TableCell>
+                  <TableCell className="text-sm">{formatDate(d.scannedDate)}</TableCell>
+                  <TableCell className="text-sm">{d.documentType || "-"}</TableCell>
+                  <TableCell className="text-sm">{formatDate(d.postedDate)}</TableCell>
+                  <TableCell className="text-sm">{d.priority ? <TrackerPriorityBadge priority={d.priority} /> : "-"}</TableCell>
+                  <TableCell className="text-sm">{d.assignedTo || "-"}</TableCell>
+                  <TableCell className="text-sm">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                  <TableCell className="text-sm">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                  <TableCell className="text-sm">{formatDate(d.depositDate)}</TableCell>
+                  <TableCell className="text-sm">{d.depositedBy || "-"}</TableCell>
+                  <TableCell className="text-sm">{(d as any).activity || "-"}</TableCell>
                   {canDelete && (
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-posting-${d.id}`}>
@@ -538,18 +538,18 @@ export default function PostingPage() {
                       onClick={() => canEdit && openEdit(d)}
                       data-testid={`row-posting-done-${d.id}`}
                     >
-                      <TableCell className="text-xs font-medium">{d.fileNumber || "-"}</TableCell>
-                      <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.scannedDate)}</TableCell>
-                      <TableCell className="text-xs">{d.documentType || "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.postedDate)}</TableCell>
-                      <TableCell className="text-xs">{d.priority ? <TrackerPriorityBadge priority={d.priority} /> : "-"}</TableCell>
-                      <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
-                      <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
-                      <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
-                      <TableCell className="text-xs">{formatDate(d.depositDate)}</TableCell>
-                      <TableCell className="text-xs">{d.depositedBy || "-"}</TableCell>
-                      <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
+                      <TableCell className="text-sm font-medium">{d.fileNumber || "-"}</TableCell>
+                      <TableCell className="text-sm">{d.clinic || "-"}</TableCell>
+                      <TableCell className="text-sm">{formatDate(d.scannedDate)}</TableCell>
+                      <TableCell className="text-sm">{d.documentType || "-"}</TableCell>
+                      <TableCell className="text-sm">{formatDate(d.postedDate)}</TableCell>
+                      <TableCell className="text-sm">{d.priority ? <TrackerPriorityBadge priority={d.priority} /> : "-"}</TableCell>
+                      <TableCell className="text-sm">{d.assignedTo || "-"}</TableCell>
+                      <TableCell className="text-sm">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-sm">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
+                      <TableCell className="text-sm">{formatDate(d.depositDate)}</TableCell>
+                      <TableCell className="text-sm">{d.depositedBy || "-"}</TableCell>
+                      <TableCell className="text-sm">{(d as any).activity || "-"}</TableCell>
                       {canDelete && (
                         <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-posting-done-${d.id}`}>
