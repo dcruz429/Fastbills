@@ -34,6 +34,13 @@ async function saveUploadedFiles(files: Express.Multer.File[]): Promise<string[]
   return attachments;
 }
 
+async function getAssigneeUserId(assignedName: string | null | undefined): Promise<number | null> {
+  if (!assignedName) return null;
+  const allUsers = await storage.getAllUsers();
+  const found = allUsers.find(u => u.fullName === assignedName);
+  return found?.id ?? null;
+}
+
 async function handleOutcomeTransfer(
   outcome: string,
   source: string,
@@ -493,7 +500,7 @@ export async function registerRoutes(
       }
 
       // Single task query covers both Verification and Billing.
-      // Credit the ACTOR (whoever clicked Done/Verified), not the assignee.
+      // Credit goes to the ASSIGNEE when status is set to Done/Verified/Billed.
       // Department is determined by bucket + status value in the merge step below.
       const [taskActs, denialActs, arbActs, collActs, postActs, checkActs, closedActs] = await Promise.all([
         db.select({
@@ -508,7 +515,7 @@ export async function registerRoutes(
           .where(and(eq(taskActivity.field, "status"), inArray(taskActivity.newValue, ["billed", "done", "verified"])))
           .orderBy(desc(taskActivity.timestamp)),
 
-        // Denials: credit whoever set the status to Done (activity.userId — reliable ID join)
+        // Denials: credit goes to the assignee when status is set to Done
         db.select({
           id: denialActivity.id, recordId: denialActivity.denialId,
           userId: denialActivity.userId, action: denialActivity.action,
@@ -747,11 +754,17 @@ export async function registerRoutes(
       }
 
       const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate", "rtp", "resolutionDate", "outcome", "activity"];
+      const TASK_DONE_STATUSES = ["done", "billed", "verified"];
       for (const field of fieldsToTrack) {
         if (updates[field] !== undefined && String(updates[field]) !== String((existing as any)[field])) {
+          let activityUserId = req.session.userId!;
+          if (field === "status" && TASK_DONE_STATUSES.includes(String(updates[field]))) {
+            const assignedId = updates.assignedUserId ?? existing.assignedUserId;
+            if (assignedId) activityUserId = assignedId;
+          }
           await storage.createTaskActivity({
             taskId: id,
-            userId: req.session.userId!,
+            userId: activityUserId,
             action: `Updated ${field}`,
             field,
             oldValue: String((existing as any)[field] ?? ""),
@@ -949,14 +962,16 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
+      const denialCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       for (const field of [...denialTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
           const oldVal = String((existing as any)[field] ?? "");
           const newVal = String(data[field] ?? "");
           if (oldVal !== newVal) {
+            const activityUserId = (field === "status" && newVal === "Done") ? (denialCreditId || req.session.userId!) : req.session.userId!;
             await storage.createDenialActivity({
               denialId: id,
-              userId: req.session.userId!,
+              userId: activityUserId,
               action: `Updated ${denialFieldLabels[field] || field}`,
               field,
               oldValue: oldVal || null,
@@ -1120,14 +1135,16 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
+      const arbCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       for (const field of [...arbTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
           const oldVal = String((existing as any)[field] ?? "");
           const newVal = String(data[field] ?? "");
           if (oldVal !== newVal) {
+            const activityUserId = (field === "status" && newVal === "Done") ? (arbCreditId || req.session.userId!) : req.session.userId!;
             await storage.createArbitrationActivity({
               arbitrationId: id,
-              userId: req.session.userId!,
+              userId: activityUserId,
               action: `Updated ${arbFieldLabels[field] || field}`,
               field,
               oldValue: oldVal || null,
@@ -1590,14 +1607,16 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
+      const collCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       for (const field of [...collectionTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
           const oldVal = String((existing as any)[field] ?? "");
           const newVal = String(data[field] ?? "");
           if (oldVal !== newVal) {
+            const activityUserId = (field === "status" && newVal === "Done") ? (collCreditId || req.session.userId!) : req.session.userId!;
             await storage.createCollectionActivity({
               collectionId: id,
-              userId: req.session.userId!,
+              userId: activityUserId,
               action: `Updated ${collectionFieldLabels[field] || field}`,
               field,
               oldValue: oldVal || null,
@@ -1791,14 +1810,16 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
+      const postingCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount", "outcome", "activity"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];
         if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+          const activityUserId = (field === "status" && String(newVal) === "Done") ? (postingCreditId || req.session.userId!) : req.session.userId!;
           await storage.createPostingActivity({
             postingId: id,
-            userId: req.session.userId!,
+            userId: activityUserId,
             action: `Changed ${field}`,
             field,
             oldValue: oldVal ? String(oldVal) : null,
@@ -2414,14 +2435,16 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
+      const checkCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       const trackFields = ["assignedTo", "clinic", "checkNumber", "amount", "checkDate", "inputDate", "insurance", "fileName", "scannedDate", "type", "status", "postedDate", "depositDate", "depositedBy", "outcome", "activity"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];
         if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+          const activityUserId = (field === "status" && String(newVal) === "Done") ? (checkCreditId || req.session.userId!) : req.session.userId!;
           await storage.createCheckActivity({
             checkId: id,
-            userId: req.session.userId!,
+            userId: activityUserId,
             action: `Changed ${field}`,
             field,
             oldValue: oldVal ? String(oldVal) : null,
@@ -2581,14 +2604,16 @@ export async function registerRoutes(
         data.numberOfVisits = null;
       }
 
+      const closedCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       const trackFields = ["patientName", "clinic", "insurance", "dosFrom", "dosTo", "numberOfVisits", "amount", "assignedTo", "action", "status", "outcome", "priority", "notes", "reason", "regularVisit", "fullVisit", "reportedDate"];
       for (const field of trackFields) {
         const oldVal = (existing as any)[field];
         const newVal = data[field];
         if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+          const activityUserId = (field === "status" && String(newVal) === "Done") ? (closedCreditId || req.session.userId!) : req.session.userId!;
           await storage.createClosedActivity({
             closedId: id,
-            userId: req.session.userId!,
+            userId: activityUserId,
             action: `Changed ${field}`,
             field,
             oldValue: oldVal ? String(oldVal) : null,
