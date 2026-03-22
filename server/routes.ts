@@ -754,6 +754,15 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
+      const [allClinicsForLog, allInsurancesForLog, allUsersForLog] = await Promise.all([
+        storage.getAllClinics(),
+        storage.getAllInsurances(),
+        storage.getAllUsers(),
+      ]);
+      const clinicName = (id: any) => allClinicsForLog.find(c => c.id === Number(id))?.name || String(id ?? "");
+      const insuranceName = (id: any) => allInsurancesForLog.find(i => i.id === Number(id))?.name || String(id ?? "");
+      const userName = (id: any) => allUsersForLog.find(u => u.id === Number(id))?.fullName || String(id ?? "");
+
       const fieldsToTrack = ["patientName", "chartNumber", "clinicId", "insuranceId", "assignedUserId", "priority", "status", "bucket", "dueDate", "ieDate", "rtp", "resolutionDate", "outcome", "activity"];
       const TASK_DONE_STATUSES = ["done", "billed", "verified"];
       for (const field of fieldsToTrack) {
@@ -763,13 +772,27 @@ export async function registerRoutes(
             const assignedId = updates.assignedUserId ?? existing.assignedUserId;
             if (assignedId) activityUserId = assignedId;
           }
+          const oldRaw = (existing as any)[field];
+          const newRaw = updates[field];
+          let oldDisplay = String(oldRaw ?? "");
+          let newDisplay = String(newRaw ?? "");
+          const FIELD_LABELS: Record<string, string> = {
+            patientName: "Patient Name", chartNumber: "Chart #", clinicId: "Clinic",
+            insuranceId: "Insurance", assignedUserId: "Assigned To", priority: "Priority",
+            status: "Status", bucket: "Bucket", dueDate: "Due Date", ieDate: "IE Date",
+            rtp: "RTP", resolutionDate: "Resolution Date", outcome: "Outcome", activity: "Action",
+          };
+          if (field === "clinicId") { oldDisplay = oldRaw ? clinicName(oldRaw) : ""; newDisplay = newRaw ? clinicName(newRaw) : ""; }
+          if (field === "insuranceId") { oldDisplay = oldRaw ? insuranceName(oldRaw) : ""; newDisplay = newRaw ? insuranceName(newRaw) : ""; }
+          if (field === "assignedUserId") { oldDisplay = oldRaw ? userName(oldRaw) : ""; newDisplay = newRaw ? userName(newRaw) : ""; }
+          const friendlyField = FIELD_LABELS[field] || field;
           await storage.createTaskActivity({
             taskId: id,
             userId: activityUserId,
-            action: `Updated ${field}`,
-            field,
-            oldValue: String((existing as any)[field] ?? ""),
-            newValue: String(updates[field] ?? ""),
+            action: `Updated ${friendlyField}`,
+            field: friendlyField,
+            oldValue: oldDisplay || null,
+            newValue: newDisplay || null,
           });
         }
       }
