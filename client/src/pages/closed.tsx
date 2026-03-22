@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -221,6 +221,21 @@ export default function ClosedPage() {
   const canDelete = ["admin", "case_manager", "account_manager"].includes(user.role);
 
   const { data: closedList, isLoading } = useQuery<Closed[]>({ queryKey: ["/api/closed"] });
+
+  const autoEditHandled = useRef(false);
+  useEffect(() => {
+    if (autoEditHandled.current || !closedList) return;
+    const p = new URLSearchParams(window.location.search);
+    const editId = p.get("edit");
+    if (!editId) return;
+    const rec = closedList.find(c => c.id === parseInt(editId));
+    if (rec) {
+      autoEditHandled.current = true;
+      openEdit(rec);
+      window.history.replaceState({}, "", "/closed");
+    }
+  }, [closedList]);
+
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: allClinics } = useQuery<any[]>({ queryKey: ["/api/clinics"] });
   const { data: allInsurances } = useQuery<any[]>({ queryKey: ["/api/insurances"] });

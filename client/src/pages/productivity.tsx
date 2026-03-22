@@ -21,6 +21,7 @@ import type { User } from "@shared/schema";
 
 type ProductivityRecord = {
   id: number;
+  recordId: number | null;
   userId: number | null;
   userName: string | null;
   patientName: string | null;
@@ -434,8 +435,16 @@ export default function ProductivityPage() {
                         {pagedLog.map((r, i) => {
                           const { date, time } = formatTs(r.timestamp);
                           const dept = getDept(r.department);
+                          const destRoute = DEPT_ROUTES[r.department];
+                          const isClickable = !!(destRoute && r.recordId);
                           return (
-                            <TableRow key={`${r.department}-${r.id}-${i}`} data-testid={`row-log-${i}`}>
+                            <TableRow
+                              key={`${r.department}-${r.id}-${i}`}
+                              data-testid={`row-log-${i}`}
+                              className={isClickable ? "cursor-pointer hover:bg-muted/60" : ""}
+                              onClick={isClickable ? () => setLocation(`${destRoute}?edit=${r.recordId}`) : undefined}
+                              title={isClickable ? `Open ${r.patientName || "record"} in ${r.department}` : undefined}
+                            >
                               <TableCell className="text-sm">{date}</TableCell>
                               <TableCell className="text-sm text-muted-foreground">{time}</TableCell>
                               <TableCell className="font-medium text-sm">{r.userName || "—"}</TableCell>

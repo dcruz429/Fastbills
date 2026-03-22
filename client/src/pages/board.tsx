@@ -3,7 +3,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { parseCsvText } from "@/lib/csv-import";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -141,6 +141,22 @@ export default function BoardPage() {
   const { data: tasks, isLoading } = useQuery<TaskWithRelations[]>({
     queryKey: ["/api/tasks"],
   });
+
+  const autoEditHandled = useRef(false);
+  useEffect(() => {
+    if (autoEditHandled.current || !tasks) return;
+    const p = new URLSearchParams(window.location.search);
+    const editId = p.get("edit");
+    if (!editId) return;
+    const task = tasks.find(t => t.id === parseInt(editId));
+    if (task) {
+      autoEditHandled.current = true;
+      setSelectedTask(task);
+      setDrawerOpen(true);
+      setOpenBuckets(prev => ({ ...prev, [task.bucket]: true }));
+      window.history.replaceState({}, "", "/");
+    }
+  }, [tasks]);
 
   const { data: clinics } = useQuery<Clinic[]>({ queryKey: ["/api/clinics"] });
   const { data: users } = useQuery<User[]>({ queryKey: ["/api/users"] });
