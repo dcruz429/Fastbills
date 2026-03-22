@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -246,6 +246,16 @@ export default function ClosedPage() {
   });
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+  const clinicByIdMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const d of closedList || []) {
+      let recClinic = "";
+      try { if (d.recordData) recClinic = JSON.parse(d.recordData).clinic || ""; } catch {}
+      map.set(d.id, (d.clinic || recClinic || "").trim());
+    }
+    return map;
+  }, [closedList]);
 
   const editingRecord = editingId ? (closedList || []).find(d => d.id === editingId) : null;
   let sourceRec: any = {};
@@ -499,38 +509,39 @@ export default function ClosedPage() {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const sourceOptions = Array.from(new Set((closedList || []).map(d => d.source).filter(Boolean) as string[])).sort();
+  const DATE_COLS = new Set(["createdAt", "dateExported", "reportedDate"]);
+  const NUM_COLS = new Set(["amount", "regularVisit", "fullVisit"]);
 
-  const filteredUnsorted = (closedList || []).filter(d => {
-    if (searchQuery && !Object.values(d).some(v => v && String(v).toLowerCase().includes(searchQuery.toLowerCase()))) return false;
+  const sourceOptions = useMemo(() =>
+    Array.from(new Set((closedList || []).map(d => d.source).filter(Boolean) as string[])).sort(),
+  [closedList]);
+
+  const filteredUnsorted = useMemo(() => (closedList || []).filter(d => {
+    if (searchQuery && !Object.values(d).some(v => v && typeof v !== "object" && String(v).toLowerCase().includes(searchQuery.toLowerCase()))) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
     if (filterSource && filterSource !== "__all__" && d.source !== filterSource) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
     if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
     if (filterClinic && filterClinic !== "__all__") {
-      const recClinic = (() => { try { return JSON.parse(d.recordData || "{}").clinic || ""; } catch { return ""; } })();
-      const clinicVal = (d.clinic || recClinic || "").toLowerCase().trim();
+      const clinicVal = (clinicByIdMap.get(d.id) || "").toLowerCase().trim();
       if (clinicVal !== filterClinic.toLowerCase().trim()) return false;
     }
     if (filterReason && filterReason !== "__all__" && (d.reason || "") !== filterReason) return false;
     return true;
-  });
+  }), [closedList, searchQuery, filterStatus, filterSource, filterAssignedTo, filterOutcome, filterClinic, filterReason, clinicByIdMap]);
 
-  const dateColumns = new Set(["createdAt", "dateExported", "reportedDate"]);
-  const numberColumns = new Set(["amount", "regularVisit", "fullVisit"]);
-
-  const filtered = [...filteredUnsorted].sort((a, b) => {
+  const filtered = useMemo(() => [...filteredUnsorted].sort((a, b) => {
     if (!sortCol || !sortDir) return 0;
     let valA: any = (a as any)[sortCol] ?? "";
     let valB: any = (b as any)[sortCol] ?? "";
 
-    if (dateColumns.has(sortCol)) {
+    if (DATE_COLS.has(sortCol)) {
       const tA = valA ? new Date(valA).getTime() : 0;
       const tB = valB ? new Date(valB).getTime() : 0;
       return sortDir === "asc" ? tA - tB : tB - tA;
     }
 
-    if (numberColumns.has(sortCol)) {
+    if (NUM_COLS.has(sortCol)) {
       const nA = parseFloat(String(valA).replace(/[^0-9.\-]/g, '')) || 0;
       const nB = parseFloat(String(valB).replace(/[^0-9.\-]/g, '')) || 0;
       return sortDir === "asc" ? nA - nB : nB - nA;
@@ -538,7 +549,33 @@ export default function ClosedPage() {
 
     const cmp = String(valA).localeCompare(String(valB), undefined, { sensitivity: "base" });
     return sortDir === "asc" ? cmp : -cmp;
-  });
+  }), [filteredUnsorted, sortCol, sortDir]);
+
+  const assignedToOptions = useMemo(() => {
+    const names = new Map<string, string>(
+      [...(closedList || []).map(d => d.assignedTo), ...activeUsers.map(u => u.fullName)]
+        .filter((n): n is string => !!n)
+        .map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])
+    );
+    return [...names.values()].sort();
+  }, [closedList, activeUsers]);
+
+  const clinicOptions = useMemo(() =>
+    Array.from(new Set([...clinicByIdMap.values()].filter(Boolean))).sort(),
+  [clinicByIdMap]);
+
+  const reasonOptions = useMemo(() =>
+    Array.from(new Set((closedList || []).map(d => d.reason).filter(Boolean) as string[])).sort(),
+  [closedList]);
+
+  const groupedBySource = useMemo(() => {
+    const result: Record<string, typeof filtered> = {};
+    for (const section of SOURCE_SECTIONS) result[section.key] = [];
+    for (const d of filtered) {
+      if (result[d.source || ""]) result[d.source || ""].push(d);
+    }
+    return result;
+  }, [filtered]);
 
   if (isLoading) {
     return (
@@ -608,7 +645,7 @@ export default function ClosedPage() {
           <SelectTrigger className="w-[130px]" data-testid="filter-closed-assigned-to"><SelectValue placeholder="All Assigned" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Assigned</SelectItem>
-            {Array.from(new Map([...(closedList || []).map(d => d.assignedTo).filter(Boolean) as string[], ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()).sort().map(name => (
+            {assignedToOptions.map(name => (
               <SelectItem key={name} value={name}>{name}</SelectItem>
             ))}
           </SelectContent>
@@ -624,20 +661,14 @@ export default function ClosedPage() {
           <SelectTrigger className="w-[130px]" data-testid="filter-clinic"><SelectValue placeholder="All Clinics" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Clinics</SelectItem>
-            {Array.from(new Set(
-              (closedList || []).map(d => {
-                let recClinic = "";
-                try { recClinic = JSON.parse(d.recordData || "{}").clinic || ""; } catch {}
-                return (d.clinic || recClinic || "").trim();
-              }).filter(Boolean)
-            )).sort().map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterReason || "__all__"} onValueChange={v => setFilterReason(v)}>
           <SelectTrigger className="w-[130px]" data-testid="filter-closed-reason"><SelectValue placeholder="All Reasons" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Reasons</SelectItem>
-            {Array.from(new Set((closedList || []).map(d => d.reason).filter(Boolean) as string[])).sort().map(r => (
+            {reasonOptions.map(r => (
               <SelectItem key={r} value={r}>{r}</SelectItem>
             ))}
           </SelectContent>
@@ -661,19 +692,6 @@ export default function ClosedPage() {
 
       <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar space-y-4">
         {(() => {
-          const knownKeys = SOURCE_SECTIONS.map(s => s.key);
-          const groupedBySource: Record<string, typeof filtered> = {};
-          for (const section of SOURCE_SECTIONS) {
-            groupedBySource[section.key] = [];
-          }
-          for (const d of filtered) {
-            const src = d.source || "";
-            const matchedKey = knownKeys.find(k => k === src);
-            if (matchedKey) {
-              groupedBySource[matchedKey].push(d);
-            }
-          }
-
           const sectionsToShow = filterSource && filterSource !== "__all__"
             ? SOURCE_SECTIONS.filter(s => s.key === filterSource)
             : SOURCE_SECTIONS;

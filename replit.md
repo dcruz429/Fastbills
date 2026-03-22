@@ -8,6 +8,7 @@ A workflow management system for tracking patient tasks through insurance verifi
 - **Backend**: Express.js with session-based auth
 - **Database**: PostgreSQL with Drizzle ORM
 - **Auth**: Username/password with express-session
+- **Performance**: `useMemo` used in closed.tsx and collections.tsx for filter/sort/grouping; DB indexes on all activity tables (task_id, denial_id, arbitration_id, collection_id, posting_id, check_id, closed_id) and on notifications(user_id), direct_messages(sender_id, recipient_id)
 
 ## Key Features
 - **Main Board**: Collapsible bucket sections (For Verification, Ready for Billing, Done)

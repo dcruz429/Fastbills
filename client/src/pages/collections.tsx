@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -425,28 +425,30 @@ export default function CollectionsPage() {
     setFilterOutcome("");
   };
 
-  const q = searchQuery.toLowerCase();
-  const filteredUnsorted = (dataList || []).filter(d => {
-    const matchesSearch = d.patientName?.toLowerCase().includes(q) ||
-      d.clinic?.toLowerCase().includes(q) ||
-      d.insurance?.toLowerCase().includes(q) ||
-      d.assignedTo?.toLowerCase().includes(q) ||
-      d.division?.toLowerCase().includes(q) ||
-      d.issueType?.toLowerCase().includes(q);
-    if (!matchesSearch) return false;
-    if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
-    if (filterDivision && filterDivision !== "__all__" && d.division !== filterDivision) return false;
-    if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
-    if (filterIssueType && filterIssueType !== "__all__" && d.issueType !== filterIssueType) return false;
-    if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
-    if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
-    if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
-    if (filterPriority && filterPriority !== "__all__") {
-      const rowPriority = computePriority(d.inputDate);
-      if (rowPriority !== filterPriority) return false;
-    }
-    return true;
-  });
+  const filteredUnsorted = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return (dataList || []).filter(d => {
+      const matchesSearch = !q || d.patientName?.toLowerCase().includes(q) ||
+        d.clinic?.toLowerCase().includes(q) ||
+        d.insurance?.toLowerCase().includes(q) ||
+        d.assignedTo?.toLowerCase().includes(q) ||
+        d.division?.toLowerCase().includes(q) ||
+        d.issueType?.toLowerCase().includes(q);
+      if (!matchesSearch) return false;
+      if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
+      if (filterDivision && filterDivision !== "__all__" && d.division !== filterDivision) return false;
+      if (filterInsurance && filterInsurance !== "__all__" && d.insurance !== filterInsurance) return false;
+      if (filterIssueType && filterIssueType !== "__all__" && d.issueType !== filterIssueType) return false;
+      if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
+      if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
+      if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
+      if (filterPriority && filterPriority !== "__all__") {
+        const rowPriority = computePriority(d.inputDate);
+        if (rowPriority !== filterPriority) return false;
+      }
+      return true;
+    });
+  }, [dataList, searchQuery, filterClinic, filterDivision, filterInsurance, filterIssueType, filterStatus, filterAssignedTo, filterOutcome, filterPriority]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -465,10 +467,10 @@ export default function CollectionsPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const dateColumns = new Set(["inputDate", "dosFrom", "dosTo"]);
-  const numberColumns = new Set(["numberOfVisits", "ageing", "amount"]);
+  const COLL_DATE_COLS = new Set(["inputDate", "dosFrom", "dosTo"]);
+  const COLL_NUM_COLS = new Set(["numberOfVisits", "ageing", "amount"]);
 
-  const filtered = [...filteredUnsorted].sort((a, b) => {
+  const filtered = useMemo(() => [...filteredUnsorted].sort((a, b) => {
     if (!sortCol || !sortDir) return 0;
 
     let valA: any;
@@ -492,13 +494,13 @@ export default function CollectionsPage() {
     valA = (a as any)[sortCol] ?? "";
     valB = (b as any)[sortCol] ?? "";
 
-    if (dateColumns.has(sortCol)) {
+    if (COLL_DATE_COLS.has(sortCol)) {
       const tA = valA ? new Date(valA).getTime() : 0;
       const tB = valB ? new Date(valB).getTime() : 0;
       return sortDir === "asc" ? tA - tB : tB - tA;
     }
 
-    if (numberColumns.has(sortCol)) {
+    if (COLL_NUM_COLS.has(sortCol)) {
       const nA = parseFloat(valA) || 0;
       const nB = parseFloat(valB) || 0;
       return sortDir === "asc" ? nA - nB : nB - nA;
@@ -508,7 +510,7 @@ export default function CollectionsPage() {
     const sB = String(valB).toLowerCase();
     const cmp = sA.localeCompare(sB);
     return sortDir === "asc" ? cmp : -cmp;
-  });
+  }), [filteredUnsorted, sortCol, sortDir]);
 
   const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
   const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");

@@ -63,9 +63,10 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
 
   useEffect(() => {
     if (task) {
-      const nameParts = task.patientName.includes(", ")
-        ? task.patientName.split(", ")
-        : ["", task.patientName];
+      const safeName = task.patientName || "";
+      const nameParts = safeName.includes(", ")
+        ? safeName.split(", ")
+        : ["", safeName];
       setEditData({
         patientLastName: nameParts[0],
         patientFirstName: nameParts.slice(1).join(", "),
@@ -124,6 +125,9 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
       setNewNote("");
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks", task?.id, "activity"] });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Failed to save note", description: e.message, variant: "destructive" });
     },
   });
 

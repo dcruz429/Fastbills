@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -60,7 +60,9 @@ export const taskActivity = pgTable("task_activity", {
   oldValue: text("old_value"),
   newValue: text("new_value"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => [
+  index("task_activity_task_id_idx").on(t.taskId),
+]);
 
 export const notifications = pgTable("notifications", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -69,7 +71,9 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("notifications_user_id_idx").on(t.userId),
+]);
 
 export const denials = pgTable("denials", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -113,7 +117,9 @@ export const denialActivity = pgTable("denial_activity", {
   oldValue: text("old_value"),
   newValue: text("new_value"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => [
+  index("denial_activity_denial_id_idx").on(t.denialId),
+]);
 
 export const DENIAL_TYPE_OPTIONS = [
   "120 days",
@@ -261,7 +267,9 @@ export const arbitrationActivity = pgTable("arbitration_activity", {
   oldValue: text("old_value"),
   newValue: text("new_value"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => [
+  index("arbitration_activity_arbitration_id_idx").on(t.arbitrationId),
+]);
 
 export const collections = pgTable("collections", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -294,7 +302,9 @@ export const collectionActivity = pgTable("collection_activity", {
   oldValue: text("old_value"),
   newValue: text("new_value"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => [
+  index("collection_activity_collection_id_idx").on(t.collectionId),
+]);
 
 export const COLLECTION_DIVISION_OPTIONS = ["Denied", "Lien", "NF", "WC"];
 export const COLLECTION_ISSUE_TYPE_OPTIONS = [
@@ -383,7 +393,10 @@ export const directMessages = pgTable("direct_messages", {
   attachments: text("attachments").array(),
   readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("direct_messages_recipient_id_idx").on(t.recipientId),
+  index("direct_messages_sender_id_idx").on(t.senderId),
+]);
 
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
 export const insertDirectMessageSchema = createInsertSchema(directMessages).omit({ id: true, createdAt: true, readAt: true });
@@ -568,7 +581,9 @@ export const postingActivity = pgTable("posting_activity", {
   oldValue: text("old_value"),
   newValue: text("new_value"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => [
+  index("posting_activity_posting_id_idx").on(t.postingId),
+]);
 
 export const insertPostingSchema = createInsertSchema(postings).omit({ id: true, createdAt: true });
 export const insertPostingActivitySchema = createInsertSchema(postingActivity).omit({ id: true, timestamp: true });
@@ -612,7 +627,9 @@ export const checkActivity = pgTable("check_activity", {
   oldValue: text("old_value"),
   newValue: text("new_value"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => [
+  index("check_activity_check_id_idx").on(t.checkId),
+]);
 
 export const insertCheckSchema = createInsertSchema(checks).omit({ id: true, createdAt: true });
 export const insertCheckActivitySchema = createInsertSchema(checkActivity).omit({ id: true, timestamp: true });
@@ -670,7 +687,9 @@ export const closedActivity = pgTable("closed_activity", {
   oldValue: text("old_value"),
   newValue: text("new_value"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-});
+}, (t) => [
+  index("closed_activity_closed_id_idx").on(t.closedId),
+]);
 
 export const insertClosedSchema = createInsertSchema(closed).omit({ id: true, createdAt: true });
 export const insertClosedActivitySchema = createInsertSchema(closedActivity).omit({ id: true, timestamp: true });
