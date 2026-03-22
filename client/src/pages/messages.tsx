@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import type { User, DirectMessageWithUser } from "@shared/schema";
+import { ROLE_LABELS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -238,7 +239,7 @@ export default function MessagesPage() {
                     <span className="h-2.5 w-2.5 rounded-full bg-blue-500 shrink-0" />
                   )}
                 </h3>
-                <span className="text-xs text-muted-foreground capitalize">{selectedUser.role}</span>
+                <span className="text-xs text-muted-foreground">{ROLE_LABELS[selectedUser.role] || selectedUser.role}</span>
               </div>
               <ScrollArea className="flex-1 p-4">
                 {messagesLoading ? (
