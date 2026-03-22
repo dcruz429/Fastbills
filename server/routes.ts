@@ -2879,5 +2879,53 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/recover-posting-notes", requireAuth, async (req, res) => {
+    try {
+      const requestingUser = await storage.getUser(req.session.userId!);
+      if (!requestingUser || requestingUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin only" });
+      }
+
+      const allPostings = await storage.getAllPostings();
+      const allCollections = await storage.getAllCollections();
+
+      let recovered = 0;
+      const details: string[] = [];
+
+      for (const posting of allPostings) {
+        if (posting.notes && posting.notes.trim() !== "") continue;
+
+        const patientKey = (posting.patientName || "").toLowerCase().trim();
+        if (!patientKey) continue;
+
+        const sourceCollection = allCollections.find((c: any) =>
+          (c.patientName || "").toLowerCase().trim() === patientKey &&
+          (c.outcome === "Send to Posting") &&
+          c.notes && c.notes.trim() !== ""
+        );
+
+        if (sourceCollection) {
+          const header = `[Recovered from Collections - ${new Date().toISOString()}]`;
+          const recoveredNotes = `${header}\n${sourceCollection.notes.trim()}`;
+          await storage.updatePosting(posting.id, { notes: recoveredNotes });
+          await storage.createPostingActivity({
+            postingId: posting.id,
+            userId: req.session.userId!,
+            action: "Notes recovered from Collections",
+            field: "notes",
+            oldValue: null,
+            newValue: recoveredNotes,
+          });
+          recovered++;
+          details.push(`Posting #${posting.id} (${posting.patientName}): recovered from Collection #${sourceCollection.id}`);
+        }
+      }
+
+      res.json({ recovered, details });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   return httpServer;
 }

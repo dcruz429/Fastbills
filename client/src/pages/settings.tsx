@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List, Briefcase } from "lucide-react";
+import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List, Briefcase, Wrench, RotateCcw } from "lucide-react";
 import type { Clinic, Insurance, User, DropdownOption } from "@shared/schema";
 import { DROPDOWN_CATEGORIES } from "@shared/schema";
 
@@ -728,12 +728,71 @@ function DropdownSettings() {
   );
 }
 
+function MaintenanceSettings() {
+  const { toast } = useToast();
+  const [recoverResult, setRecoverResult] = useState<{ recovered: number; details: string[] } | null>(null);
+
+  const recoverMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/recover-posting-notes");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setRecoverResult(data);
+      if (data.recovered > 0) {
+        queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
+        toast({ title: `Recovered notes for ${data.recovered} posting record${data.recovered !== 1 ? "s" : ""}` });
+      } else {
+        toast({ title: "No records needed recovery", description: "All postings that came from collections already have their notes." });
+      }
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="border rounded-md p-4 space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-amber-600" />
+            Recover Missing Posting Notes
+          </h4>
+          <p className="text-xs text-muted-foreground mt-1">
+            Scans all Posting records that were transferred from Collections and restores any notes that didn't carry over correctly. Safe to run multiple times — only updates records with empty notes.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => recoverMutation.mutate()}
+          disabled={recoverMutation.isPending}
+          data-testid="button-recover-posting-notes"
+        >
+          {recoverMutation.isPending ? "Recovering..." : "Run Recovery"}
+        </Button>
+        {recoverResult && (
+          <div className="mt-2 p-3 rounded-md bg-muted/50 text-xs space-y-1">
+            <p className="font-medium">{recoverResult.recovered} record{recoverResult.recovered !== 1 ? "s" : ""} recovered</p>
+            {recoverResult.details.map((d, i) => (
+              <p key={i} className="text-muted-foreground">{d}</p>
+            ))}
+            {recoverResult.recovered === 0 && (
+              <p className="text-muted-foreground">Nothing to recover — all affected postings already have notes.</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
     return <Redirect to="/" />;
   }
   const showUsers = user.role === "admin" || user.role === "manager";
+  const isAdmin = user.role === "admin";
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -761,6 +820,12 @@ export default function SettingsPage() {
             <TabsTrigger value="users" data-testid="tab-users">
               <Users className="h-4 w-4 mr-1" />
               Users
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="maintenance" data-testid="tab-maintenance">
+              <Wrench className="h-4 w-4 mr-1" />
+              Maintenance
             </TabsTrigger>
           )}
         </TabsList>
@@ -808,6 +873,19 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <UserSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="maintenance" className="mt-4">
+            <Card>
+              <CardHeader className="pb-3 px-4 pt-4">
+                <h3 className="text-sm font-semibold">Data Maintenance</h3>
+                <p className="text-xs text-muted-foreground">Admin tools to repair or backfill data.</p>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <MaintenanceSettings />
               </CardContent>
             </Card>
           </TabsContent>
