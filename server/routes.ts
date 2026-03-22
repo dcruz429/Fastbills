@@ -104,6 +104,7 @@ async function handleOutcomeTransfer(
         insurance,
         status: "Unassigned",
         amount,
+        notes: combinedNotes,
       });
       newRecordId = posting.id;
       targetType = "posting";
