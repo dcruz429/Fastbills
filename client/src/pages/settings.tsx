@@ -734,16 +734,18 @@ function MaintenanceSettings() {
 
   const recoverMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/recover-posting-notes");
+      const res = await apiRequest("POST", "/api/admin/recover-notes");
       return res.json();
     },
     onSuccess: (data) => {
       setRecoverResult(data);
       if (data.recovered > 0) {
-        queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
-        toast({ title: `Recovered notes for ${data.recovered} posting record${data.recovered !== 1 ? "s" : ""}` });
+        for (const key of ["/api/postings", "/api/collections", "/api/denials", "/api/arbitrations", "/api/closed"]) {
+          queryClient.invalidateQueries({ queryKey: [key] });
+        }
+        toast({ title: `Recovered notes for ${data.recovered} record${data.recovered !== 1 ? "s" : ""}` });
       } else {
-        toast({ title: "No records needed recovery", description: "All postings that came from collections already have their notes." });
+        toast({ title: "No records needed recovery", description: "All transferred records already have their notes intact." });
       }
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -755,10 +757,10 @@ function MaintenanceSettings() {
         <div>
           <h4 className="text-sm font-semibold flex items-center gap-2">
             <RotateCcw className="h-4 w-4 text-amber-600" />
-            Recover Missing Posting Notes
+            Recover Missing Transfer Notes
           </h4>
           <p className="text-xs text-muted-foreground mt-1">
-            Scans all Posting records that were transferred from Collections and restores any notes that didn't carry over correctly. Safe to run multiple times — only updates records with empty notes.
+            Scans all trackers (Posting, Collections, Denials, Arbitration, Closed) for transferred records with empty notes and restores them from the original source record. Safe to run multiple times — only touches records that have no notes.
           </p>
         </div>
         <Button

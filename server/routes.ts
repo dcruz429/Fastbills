@@ -2879,45 +2879,146 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/recover-posting-notes", requireAuth, async (req, res) => {
+  app.post("/api/admin/recover-notes", requireAuth, async (req, res) => {
     try {
       const requestingUser = await storage.getUser(req.session.userId!);
       if (!requestingUser || requestingUser.role !== "admin") {
         return res.status(403).json({ message: "Admin only" });
       }
 
-      const allPostings = await storage.getAllPostings();
-      const allCollections = await storage.getAllCollections();
-
+      const now = new Date().toISOString();
       let recovered = 0;
       const details: string[] = [];
 
+      // Build a unified source pool from every tracker.
+      // Each entry: { patientKey, notesText, trackerName, id, outcome }
+      const [allTasks, allCollections, allPostings, allDenials, allArbitrations, allChecks, allClosed] = await Promise.all([
+        storage.getAllTasks(),
+        storage.getAllCollections(),
+        storage.getAllPostings(),
+        storage.getAllDenials(),
+        storage.getAllArbitrations(),
+        storage.getAllChecks(),
+        storage.getAllClosed(),
+      ]);
+
+      type SourceEntry = { patientKey: string; notesText: string; trackerName: string; id: number; outcome: string };
+      const sources: SourceEntry[] = [];
+
+      for (const t of allTasks) {
+        if (!t.outcome) continue;
+        const notesText = (t.notes || "").trim();
+        if (!notesText) continue;
+        sources.push({ patientKey: (t.patientName || "").toLowerCase().trim(), notesText, trackerName: "Tasks", id: t.id, outcome: t.outcome });
+      }
+      for (const c of allCollections) {
+        if (!c.outcome) continue;
+        const notesText = (c.notes || "").trim();
+        if (!notesText) continue;
+        sources.push({ patientKey: (c.patientName || "").toLowerCase().trim(), notesText, trackerName: "Collections", id: c.id, outcome: c.outcome });
+      }
+      for (const p of allPostings) {
+        if (!p.outcome) continue;
+        const notesText = (p.notes || "").trim();
+        if (!notesText) continue;
+        sources.push({ patientKey: (p.patientName || "").toLowerCase().trim(), notesText, trackerName: "Posting", id: p.id, outcome: p.outcome });
+      }
+      for (const d of allDenials) {
+        if (!d.outcome) continue;
+        const notesText = (d.comments || "").trim();
+        if (!notesText) continue;
+        sources.push({ patientKey: (d.patientName || "").toLowerCase().trim(), notesText, trackerName: "Denials", id: d.id, outcome: d.outcome });
+      }
+      for (const a of allArbitrations) {
+        if (!a.outcome) continue;
+        const notesText = (a.comments || "").trim();
+        if (!notesText) continue;
+        sources.push({ patientKey: (a.patientName || "").toLowerCase().trim(), notesText, trackerName: "Arbitration", id: a.id, outcome: a.outcome });
+      }
+      for (const ch of allChecks) {
+        if (!ch.outcome) continue;
+        const notesText = (ch.notes || "").trim();
+        if (!notesText) continue;
+        sources.push({ patientKey: (ch.patientName || "").toLowerCase().trim(), notesText, trackerName: "Checks", id: ch.id, outcome: ch.outcome });
+      }
+      for (const cl of allClosed) {
+        if (!cl.outcome) continue;
+        const notesText = (cl.notes || "").trim();
+        if (!notesText) continue;
+        sources.push({ patientKey: (cl.patientName || "").toLowerCase().trim(), notesText, trackerName: "Closed", id: cl.id, outcome: cl.outcome });
+      }
+
+      // Helper: find matching source record
+      const findSource = (destPatientKey: string, destOutcome: string): SourceEntry | undefined =>
+        sources.find(s => s.patientKey === destPatientKey && s.patientKey !== "" && s.outcome === destOutcome && s.notesText !== "");
+
+      // --- Recover Postings (notes field) ---
       for (const posting of allPostings) {
         if (posting.notes && posting.notes.trim() !== "") continue;
-
         const patientKey = (posting.patientName || "").toLowerCase().trim();
-        if (!patientKey) continue;
-
-        const sourceCollection = allCollections.find((c: any) =>
-          (c.patientName || "").toLowerCase().trim() === patientKey &&
-          (c.outcome === "Send to Posting") &&
-          c.notes && c.notes.trim() !== ""
-        );
-
-        if (sourceCollection) {
-          const header = `[Recovered from Collections - ${new Date().toISOString()}]`;
-          const recoveredNotes = `${header}\n${sourceCollection.notes.trim()}`;
-          await storage.updatePosting(posting.id, { notes: recoveredNotes });
-          await storage.createPostingActivity({
-            postingId: posting.id,
-            userId: req.session.userId!,
-            action: "Notes recovered from Collections",
-            field: "notes",
-            oldValue: null,
-            newValue: recoveredNotes,
-          });
+        const src = findSource(patientKey, "Send to Posting");
+        if (src) {
+          const recovered_notes = `[Recovered from ${src.trackerName} - ${now}]\n${src.notesText}`;
+          await storage.updatePosting(posting.id, { notes: recovered_notes });
+          await storage.createPostingActivity({ postingId: posting.id, userId: req.session.userId!, action: `Notes recovered from ${src.trackerName}`, field: "notes", oldValue: null, newValue: recovered_notes });
           recovered++;
-          details.push(`Posting #${posting.id} (${posting.patientName}): recovered from Collection #${sourceCollection.id}`);
+          details.push(`Posting #${posting.id} (${posting.patientName}): recovered from ${src.trackerName} #${src.id}`);
+        }
+      }
+
+      // --- Recover Collections (notes field) ---
+      for (const collection of allCollections) {
+        if (collection.notes && collection.notes.trim() !== "") continue;
+        const patientKey = (collection.patientName || "").toLowerCase().trim();
+        const src = findSource(patientKey, "Send to Collections");
+        if (src) {
+          const recovered_notes = `[Recovered from ${src.trackerName} - ${now}]\n${src.notesText}`;
+          await storage.updateCollection(collection.id, { notes: recovered_notes });
+          await storage.createCollectionActivity({ collectionId: collection.id, userId: req.session.userId!, action: `Notes recovered from ${src.trackerName}`, field: "notes", oldValue: null, newValue: recovered_notes });
+          recovered++;
+          details.push(`Collection #${collection.id} (${collection.patientName}): recovered from ${src.trackerName} #${src.id}`);
+        }
+      }
+
+      // --- Recover Denials (comments field) ---
+      for (const denial of allDenials) {
+        if (denial.comments && denial.comments.trim() !== "") continue;
+        const patientKey = (denial.patientName || "").toLowerCase().trim();
+        const src = findSource(patientKey, "Send to Denials");
+        if (src) {
+          const recovered_notes = `[Recovered from ${src.trackerName} - ${now}]\n${src.notesText}`;
+          await storage.updateDenial(denial.id, { comments: recovered_notes });
+          await storage.createDenialActivity({ denialId: denial.id, userId: req.session.userId!, action: `Notes recovered from ${src.trackerName}`, field: "comments", oldValue: null, newValue: recovered_notes });
+          recovered++;
+          details.push(`Denial #${denial.id} (${denial.patientName}): recovered from ${src.trackerName} #${src.id}`);
+        }
+      }
+
+      // --- Recover Arbitrations (comments field) ---
+      for (const arb of allArbitrations) {
+        if (arb.comments && arb.comments.trim() !== "") continue;
+        const patientKey = (arb.patientName || "").toLowerCase().trim();
+        const src = findSource(patientKey, "Send to Arbitration");
+        if (src) {
+          const recovered_notes = `[Recovered from ${src.trackerName} - ${now}]\n${src.notesText}`;
+          await storage.updateArbitration(arb.id, { comments: recovered_notes });
+          await storage.createArbitrationActivity({ arbitrationId: arb.id, userId: req.session.userId!, action: `Notes recovered from ${src.trackerName}`, field: "comments", oldValue: null, newValue: recovered_notes });
+          recovered++;
+          details.push(`Arbitration #${arb.id} (${arb.patientName}): recovered from ${src.trackerName} #${src.id}`);
+        }
+      }
+
+      // --- Recover Closed (notes field) ---
+      for (const cl of allClosed) {
+        if (cl.notes && cl.notes.trim() !== "") continue;
+        const patientKey = (cl.patientName || "").toLowerCase().trim();
+        const src = findSource(patientKey, "Send to Closed") || findSource(patientKey, "Send to RTP");
+        if (src) {
+          const recovered_notes = `[Recovered from ${src.trackerName} - ${now}]\n${src.notesText}`;
+          await storage.updateClosed(cl.id, { notes: recovered_notes });
+          await storage.createClosedActivity({ closedId: cl.id, userId: req.session.userId!, action: `Notes recovered from ${src.trackerName}`, field: "notes", oldValue: null, newValue: recovered_notes });
+          recovered++;
+          details.push(`Closed #${cl.id} (${cl.patientName}): recovered from ${src.trackerName} #${src.id}`);
         }
       }
 
