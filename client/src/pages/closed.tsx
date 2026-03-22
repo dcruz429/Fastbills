@@ -435,7 +435,7 @@ export default function ClosedPage() {
       dosTo: (d as any).dosTo || "",
       numberOfVisits: (d as any).numberOfVisits != null ? String((d as any).numberOfVisits) : "",
       amount: d.amount || "",
-      assignedTo: d.assignedTo || "",
+      assignedTo: (() => { const raw = (d.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       action: (d as any).action || "",
       status: d.status || "",
       outcome: d.outcome || "",

@@ -250,7 +250,7 @@ export default function ArbitrationPage() {
       amountReceived: arb.amountReceived || "",
       checkedBy: arb.checkedBy || "",
       comment: arb.comment || "",
-      assignedTo: arb.assignedTo || "",
+      assignedTo: (() => { const raw = (arb.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       status: (arb as any).status || "",
       outcome: (arb as any).outcome || "",
       activity: (arb as any).activity || "",

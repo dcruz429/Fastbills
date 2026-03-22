@@ -229,7 +229,7 @@ export default function PostingPage() {
       documentType: d.documentType || "",
       postedDate: toInputDate(d.postedDate),
       priority: d.priority || "",
-      assignedTo: d.assignedTo || "",
+      assignedTo: (() => { const raw = (d.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       status: d.status || "",
       amount: d.amount || "",
       outcome: d.outcome || "",

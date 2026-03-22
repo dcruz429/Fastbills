@@ -251,7 +251,7 @@ export default function DenialsPage() {
       comment: denial.comment || "",
       action: denial.action || "",
       outcome: denial.outcome || "",
-      assignedTo: denial.assignedTo || "",
+      assignedTo: (() => { const raw = (denial.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       status: (denial as any).status || "",
     });
     setDrawerOpen(true);

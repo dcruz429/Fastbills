@@ -392,7 +392,7 @@ export default function CollectionsPage() {
       action: c.action || "",
       outcome: c.outcome || "",
       priority: c.priority || "",
-      assignedTo: c.assignedTo || "",
+      assignedTo: (() => { const raw = (c.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       status: c.status || "",
     });
     setHistoryOpen(false);

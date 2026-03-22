@@ -262,7 +262,7 @@ export default function ChecksPage() {
     if (!canEdit) return;
     setEditingId(d.id);
     setForm({
-      assignedTo: d.assignedTo || "",
+      assignedTo: (() => { const raw = (d.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       clinic: d.clinic || "",
       checkNumber: d.checkNumber || "",
       amount: d.amount || "",
