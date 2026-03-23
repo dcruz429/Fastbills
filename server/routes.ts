@@ -52,6 +52,10 @@ async function handleOutcomeTransfer(
   const insurance = record.insurance || null;
   const amount = record.amount || null;
   const existingNotes = record.notes || record.comments || null;
+  const chartNumber = record.chartNumber || null;
+  const ieDate = record.ieDate || null;
+  const doa = record.doa || null;
+  const resolutionDate = record.resolutionDate || null;
 
   const transferHeader = `[Transferred from ${source} - ${new Date().toISOString()}]`;
   const combinedNotes = existingNotes
@@ -72,6 +76,10 @@ async function handleOutcomeTransfer(
         patientName,
         clinicId,
         insuranceId,
+        chartNumber,
+        ieDate,
+        doa,
+        resolutionDate,
         priority: "low",
         status: "unassigned",
         bucket: "for_verification",
@@ -87,6 +95,10 @@ async function handleOutcomeTransfer(
         patientName,
         clinicId,
         insuranceId,
+        chartNumber,
+        ieDate,
+        doa,
+        resolutionDate,
         priority: "low",
         status: "unassigned",
         bucket: "ready_for_billing",
