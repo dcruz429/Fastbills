@@ -551,33 +551,57 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                 Activity Log
               </h3>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {activity && activity.length > 0 ? (
-                  activity.map((a) => (
-                    <div
-                      key={a.id}
-                      className="text-xs p-2.5 rounded-md bg-muted/50 space-y-0.5"
-                      data-testid={`activity-item-${a.id}`}
-                    >
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <UserIcon className="h-3 w-3" />
-                        <span className="font-medium text-foreground">{(a as any).userName || "System"}</span>
-                        <span className="mx-0.5">·</span>
-                        <Clock className="h-3 w-3" />
-                        <span>{formatEST(new Date(a.timestamp), "MMM d, h:mm a")}</span>
+                {(() => {
+                  const FIELD_LABELS: Record<string, string> = {
+                    insuranceId: "Insurance", assignedUserId: "Assigned To", clinicId: "Clinic",
+                    patientName: "Patient Name", chartNumber: "Chart Number", priority: "Priority",
+                    status: "Status", bucket: "Bucket", dueDate: "Due Date", ieDate: "IE Date",
+                    rtp: "RTP", resolutionDate: "Resolution Date", outcome: "Outcome", activity: "Action",
+                  };
+                  const resolveVal = (field: string, raw: string | null) => {
+                    if (!raw || raw === "none") return "none";
+                    if (field === "insuranceId" || field === "Insurance") {
+                      return allInsurances?.find(i => i.id === Number(raw))?.name || raw;
+                    }
+                    if (field === "assignedUserId" || field === "Assigned To") {
+                      return allUsers?.find(u => u.id === Number(raw))?.fullName || raw;
+                    }
+                    if (field === "clinicId" || field === "Clinic") {
+                      return allClinics?.find(c => c.id === Number(raw))?.name || raw;
+                    }
+                    return raw;
+                  };
+                  const friendlyField = (f: string) => FIELD_LABELS[f] || f;
+                  const friendlyAction = (action: string) =>
+                    Object.entries(FIELD_LABELS).reduce((s, [k, v]) => s.replace(new RegExp(k, "g"), v), action);
+                  return activity && activity.length > 0 ? (
+                    activity.map((a) => (
+                      <div
+                        key={a.id}
+                        className="text-xs p-2.5 rounded-md bg-muted/50 space-y-0.5"
+                        data-testid={`activity-item-${a.id}`}
+                      >
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <UserIcon className="h-3 w-3" />
+                          <span className="font-medium text-foreground">{(a as any).userName || "System"}</span>
+                          <span className="mx-0.5">·</span>
+                          <Clock className="h-3 w-3" />
+                          <span>{formatEST(new Date(a.timestamp), "MMM d, h:mm a")}</span>
+                        </div>
+                        <p className="font-medium text-foreground">{friendlyAction(a.action)}</p>
+                        {a.field && (
+                          <p className="text-muted-foreground">
+                            {friendlyField(a.field)}: <span className="line-through">{resolveVal(a.field, a.oldValue)}</span>{" "}
+                            <ArrowRight className="inline h-3 w-3" />{" "}
+                            <span className="font-medium text-foreground">{resolveVal(a.field, a.newValue)}</span>
+                          </p>
+                        )}
                       </div>
-                      <p className="font-medium text-foreground">{a.action}</p>
-                      {a.field && (
-                        <p className="text-muted-foreground">
-                          {a.field}: <span className="line-through">{a.oldValue || "none"}</span>{" "}
-                          <ArrowRight className="inline h-3 w-3" />{" "}
-                          <span className="font-medium text-foreground">{a.newValue || "none"}</span>
-                        </p>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-muted-foreground py-4 text-center">No activity yet</p>
-                )}
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground py-4 text-center">No activity yet</p>
+                  );
+                })()}
               </div>
             </div>
           </div>
