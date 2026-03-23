@@ -1632,10 +1632,15 @@ export async function registerRoutes(
       }
 
       const collCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+      const collDateFields = new Set(["inputDate", "dosFrom", "dosTo"]);
+      const normalizeCollDate = (v: any) => {
+        if (!v) return "";
+        try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); }
+      };
       for (const field of [...collectionTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
-          const oldVal = String((existing as any)[field] ?? "");
-          const newVal = String(data[field] ?? "");
+          const oldVal = collDateFields.has(field) ? normalizeCollDate((existing as any)[field]) : String((existing as any)[field] ?? "");
+          const newVal = collDateFields.has(field) ? normalizeCollDate(data[field]) : String(data[field] ?? "");
           if (oldVal !== newVal) {
             const activityUserId = (field === "status" && newVal === "Done") ? (collCreditId || req.session.userId!) : req.session.userId!;
             await storage.createCollectionActivity({
