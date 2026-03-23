@@ -987,10 +987,12 @@ export async function registerRoutes(
       }
 
       const denialCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+      const denialDateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
+      const normDenialDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
       for (const field of [...denialTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
-          const oldVal = String((existing as any)[field] ?? "");
-          const newVal = String(data[field] ?? "");
+          const oldVal = denialDateFields.has(field) ? normDenialDate((existing as any)[field]) : String((existing as any)[field] ?? "");
+          const newVal = denialDateFields.has(field) ? normDenialDate(data[field]) : String(data[field] ?? "");
           if (oldVal !== newVal) {
             const activityUserId = (field === "status" && newVal === "Done") ? (denialCreditId || req.session.userId!) : req.session.userId!;
             await storage.createDenialActivity({
@@ -1160,10 +1162,12 @@ export async function registerRoutes(
       }
 
       const arbCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+      const arbDateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
+      const normArbDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
       for (const field of [...arbTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
-          const oldVal = String((existing as any)[field] ?? "");
-          const newVal = String(data[field] ?? "");
+          const oldVal = arbDateFields.has(field) ? normArbDate((existing as any)[field]) : String((existing as any)[field] ?? "");
+          const newVal = arbDateFields.has(field) ? normArbDate(data[field]) : String(data[field] ?? "");
           if (oldVal !== newVal) {
             const activityUserId = (field === "status" && newVal === "Done") ? (arbCreditId || req.session.userId!) : req.session.userId!;
             await storage.createArbitrationActivity({
@@ -1840,11 +1844,15 @@ export async function registerRoutes(
       }
 
       const postingCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+      const postingDateFields = new Set(["scannedDate", "postedDate"]);
+      const normPostingDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
       const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount", "outcome", "activity"];
       for (const field of trackFields) {
-        const oldVal = (existing as any)[field];
-        const newVal = data[field];
-        if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+        const oldRaw = (existing as any)[field];
+        const newRaw = data[field];
+        const oldVal = postingDateFields.has(field) ? normPostingDate(oldRaw) : String(oldRaw || "");
+        const newVal = postingDateFields.has(field) ? normPostingDate(newRaw) : String(newRaw || "");
+        if (newRaw !== undefined && oldVal !== newVal) {
           const activityUserId = (field === "status" && String(newVal) === "Done") ? (postingCreditId || req.session.userId!) : req.session.userId!;
           await storage.createPostingActivity({
             postingId: id,
@@ -2465,11 +2473,15 @@ export async function registerRoutes(
       }
 
       const checkCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+      const checkDateFields = new Set(["checkDate", "inputDate", "scannedDate", "postedDate", "depositDate"]);
+      const normCheckDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
       const trackFields = ["assignedTo", "clinic", "checkNumber", "amount", "checkDate", "inputDate", "insurance", "fileName", "scannedDate", "type", "status", "postedDate", "depositDate", "depositedBy", "outcome", "activity"];
       for (const field of trackFields) {
-        const oldVal = (existing as any)[field];
-        const newVal = data[field];
-        if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+        const oldRaw = (existing as any)[field];
+        const newRaw = data[field];
+        const oldVal = checkDateFields.has(field) ? normCheckDate(oldRaw) : String(oldRaw || "");
+        const newVal = checkDateFields.has(field) ? normCheckDate(newRaw) : String(newRaw || "");
+        if (newRaw !== undefined && oldVal !== newVal) {
           const activityUserId = (field === "status" && String(newVal) === "Done") ? (checkCreditId || req.session.userId!) : req.session.userId!;
           await storage.createCheckActivity({
             checkId: id,
@@ -2634,11 +2646,15 @@ export async function registerRoutes(
       }
 
       const closedCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+      const closedDateFields = new Set(["dosFrom", "dosTo", "reportedDate"]);
+      const normClosedDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
       const trackFields = ["patientName", "clinic", "insurance", "dosFrom", "dosTo", "numberOfVisits", "amount", "assignedTo", "action", "status", "outcome", "priority", "notes", "reason", "regularVisit", "fullVisit", "reportedDate"];
       for (const field of trackFields) {
-        const oldVal = (existing as any)[field];
-        const newVal = data[field];
-        if (newVal !== undefined && String(oldVal || "") !== String(newVal || "")) {
+        const oldRaw = (existing as any)[field];
+        const newRaw = data[field];
+        const oldVal = closedDateFields.has(field) ? normClosedDate(oldRaw) : String(oldRaw || "");
+        const newVal = closedDateFields.has(field) ? normClosedDate(newRaw) : String(newRaw || "");
+        if (newRaw !== undefined && oldVal !== newVal) {
           const activityUserId = (field === "status" && String(newVal) === "Done") ? (closedCreditId || req.session.userId!) : req.session.userId!;
           await storage.createClosedActivity({
             closedId: id,
