@@ -737,7 +737,7 @@ export default function PostingPage() {
                     </h3>
                     {currentPosting?.notes && (
                       <div className="space-y-2 max-h-48 overflow-y-auto" data-testid="posting-notes-display">
-                        {currentPosting.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse().map((block: string, idx: number) => {
+                        {currentPosting.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).sort((a: string, b: string) => { const getTs = (s: string) => { const m = s.match(/\[.+? - (.+?)\]/); return m ? new Date(m[1]).getTime() : 0; }; return getTs(b) - getTs(a); }).map((block: string, idx: number) => {
                           const headerMatch = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
                           if (headerMatch) {
                             return (

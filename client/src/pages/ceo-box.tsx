@@ -456,7 +456,7 @@ export default function CeoBoxPage() {
                 </h3>
                 {currentRecord?.notes && (
                   <div className="space-y-2" data-testid="ceo-notes-display">
-                    {currentRecord.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse().map((block, idx) => {
+                    {currentRecord.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).sort((a, b) => { const getTs = (s: string) => { const m = s.match(/\[.+? - (.+?)\]/); return m ? new Date(m[1]).getTime() : 0; }; return getTs(b) - getTs(a); }).map((block, idx) => {
                       const m = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
                       if (m) {
                         const ts = new Date(m[2]);

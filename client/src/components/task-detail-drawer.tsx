@@ -500,7 +500,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
               </h3>
               {task.notes && (
                 <div className="space-y-2 max-h-48 overflow-y-auto" data-testid="notes-display">
-                  {task.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse().map((block, idx) => {
+                  {task.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).sort((a, b) => { const getTs = (s: string) => { const m = s.match(/\[.+? - (.+?)\]/); return m ? new Date(m[1]).getTime() : 0; }; return getTs(b) - getTs(a); }).map((block, idx) => {
                     const headerMatch = block.match(/^\[(.+?) - (.+?)\]\n?([\s\S]*)$/);
                     if (headerMatch) {
                       return (

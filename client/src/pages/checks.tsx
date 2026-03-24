@@ -381,7 +381,7 @@ export default function ChecksPage() {
 
   const currentEditCheck = editingId ? (checksList || []).find(d => d.id === editingId) : null;
   const notesList = currentEditCheck?.notes
-    ? currentEditCheck.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).reverse()
+    ? currentEditCheck.notes.split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/).filter(Boolean).sort((a: string, b: string) => { const getTs = (s: string) => { const m = s.match(/\[.+? - (.+?)\]/); return m ? new Date(m[1]).getTime() : 0; }; return getTs(b) - getTs(a); })
     : [];
 
   if (isLoading) {

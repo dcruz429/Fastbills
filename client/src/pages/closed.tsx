@@ -1233,7 +1233,7 @@ export default function ClosedPage() {
                   const blocks = editingRecord.notes
                     .split(/(?=\[.+? - \d{4}-\d{2}-\d{2}T)/)
                     .filter(Boolean)
-                    .reverse();
+                    .sort((a: string, b: string) => { const getTs = (s: string) => { const m = s.match(/\[.+? - (.+?)\]/); return m ? new Date(m[1]).getTime() : 0; }; return getTs(b) - getTs(a); });
                   if (blocks.length === 0) return null;
                   return (
                     <div className="pb-4">
