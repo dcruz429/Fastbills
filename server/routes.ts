@@ -645,7 +645,7 @@ export async function registerRoutes(
         }).from(taskActivity)
           .leftJoin(tasks, eq(taskActivity.taskId, tasks.id))
           .leftJoin(users, eq(users.id, taskActivity.userId))
-          .where(and(eq(taskActivity.field, "status"), inArray(taskActivity.newValue, ["billed", "done", "verified"])))
+          .where(and(inArray(taskActivity.field, ["status", "Status"]), inArray(taskActivity.newValue, ["billed", "done", "verified"])))
           .orderBy(desc(taskActivity.timestamp)),
 
         // Denials: credit goes to the assignee when status is set to Done
@@ -922,7 +922,7 @@ export async function registerRoutes(
             taskId: id,
             userId: activityUserId,
             action: `Updated ${friendlyField}`,
-            field: friendlyField,
+            field: field,
             oldValue: oldDisplay || null,
             newValue: newDisplay || null,
           });
