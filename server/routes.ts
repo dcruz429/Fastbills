@@ -47,25 +47,84 @@ async function handleOutcomeTransfer(
   record: { patientName?: string; clinic?: string; insurance?: string; amount?: string | null; notes?: string | null; comments?: string | null; activityHistory?: { field: string; oldValue: string | null; newValue: string | null; action: string; timestamp: Date }[]; [key: string]: any },
   userId: number
 ) {
+  // ── Core identity fields ──────────────────────────────────────────────────
   const patientName = record.patientName || "Unknown";
-  const clinic = record.clinic || null;
-  const insurance = record.insurance || null;
-  const amount = record.amount || null;
+  const clinic      = record.clinic      || null;
+  const insurance   = record.insurance   || null;
+  const amount      = record.amount      || null;
+  const assignedTo  = record.assignedTo  || null;
+
+  // Notes — denials/arbitration use "comments", everything else uses "notes"
   const existingNotes = record.notes || record.comments || null;
-  const chartNumber = record.chartNumber || null;
-  const ieDate = record.ieDate || null;
-  const doa = record.doa || null;
+
+  // ── Task-specific fields ──────────────────────────────────────────────────
+  const chartNumber    = record.chartNumber    || null;
+  const ieDate         = record.ieDate         || null;
+  const doa            = record.doa            || null;
   const resolutionDate = record.resolutionDate || null;
 
+  // ── Shared date fields ────────────────────────────────────────────────────
+  const dosFrom = record.dosFrom || null;
+  const dosTo   = record.dosTo   || null;
+  // inputDate (Collections) ↔ dateInput (Denials/Arb) — carry whichever is present
+  const inputDate = record.inputDate || record.dateInput || null;
+  const dateInput = record.dateInput || record.inputDate || null;
+  const dateOfLetter  = record.dateOfLetter  || null;
+  const effectiveDate = record.effectiveDate || null;
+  const trialDate     = record.trialDate     || null;
+
+  // ── Denial / Arbitration fields ───────────────────────────────────────────
+  const typeOfDenial    = record.typeOfDenial    || null;
+  // numberOfVisits (Collections) ↔ numberOfDays (Denials/Arb) — carry either
+  const numberOfVisits  = record.numberOfVisits  || record.numberOfDays || null;
+  const numberOfDays    = record.numberOfDays    || record.numberOfVisits || null;
+  const filedTo         = record.filedTo         || null;
+  const arbStatus       = record.arbStatus       || null;
+  const arbPaymentStatus = record.arbPaymentStatus || null;
+  const amountReceived  = record.amountReceived  || null;
+  const checkedBy       = record.checkedBy       || null;
+  const intake          = record.intake          || null;
+  const denialFileName  = record.denialFileName  || null;
+
+  // ── Collections-specific fields ───────────────────────────────────────────
+  const division  = record.division  || null;
+  const issueType = record.issueType || null;
+  const action    = record.action    || null;
+  const priority  = record.priority  || null;
+
+  // ── Posting / Checks fields ───────────────────────────────────────────────
+  const fileNumber  = record.fileNumber  || null;
+  const documentType = record.documentType || null;
+  const scannedDate = record.scannedDate || null;
+  const postedDate  = record.postedDate  || null;
+  const depositDate = record.depositDate || null;
+  const depositedBy = record.depositedBy || null;
+  const checkDate   = record.checkDate   || null;
+  const checkNumber = record.checkNumber || null;
+  const fileName    = record.fileName    || null;
+  const checkType   = record.type        || null;
+
+  // ── Closed-specific fields ────────────────────────────────────────────────
+  const reason       = record.reason       || null;
+  const regularVisit = record.regularVisit ?? null;
+  const fullVisit    = record.fullVisit    ?? null;
+  const reportedDate = record.reportedDate || null;
+
+  // ── Notes with transfer header ────────────────────────────────────────────
   const transferHeader = `[Transferred from ${source} - ${new Date().toISOString()}]`;
   const combinedNotes = existingNotes
     ? `${transferHeader}\nTransferred from ${source}\n\n${existingNotes}`
     : `${transferHeader}\nTransferred from ${source}`;
 
-  const allClinics = await storage.getAllClinics();
+  // ── Lookups ───────────────────────────────────────────────────────────────
+  const allClinics    = await storage.getAllClinics();
   const allInsurances = await storage.getAllInsurances();
-  const clinicId = clinic ? (allClinics.find(c => c.name === clinic)?.id ?? null) : null;
-  const insuranceId = insurance ? (allInsurances.find(i => i.name === insurance)?.id ?? null) : null;
+  const allUsers      = await storage.getAllUsers();
+  const clinicId    = clinic    ? (allClinics.find(c => c.name === clinic)?.id ?? null)        : null;
+  const insuranceId = insurance ? (allInsurances.find(i => i.name === insurance)?.id ?? null)  : null;
+  const assignedUserId = assignedTo
+    ? (allUsers.find(u => u.fullName.trim().toLowerCase() === assignedTo.trim().toLowerCase())?.id ?? null)
+    : null;
 
   let newRecordId: number | null = null;
   let targetType: string | null = null;
@@ -80,6 +139,7 @@ async function handleOutcomeTransfer(
         ieDate,
         doa,
         resolutionDate,
+        assignedUserId,
         priority: "low",
         status: "unassigned",
         bucket: "for_verification",
@@ -99,6 +159,7 @@ async function handleOutcomeTransfer(
         ieDate,
         doa,
         resolutionDate,
+        assignedUserId,
         priority: "low",
         status: "unassigned",
         bucket: "ready_for_billing",
@@ -114,8 +175,14 @@ async function handleOutcomeTransfer(
         patientName,
         clinic,
         insurance,
-        status: "Unassigned",
         amount,
+        assignedTo,
+        fileNumber,
+        documentType,
+        scannedDate,
+        postedDate,
+        depositDate,
+        status: "Unassigned",
         notes: combinedNotes,
       });
       newRecordId = posting.id;
@@ -127,8 +194,18 @@ async function handleOutcomeTransfer(
         patientName,
         clinic,
         insurance,
-        status: "Unassigned",
         amount,
+        assignedTo,
+        dosFrom,
+        dosTo,
+        inputDate,
+        typeOfDenial,
+        numberOfVisits,
+        division,
+        issueType,
+        action,
+        priority,
+        status: "Unassigned",
         notes: combinedNotes,
       });
       newRecordId = collection.id;
@@ -140,8 +217,25 @@ async function handleOutcomeTransfer(
         patientName,
         clinic,
         insurance,
-        status: "Unassigned",
         amount,
+        assignedTo,
+        dosFrom,
+        dosTo,
+        doa,
+        dateInput,
+        dateOfLetter,
+        effectiveDate,
+        trialDate,
+        typeOfDenial,
+        numberOfDays,
+        filedTo,
+        arbStatus,
+        arbPaymentStatus,
+        amountReceived,
+        checkedBy,
+        intake,
+        denialFileName,
+        status: "Unassigned",
         comments: combinedNotes,
       });
       newRecordId = denial.id;
@@ -153,8 +247,24 @@ async function handleOutcomeTransfer(
         patientName,
         clinic,
         insurance,
-        status: "Unassigned",
         amount,
+        assignedTo,
+        dosFrom,
+        dosTo,
+        doa,
+        dateInput,
+        dateOfLetter,
+        effectiveDate,
+        trialDate,
+        typeOfDenial,
+        numberOfDays,
+        filedTo,
+        arbStatus,
+        arbPaymentStatus,
+        amountReceived,
+        checkedBy,
+        intake,
+        status: "Unassigned",
         comments: combinedNotes,
       });
       newRecordId = arb.id;
@@ -168,10 +278,20 @@ async function handleOutcomeTransfer(
         patientName,
         clinic,
         insurance,
-        status: "Unassigned",
         amount,
+        assignedTo,
+        dosFrom,
+        dosTo,
+        numberOfVisits,
+        priority,
+        action,
+        reason,
+        regularVisit,
+        fullVisit,
+        reportedDate,
         source,
         sourceId: record.id ?? null,
+        status: "Unassigned",
         notes: combinedNotes,
         recordData: JSON.stringify(recordWithoutHistory),
       });
