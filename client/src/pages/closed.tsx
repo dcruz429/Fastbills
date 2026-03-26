@@ -208,6 +208,9 @@ export default function ClosedPage() {
   const [filterOutcome, setFilterOutcome] = useState("");
   const [filterClinic, setFilterClinic] = useState("");
   const [filterReason, setFilterReason] = useState("");
+  const [filterDateField, setFilterDateField] = useState("createdAt");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
@@ -478,7 +481,7 @@ export default function ClosedPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const activeFilterCount = [filterStatus, filterSource, filterAssignedTo, filterOutcome, filterClinic, filterReason]
+  const activeFilterCount = [filterStatus, filterSource, filterAssignedTo, filterOutcome, filterClinic, filterReason, filterDateFrom, filterDateTo]
     .filter(v => v && v !== "__all__").length;
 
   function clearFilters() {
@@ -488,6 +491,8 @@ export default function ClosedPage() {
     setFilterOutcome("");
     setFilterClinic("");
     setFilterReason("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
   }
 
   const SOURCE_SECTIONS = [
@@ -527,8 +532,15 @@ export default function ClosedPage() {
       if (clinicVal !== filterClinic.toLowerCase().trim()) return false;
     }
     if (filterReason && filterReason !== "__all__" && (d.reason || "") !== filterReason) return false;
+    if (filterDateFrom || filterDateTo) {
+      const fieldVal = (d as any)[filterDateField];
+      if (!fieldVal) return false;
+      const dateStr = new Date(fieldVal).toISOString().split("T")[0];
+      if (filterDateFrom && dateStr < filterDateFrom) return false;
+      if (filterDateTo && dateStr > filterDateTo) return false;
+    }
     return true;
-  }), [closedList, searchQuery, filterStatus, filterSource, filterAssignedTo, filterOutcome, filterClinic, filterReason, clinicByIdMap]);
+  }), [closedList, searchQuery, filterStatus, filterSource, filterAssignedTo, filterOutcome, filterClinic, filterReason, filterDateField, filterDateFrom, filterDateTo, clinicByIdMap]);
 
   const filtered = useMemo(() => [...filteredUnsorted].sort((a, b) => {
     if (!sortCol || !sortDir) return 0;
@@ -673,6 +685,15 @@ export default function ClosedPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterDateField} onValueChange={setFilterDateField}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-date-field"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="createdAt">Date Added</SelectItem>
+            <SelectItem value="dateExported">Date Exported</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-from" />
+        <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-to" />
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
             <X className="h-3 w-3 mr-1" /> Clear

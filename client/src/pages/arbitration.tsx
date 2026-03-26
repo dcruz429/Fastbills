@@ -97,6 +97,9 @@ export default function ArbitrationPage() {
   });
   const [filterStatus, setFilterStatus] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [filterDateField, setFilterDateField] = useState("dateInput");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [mainOpen, setMainOpen] = useState(true);
   const [doneOpen, setDoneOpen] = useState(false);
   const [doneSortCol, setDoneSortCol] = useState<string>("");
@@ -301,7 +304,7 @@ export default function ArbitrationPage() {
 
   const isAdminOrManager = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "payment_specialist" || user?.role === "case_manager";
 
-  const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo, filterStatus, filterOutcome].filter(f => f && f !== "__all__").length;
+  const activeFilterCount = [filterClinic, filterInsurance, filterTypeOfDenial, filterFiledTo, filterArbStatus, filterArbPaymentStatus, filterAssignedTo, filterStatus, filterOutcome, filterDateFrom, filterDateTo].filter(f => f && f !== "__all__").length;
 
   function clearFilters() {
     setFilterClinic("");
@@ -313,6 +316,8 @@ export default function ArbitrationPage() {
     setFilterAssignedTo("");
     setFilterStatus("");
     setFilterOutcome("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
   }
 
   const filtered = (arbitrations || []).filter(d => {
@@ -326,6 +331,13 @@ export default function ArbitrationPage() {
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
     if (filterStatus && filterStatus !== "__all__" && (d as any).status !== filterStatus) return false;
     if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
+    if (filterDateFrom || filterDateTo) {
+      const fieldVal = (d as any)[filterDateField];
+      if (!fieldVal) return false;
+      const dateStr = new Date(fieldVal).toISOString().split("T")[0];
+      if (filterDateFrom && dateStr < filterDateFrom) return false;
+      if (filterDateTo && dateStr > filterDateTo) return false;
+    }
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -481,6 +493,20 @@ export default function ArbitrationPage() {
             {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={filterDateField} onValueChange={setFilterDateField}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-date-field"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="dateInput">Input Date</SelectItem>
+            <SelectItem value="doa">Date of Accident</SelectItem>
+            <SelectItem value="dateOfLetter">Date of Letter</SelectItem>
+            <SelectItem value="effectiveDate">Effective Date</SelectItem>
+            <SelectItem value="dosFrom">DOS From</SelectItem>
+            <SelectItem value="dosTo">DOS To</SelectItem>
+            <SelectItem value="trialDate">Trial Date</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-from" />
+        <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-to" />
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
             <X className="h-3 w-3 mr-1" /> Clear

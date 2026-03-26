@@ -121,6 +121,9 @@ export default function CollectionsPage() {
   });
   const [filterPriority, setFilterPriority] = useState("");
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [filterDateField, setFilterDateField] = useState("inputDate");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [mainOpen, setMainOpen] = useState(true);
   const [doneOpen, setDoneOpen] = useState(false);
   const [doneSortCol, setDoneSortCol] = useState<string>("");
@@ -409,7 +412,7 @@ export default function CollectionsPage() {
     }
   };
 
-  const activeFilterCount = [filterClinic, filterDivision, filterInsurance, filterIssueType, filterStatus, filterAssignedTo, filterPriority, filterOutcome].filter(v => v && v !== "__all__").length;
+  const activeFilterCount = [filterClinic, filterDivision, filterInsurance, filterIssueType, filterStatus, filterAssignedTo, filterPriority, filterOutcome, filterDateFrom, filterDateTo].filter(v => v && v !== "__all__").length;
 
   const clearAllFilters = () => {
     setFilterClinic("");
@@ -420,6 +423,8 @@ export default function CollectionsPage() {
     setFilterAssignedTo("");
     setFilterPriority("");
     setFilterOutcome("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
   };
 
   const filteredUnsorted = useMemo(() => {
@@ -443,9 +448,16 @@ export default function CollectionsPage() {
         const rowPriority = computePriority(d.inputDate);
         if (rowPriority !== filterPriority) return false;
       }
+      if (filterDateFrom || filterDateTo) {
+        const fieldVal = (d as any)[filterDateField];
+        if (!fieldVal) return false;
+        const dateStr = new Date(fieldVal).toISOString().split("T")[0];
+        if (filterDateFrom && dateStr < filterDateFrom) return false;
+        if (filterDateTo && dateStr > filterDateTo) return false;
+      }
       return true;
     });
-  }, [dataList, searchQuery, filterClinic, filterDivision, filterInsurance, filterIssueType, filterStatus, filterAssignedTo, filterOutcome, filterPriority]);
+  }, [dataList, searchQuery, filterClinic, filterDivision, filterInsurance, filterIssueType, filterStatus, filterAssignedTo, filterOutcome, filterPriority, filterDateField, filterDateFrom, filterDateTo]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -656,6 +668,16 @@ export default function CollectionsPage() {
             {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={filterDateField} onValueChange={setFilterDateField}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-date-field"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="inputDate">Input Date</SelectItem>
+            <SelectItem value="dosFrom">DOS From</SelectItem>
+            <SelectItem value="dosTo">DOS To</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-from" />
+        <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-to" />
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" onClick={clearAllFilters} data-testid="button-clear-filters" className="text-xs">
             <X className="h-3 w-3 mr-1" /> Clear

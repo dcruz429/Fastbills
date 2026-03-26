@@ -82,6 +82,9 @@ export default function PostingPage() {
     return params.get("assignedToName") || "";
   });
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [filterDateField, setFilterDateField] = useState("scannedDate");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [mainOpen, setMainOpen] = useState(true);
   const [doneOpen, setDoneOpen] = useState(false);
   const [doneSortCol, setDoneSortCol] = useState<string>("");
@@ -258,7 +261,7 @@ export default function PostingPage() {
     return <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
-  const activeFilterCount = [filterClinic, filterDocumentType, filterStatus, filterPriority, filterAssignedTo, filterOutcome]
+  const activeFilterCount = [filterClinic, filterDocumentType, filterStatus, filterPriority, filterAssignedTo, filterOutcome, filterDateFrom, filterDateTo]
     .filter(v => v && v !== "__all__").length;
 
   function clearFilters() {
@@ -268,6 +271,8 @@ export default function PostingPage() {
     setFilterPriority("");
     setFilterAssignedTo("");
     setFilterOutcome("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
   }
 
   const canSeePaymentDocs = user.role === "admin" || user.role === "payment_specialist" || user.role === "account_manager";
@@ -281,6 +286,13 @@ export default function PostingPage() {
     if (filterPriority && filterPriority !== "__all__" && d.priority !== filterPriority) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
     if (filterOutcome && filterOutcome !== "__all__" && (d.outcome || "") !== filterOutcome) return false;
+    if (filterDateFrom || filterDateTo) {
+      const fieldVal = (d as any)[filterDateField];
+      if (!fieldVal) return false;
+      const dateStr = new Date(fieldVal).toISOString().split("T")[0];
+      if (filterDateFrom && dateStr < filterDateFrom) return false;
+      if (filterDateTo && dateStr > filterDateTo) return false;
+    }
     return true;
   });
 
@@ -412,6 +424,16 @@ export default function PostingPage() {
             {OUTCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={filterDateField} onValueChange={setFilterDateField}>
+          <SelectTrigger className="w-[140px]" data-testid="filter-date-field"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="scannedDate">Scanned Date</SelectItem>
+            <SelectItem value="postedDate">Posted Date</SelectItem>
+            <SelectItem value="depositDate">Deposit Date</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-from" />
+        <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-to" />
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters} data-testid="button-clear-filters">
             <X className="h-3 w-3 mr-1" /> Clear
