@@ -101,6 +101,9 @@ export default function VerificationPage() {
   });
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [filterEscalated, setFilterEscalated] = useState(false);
+  const [filterDateField, setFilterDateField] = useState("inputDate");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [sortField, setSortField] = useState<SortField | null>("patientName");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [doneSortCol, setDoneSortCol] = useState<SortField | null>("patientName");
@@ -176,6 +179,13 @@ export default function VerificationPage() {
       if (!t.dueDate) return false;
       const diff = (now.getTime() - new Date(t.dueDate).getTime()) / (1000 * 60 * 60 * 24);
       if (diff < 3) return false;
+    }
+    if (filterDateFrom || filterDateTo) {
+      const fieldVal = (t as any)[filterDateField];
+      if (!fieldVal) return false;
+      const dateStr = new Date(fieldVal).toISOString().split("T")[0];
+      if (filterDateFrom && dateStr < filterDateFrom) return false;
+      if (filterDateTo && dateStr > filterDateTo) return false;
     }
     return true;
   });
@@ -318,7 +328,18 @@ export default function VerificationPage() {
             ))}
           </SelectContent>
         </Select>
-        {(filterOverdue || filterEscalated || filterAssignedTo !== "all" || filterStatus !== "all" || filterPriority !== "all" || filterClinic !== "all") && (
+        <Select value={filterDateField} onValueChange={setFilterDateField}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-date-field"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="inputDate">Input Date</SelectItem>
+            <SelectItem value="ieDate">IE Date</SelectItem>
+            <SelectItem value="dueDate">Due Date</SelectItem>
+            <SelectItem value="doa">DOA</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-from" />
+        <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-[140px] h-10" data-testid="filter-date-to" />
+        {(filterOverdue || filterEscalated || filterAssignedTo !== "all" || filterStatus !== "all" || filterPriority !== "all" || filterClinic !== "all" || filterDateFrom || filterDateTo) && (
           <Button
             variant="ghost"
             size="sm"
@@ -329,6 +350,8 @@ export default function VerificationPage() {
               setFilterPriority("all");
               setFilterClinic("all");
               setFilterAssignedTo("all");
+              setFilterDateFrom("");
+              setFilterDateTo("");
               window.history.replaceState({}, "", "/verification");
             }}
             className="text-xs"
