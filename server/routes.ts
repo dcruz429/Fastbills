@@ -2588,9 +2588,6 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const existing = await storage.getCheck(id);
       if (!existing) return res.status(404).json({ message: "Check not found" });
-      if (user.role === "payment_specialist" && existing.assignedTo !== user.fullName) {
-        return res.status(403).json({ message: "You can only edit checks assigned to you" });
-      }
       const data: any = { ...req.body };
       const dateFields = ["checkDate", "inputDate", "scannedDate", "postedDate", "depositDate"];
       for (const f of dateFields) {
@@ -2648,9 +2645,6 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user || !CHECKS_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
-      }
-      if (user.role === "payment_specialist" && existing.assignedTo !== user.fullName) {
-        return res.status(403).json({ message: "You can only add notes to checks assigned to you" });
       }
       const existingNotes = existing.notes || "";
       const timestamp = new Date().toISOString();
