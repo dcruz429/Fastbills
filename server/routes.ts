@@ -464,11 +464,11 @@ export async function registerRoutes(
     res.json(allUsers.map(({ password: _, ...u }) => u));
   });
 
-  const USER_MGMT_IDS: number[] = [9];
+  const USER_MGMT_ROLES = ["admin", "manager", "account_manager", "case_manager"];
   app.post("/api/users", requireAuth, async (req, res) => {
     try {
       const requestingUser = await storage.getUser(req.session.userId!);
-      if (!requestingUser || (!["admin", "manager"].includes(requestingUser.role) && !USER_MGMT_IDS.includes(requestingUser.id))) {
+      if (!requestingUser || !USER_MGMT_ROLES.includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       const { username, password, fullName, role } = req.body;
@@ -491,7 +491,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id", requireAuth, async (req, res) => {
     try {
       const requestingUser = await storage.getUser(req.session.userId!);
-      if (!requestingUser || (!["admin", "manager"].includes(requestingUser.role) && !USER_MGMT_IDS.includes(requestingUser.id))) {
+      if (!requestingUser || !USER_MGMT_ROLES.includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       const id = parseInt(req.params.id);
@@ -517,7 +517,7 @@ export async function registerRoutes(
   app.delete("/api/users/:id", requireAuth, async (req, res) => {
     try {
       const requestingUser = await storage.getUser(req.session.userId!);
-      if (!requestingUser || (!["admin", "manager"].includes(requestingUser.role) && !USER_MGMT_IDS.includes(requestingUser.id))) {
+      if (!requestingUser || !USER_MGMT_ROLES.includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       const id = parseInt(req.params.id);

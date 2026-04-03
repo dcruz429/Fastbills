@@ -793,8 +793,7 @@ export default function SettingsPage() {
   if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
     return <Redirect to="/" />;
   }
-  const USER_MGMT_IDS = [9];
-  const showUsers = user.role === "admin" || user.role === "manager" || USER_MGMT_IDS.includes(user.id);
+  const showUsers = ["admin", "manager", "account_manager", "case_manager"].includes(user.role);
   const isAdmin = user.role === "admin";
 
   return (
