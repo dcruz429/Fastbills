@@ -187,11 +187,17 @@ export default function PostingPage() {
   });
 
   const CSV_COLUMN_MAP: Record<string, string> = {
-    "patient name": "patientName", "patient": "patientName",
-    "last name": "lastName", "first name": "firstName",
+    "patient name": "patientName", "patient": "patientName", "patientname": "patientName",
+    "name": "patientName", "full name": "patientName", "fullname": "patientName",
+    "pt name": "patientName", "pt": "patientName", "patient full name": "patientName",
+    "last name": "lastName", "lastname": "lastName", "last": "lastName",
+    "first name": "firstName", "firstname": "firstName", "first": "firstName",
     "file number": "fileNumber", "file #": "fileNumber", "file no": "fileNumber",
+    "filenumber": "fileNumber", "file": "fileNumber", "file num": "fileNumber",
     "clinic": "clinic", "document type": "documentType", "doc type": "documentType",
-    "priority": "priority", "assigned to": "assignedTo", "status": "status",
+    "doctype": "documentType", "type": "documentType",
+    "priority": "priority", "assigned to": "assignedTo", "assignedto": "assignedTo",
+    "assigned": "assignedTo", "status": "status",
     "amount": "amount", "insurance": "insurance", "outcome": "outcome",
   };
 
