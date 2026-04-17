@@ -1544,10 +1544,10 @@ export async function registerRoutes(
       for (let i = 0; i < rows.length; i++) {
         try {
           const data: any = { ...rows[i] };
-          if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
+          if (!data.patientName?.trim() && !data.fileNumber?.trim()) { results.errors.push(`Row ${i + 1}: File # or Patient Name required`); continue; }
           for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
           if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
-          const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.fileNumber || "").toLowerCase() === (data.fileNumber || "").toLowerCase());
+          const match = existing.find(r => (r.patientName || "").toLowerCase().trim() === (data.patientName || "").toLowerCase().trim() && (r.fileNumber || "").toLowerCase() === (data.fileNumber || "").toLowerCase());
           if (match) {
             await storage.updatePosting(match.id, data);
             await storage.createPostingActivity({ postingId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });

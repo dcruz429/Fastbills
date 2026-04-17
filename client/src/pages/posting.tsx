@@ -205,10 +205,10 @@ export default function PostingPage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const rows = parseCsvText(text, CSV_COLUMN_MAP);
+      const rows = parseCsvText(text, CSV_COLUMN_MAP, { requirePatientName: false });
       setCsvPreview(rows);
       setCsvFileName(file.name);
-      if (rows.length === 0) toast({ title: "No valid rows found", description: "CSV must have a 'Patient Name' column", variant: "destructive" });
+      if (rows.length === 0) toast({ title: "No valid rows found", description: "CSV appears to be empty", variant: "destructive" });
     };
     reader.readAsText(file);
   }
