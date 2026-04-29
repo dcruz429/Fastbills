@@ -238,16 +238,7 @@ export default function DashboardPage() {
   const todayActivities = (productivity || []).filter(a => new Date(a.timestamp) >= today).length;
 
   const taskStatusCounts = getStatusCounts(allTasks.filter(t => t.bucket === "for_verification"), "status");
-  const readyForBillingTasks = allTasks.filter(t => t.bucket === "ready_for_billing");
-  const doneBucketTasks = allTasks.filter(t => t.bucket === "done");
-  const readyCounts = getStatusCounts(readyForBillingTasks, "status");
-  const doneBucketValid = doneBucketTasks.filter(t => normalizeStatus(t.status) !== null).length;
-  const billingStatusCounts = {
-    unassigned: readyCounts.unassigned,
-    assigned: readyCounts.assigned,
-    working: readyCounts.working,
-    done: readyCounts.done + doneBucketValid,
-  };
+  const billingStatusCounts = getStatusCounts(billingTasks, "status");
 
   function getDenialStatus(d: any) { return d.denialStatus || d.denial_status || d.status || "unassigned"; }
   function getArbStatus(a: any) { return a.arbitrationStatus || a.arbitration_status || a.status || "unassigned"; }
@@ -259,6 +250,7 @@ export default function DashboardPage() {
   const arbStatusCounts = getStatusCounts(allArbitrations.map(a => ({ s: getArbStatus(a) })), "s");
   const postingStatusCounts = getStatusCounts(allPostings.map(p => ({ s: getPostingStatus(p) })), "s");
   const checkStatusCounts = getStatusCounts(allChecks.map(c => ({ s: getCheckStatus(c) })), "s");
+  const rtpRecords = allClosed.filter((c: any) => c.source === "Verification/Billing");
 
   const trackerSummary = [
     { name: "Verification", count: verificationTasks.length, color: "hsl(25 90% 48%)" },
@@ -268,7 +260,7 @@ export default function DashboardPage() {
     { name: "Arbitration", count: allArbitrations.length, color: "hsl(140 60% 40%)" },
     { name: "Posting", count: allPostings.length, color: "hsl(270 60% 55%)" },
     ...(canSeeChecks ? [{ name: "Checks", count: allChecks.length, color: "hsl(175 60% 40%)" }] : []),
-    { name: "RTP", count: allClosed.length, color: "hsl(0 0% 50%)" },
+    { name: "RTP", count: rtpRecords.length, color: "hsl(0 0% 50%)" },
   ].filter(t => t.count > 0);
 
   const clinicGroups: Record<string, number> = {};
@@ -346,7 +338,7 @@ export default function DashboardPage() {
         <StatCard label="Active Records" value={totalActiveRecords} icon={ClipboardList} color="text-primary" bgColor="bg-primary/10" testId="stat-active-records" onClick={() => navigate("/")} />
         <StatCard label="Unassigned" value={totalUnassigned} icon={UserX} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-unassigned" onClick={() => navigate("/workload")} />
         <StatCard label="Today's Actions" value={todayActivities} icon={Activity} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-100 dark:bg-emerald-900/20" testId="stat-today-actions" onClick={() => navigate("/productivity")} />
-        <StatCard label="RTP" value={allClosed.length} icon={Archive} color="text-gray-600 dark:text-gray-400" bgColor="bg-gray-100 dark:bg-gray-900/20" testId="stat-closed" onClick={() => navigate("/closed")} />
+        <StatCard label="RTP" value={rtpRecords.length} icon={Archive} color="text-gray-600 dark:text-gray-400" bgColor="bg-gray-100 dark:bg-gray-900/20" testId="stat-closed" onClick={() => navigate("/closed")} />
         <StatCard label="Overdue Tasks" value={overdueTasks} icon={AlertTriangle} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-overdue" subtitle="Verification & Billing" onClick={() => navigate("/verification")} />
         <StatCard label="Critical Priority" value={criticalTasks} icon={Zap} color="text-red-600 dark:text-red-400" bgColor="bg-red-100 dark:bg-red-900/20" testId="stat-critical" onClick={() => navigate("/billing-queue")} />
         <StatCard label="Escalated (3+ days)" value={escalatedTasks} icon={Flame} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-100 dark:bg-orange-900/20" testId="stat-escalated" onClick={() => navigate("/billing-queue")} />
@@ -365,7 +357,7 @@ export default function DashboardPage() {
           {canSeeChecks && (
             <TrackerCard title="Checks" icon={CheckCircle2} iconColor="text-teal-600" total={allChecks.length} statusCounts={checkStatusCounts} onClick={() => navigate("/checks")} testId="tracker-checks" />
           )}
-          <TrackerCard title="RTP" icon={Archive} iconColor="text-gray-500" total={allClosed.length} statusCounts={getStatusCounts(allClosed, "status")} onClick={() => navigate("/closed")} testId="tracker-closed" />
+          <TrackerCard title="RTP" icon={Archive} iconColor="text-gray-500" total={rtpRecords.length} statusCounts={getStatusCounts(rtpRecords, "status")} onClick={() => navigate("/closed")} testId="tracker-closed" />
         </div>
       </div>
 
