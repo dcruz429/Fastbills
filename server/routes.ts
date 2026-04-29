@@ -3208,5 +3208,48 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/backfill-assigned-status", requireAuth, async (req, res) => {
+    try {
+      const requestingUser = await storage.getUser(req.session.userId!);
+      if (!requestingUser || requestingUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin only" });
+      }
+
+      const { sql } = await import("drizzle-orm");
+      const result: Record<string, number> = {};
+
+      const tables = [
+        { name: "denials", statusCol: "denial_status" },
+        { name: "arbitrations", statusCol: "arbitration_status" },
+        { name: "collections", statusCol: "collection_status" },
+        { name: "postings", statusCol: "posting_status" },
+        { name: "checks", statusCol: "check_status" },
+        { name: "closed", statusCol: "closed_status" },
+      ];
+
+      for (const t of tables) {
+        const r: any = await db.execute(sql.raw(`
+          UPDATE ${t.name}
+          SET ${t.statusCol} = 'Assigned'
+          WHERE assigned_to IS NOT NULL
+            AND TRIM(assigned_to) <> ''
+            AND (${t.statusCol} IS NULL OR TRIM(${t.statusCol}) = '' OR LOWER(TRIM(${t.statusCol})) = 'unassigned')
+        `));
+        result[t.name] = r.rowCount ?? 0;
+      }
+
+      const taskRes: any = await db.execute(sql.raw(`
+        UPDATE tasks SET status = 'assigned'
+        WHERE assigned_user_id IS NOT NULL AND status = 'unassigned'
+      `));
+      result["tasks"] = taskRes.rowCount ?? 0;
+
+      const total = Object.values(result).reduce((a, b) => a + b, 0);
+      res.json({ ok: true, total, byTable: result });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   return httpServer;
 }
