@@ -143,19 +143,21 @@ function TrackerCard({ title, icon: Icon, iconColor, total, statusCounts, onClic
   );
 }
 
-function normalizeStatus(status: string | null | undefined): string {
-  if (!status) return "unassigned";
+function normalizeStatus(status: string | null | undefined): string | null {
+  if (status === null || status === undefined || status === "") return "unassigned";
   const s = status.toLowerCase().replace(/\s+/g, "_");
   if (s === "done" || s === "verified" || s === "billed") return "done";
   if (s === "working_on_it") return "working";
   if (s === "assigned") return "assigned";
-  return "unassigned";
+  if (s === "unassigned") return "unassigned";
+  return null;
 }
 
 function getStatusCounts(items: any[], statusField: string) {
   const counts = { unassigned: 0, assigned: 0, working: 0, done: 0 };
   items.forEach(item => {
     const key = normalizeStatus(item[statusField]);
+    if (key === null) return;
     counts[key as keyof typeof counts]++;
   });
   return counts;
@@ -206,8 +208,8 @@ export default function DashboardPage() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const verificationTasks = allTasks.filter(t => t.bucket === "for_verification");
-  const billingTasks = allTasks.filter(t => t.bucket === "ready_for_billing" || t.bucket === "done");
+  const verificationTasks = allTasks.filter(t => t.bucket === "for_verification" && normalizeStatus(t.status) !== null);
+  const billingTasks = allTasks.filter(t => (t.bucket === "ready_for_billing" || t.bucket === "done") && normalizeStatus(t.status) !== null);
 
   const totalActiveRecords =
     verificationTasks.filter(t => t.bucket !== "done").length +
@@ -236,7 +238,16 @@ export default function DashboardPage() {
   const todayActivities = (productivity || []).filter(a => new Date(a.timestamp) >= today).length;
 
   const taskStatusCounts = getStatusCounts(allTasks.filter(t => t.bucket === "for_verification"), "status");
-  const billingStatusCounts = getStatusCounts(allTasks.filter(t => t.bucket === "ready_for_billing" || t.bucket === "done"), "status");
+  const readyForBillingTasks = allTasks.filter(t => t.bucket === "ready_for_billing");
+  const doneBucketTasks = allTasks.filter(t => t.bucket === "done");
+  const readyCounts = getStatusCounts(readyForBillingTasks, "status");
+  const doneBucketValid = doneBucketTasks.filter(t => normalizeStatus(t.status) !== null).length;
+  const billingStatusCounts = {
+    unassigned: readyCounts.unassigned,
+    assigned: readyCounts.assigned,
+    working: readyCounts.working,
+    done: readyCounts.done + doneBucketValid,
+  };
 
   function getDenialStatus(d: any) { return d.denialStatus || d.denial_status || d.status || "unassigned"; }
   function getArbStatus(a: any) { return a.arbitrationStatus || a.arbitration_status || a.status || "unassigned"; }
