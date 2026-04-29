@@ -731,6 +731,7 @@ function DropdownSettings() {
 function MaintenanceSettings() {
   const { toast } = useToast();
   const [recoverResult, setRecoverResult] = useState<{ recovered: number; details: string[] } | null>(null);
+  const [backfillResult, setBackfillResult] = useState<{ total: number; byTable: Record<string, number> } | null>(null);
 
   const recoverMutation = useMutation({
     mutationFn: async () => {
@@ -746,6 +747,25 @@ function MaintenanceSettings() {
         toast({ title: `Recovered notes for ${data.recovered} record${data.recovered !== 1 ? "s" : ""}` });
       } else {
         toast({ title: "No records needed recovery", description: "All transferred records already have their notes intact." });
+      }
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const backfillMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/backfill-assigned-status");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setBackfillResult(data);
+      if (data.total > 0) {
+        for (const key of ["/api/tasks", "/api/postings", "/api/collections", "/api/denials", "/api/arbitrations", "/api/checks", "/api/closed"]) {
+          queryClient.invalidateQueries({ queryKey: [key] });
+        }
+        toast({ title: `Updated ${data.total} record${data.total !== 1 ? "s" : ""} to "Assigned" status` });
+      } else {
+        toast({ title: "Nothing to fix", description: "All assigned records already have a proper status." });
       }
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -780,6 +800,38 @@ function MaintenanceSettings() {
             ))}
             {recoverResult.recovered === 0 && (
               <p className="text-muted-foreground">Nothing to recover — all affected postings already have notes.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="border rounded-md p-4 space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-blue-600" />
+            Backfill Status for Assigned Records
+          </h4>
+          <p className="text-xs text-muted-foreground mt-1">
+            Scans all trackers (Verification/Billing, Denials, Arbitration, Collections, Posting, Checks, Closed) for records that have an Assigned To value but a blank or "Unassigned" status, and sets their status to "Assigned". Safe to run multiple times.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => backfillMutation.mutate()}
+          disabled={backfillMutation.isPending}
+          data-testid="button-backfill-assigned-status"
+        >
+          {backfillMutation.isPending ? "Updating..." : "Run Backfill"}
+        </Button>
+        {backfillResult && (
+          <div className="mt-2 p-3 rounded-md bg-muted/50 text-xs space-y-1">
+            <p className="font-medium">{backfillResult.total} record{backfillResult.total !== 1 ? "s" : ""} updated to "Assigned"</p>
+            {Object.entries(backfillResult.byTable).map(([table, count]) => (
+              <p key={table} className="text-muted-foreground capitalize">{table}: {count}</p>
+            ))}
+            {backfillResult.total === 0 && (
+              <p className="text-muted-foreground">Nothing to fix — all assigned records already have a status.</p>
             )}
           </div>
         )}
