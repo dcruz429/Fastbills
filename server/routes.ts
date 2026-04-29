@@ -3251,5 +3251,48 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/rename-kimberly", requireAuth, async (req, res) => {
+    try {
+      const requestingUser = await storage.getUser(req.session.userId!);
+      if (!requestingUser || requestingUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin only" });
+      }
+
+      const { sql } = await import("drizzle-orm");
+      const OLD = "Kimberly";
+      const NEW = "Kimberly Noche";
+      const result: Record<string, number> = {};
+
+      const targets: { table: string; column: string }[] = [
+        { table: "denials", column: "assigned_to" },
+        { table: "denials", column: "intake" },
+        { table: "denials", column: "checked_by" },
+        { table: "arbitrations", column: "assigned_to" },
+        { table: "arbitrations", column: "intake" },
+        { table: "arbitrations", column: "checked_by" },
+        { table: "collections", column: "assigned_to" },
+        { table: "postings", column: "assigned_to" },
+        { table: "checks", column: "assigned_to" },
+        { table: "checks", column: "deposited_by" },
+        { table: "closed", column: "assigned_to" },
+      ];
+
+      for (const t of targets) {
+        const r: any = await db.execute(sql.raw(`
+          UPDATE ${t.table}
+          SET ${t.column} = '${NEW}'
+          WHERE LOWER(TRIM(${t.column})) = LOWER('${OLD}')
+        `));
+        const key = `${t.table}.${t.column}`;
+        result[key] = r.rowCount ?? 0;
+      }
+
+      const total = Object.values(result).reduce((a, b) => a + b, 0);
+      res.json({ ok: true, total, byColumn: result, from: OLD, to: NEW });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   return httpServer;
 }

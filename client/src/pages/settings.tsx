@@ -732,6 +732,7 @@ function MaintenanceSettings() {
   const { toast } = useToast();
   const [recoverResult, setRecoverResult] = useState<{ recovered: number; details: string[] } | null>(null);
   const [backfillResult, setBackfillResult] = useState<{ total: number; byTable: Record<string, number> } | null>(null);
+  const [renameResult, setRenameResult] = useState<{ total: number; byColumn: Record<string, number>; from: string; to: string } | null>(null);
 
   const recoverMutation = useMutation({
     mutationFn: async () => {
@@ -766,6 +767,25 @@ function MaintenanceSettings() {
         toast({ title: `Updated ${data.total} record${data.total !== 1 ? "s" : ""} to "Assigned" status` });
       } else {
         toast({ title: "Nothing to fix", description: "All assigned records already have a proper status." });
+      }
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/rename-kimberly");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setRenameResult(data);
+      if (data.total > 0) {
+        for (const key of ["/api/tasks", "/api/postings", "/api/collections", "/api/denials", "/api/arbitrations", "/api/checks", "/api/closed"]) {
+          queryClient.invalidateQueries({ queryKey: [key] });
+        }
+        toast({ title: `Renamed ${data.total} record${data.total !== 1 ? "s" : ""} from "${data.from}" to "${data.to}"` });
+      } else {
+        toast({ title: "Nothing to rename", description: `No records found with name exactly "${data.from}".` });
       }
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -832,6 +852,38 @@ function MaintenanceSettings() {
             ))}
             {backfillResult.total === 0 && (
               <p className="text-muted-foreground">Nothing to fix — all assigned records already have a status.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="border rounded-md p-4 space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-purple-600" />
+            Rename "Kimberly" → "Kimberly Noche"
+          </h4>
+          <p className="text-xs text-muted-foreground mt-1">
+            Updates every record across all trackers (Denials, Arbitration, Collections, Posting, Checks, Closed) where the Assigned To, Intake, Checked By, or Deposited By value is exactly "Kimberly", changing it to "Kimberly Noche". Safe to run multiple times.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => renameMutation.mutate()}
+          disabled={renameMutation.isPending}
+          data-testid="button-rename-kimberly"
+        >
+          {renameMutation.isPending ? "Renaming..." : "Run Rename"}
+        </Button>
+        {renameResult && (
+          <div className="mt-2 p-3 rounded-md bg-muted/50 text-xs space-y-1">
+            <p className="font-medium">{renameResult.total} record{renameResult.total !== 1 ? "s" : ""} renamed from "{renameResult.from}" to "{renameResult.to}"</p>
+            {Object.entries(renameResult.byColumn).filter(([, c]) => c > 0).map(([col, count]) => (
+              <p key={col} className="text-muted-foreground">{col}: {count}</p>
+            ))}
+            {renameResult.total === 0 && (
+              <p className="text-muted-foreground">Nothing to rename — no records found with name exactly "{renameResult.from}".</p>
             )}
           </div>
         )}
