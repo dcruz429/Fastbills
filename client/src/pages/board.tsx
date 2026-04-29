@@ -296,10 +296,10 @@ export default function BoardPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="assigned">Assigned</SelectItem>
-            <SelectItem value="done">Done</SelectItem>
             <SelectItem value="unassigned">Unassigned</SelectItem>
+            <SelectItem value="assigned">Assigned</SelectItem>
             <SelectItem value="working_on_it">Working on it</SelectItem>
+            <SelectItem value="done">Done</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterPriority} onValueChange={setFilterPriority}>
