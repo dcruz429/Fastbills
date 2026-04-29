@@ -483,7 +483,7 @@ export default function ArbitrationPage() {
           <SelectTrigger className="w-[130px]" data-testid="filter-status"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Statuses</SelectItem>
-            {ARBITRATION_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {[...ARBITRATION_STATUS_OPTIONS].sort((a, b) => a.localeCompare(b)).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterOutcome || "__all__"} onValueChange={v => setFilterOutcome(v)}>
