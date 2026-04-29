@@ -121,7 +121,7 @@ function TrackerCard({ title, icon: Icon, iconColor, total, statusCounts, onClic
             <div className="grid grid-cols-4 gap-1 text-[10px] text-muted-foreground">
               <div className="text-center">
                 <div className="font-semibold text-gray-500">{statusCounts.unassigned}</div>
-                <div>Open</div>
+                <div>Unassigned</div>
               </div>
               <div className="text-center">
                 <div className="font-semibold text-amber-600">{statusCounts.assigned}</div>
