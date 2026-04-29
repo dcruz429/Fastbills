@@ -94,3 +94,20 @@ export async function backfillDoneActivities() {
     console.log(`[backfill] Inserted ${totalInserted} missing Done activity record(s).`);
   }
 }
+
+/**
+ * Backfill: for every task that has ie_date but no due_date,
+ * set due_date = ie_date + 30 days.
+ * Idempotent — safe to run on every startup.
+ */
+export async function backfillDueDates() {
+  const result = await db.execute(sql.raw(`
+    UPDATE tasks
+    SET due_date = ie_date + INTERVAL '30 days'
+    WHERE due_date IS NULL AND ie_date IS NOT NULL
+  `));
+  const count = (result as any).rowCount ?? 0;
+  if (count > 0) {
+    console.log(`[backfill] Populated due_date for ${count} task(s) using IE + 30 days.`);
+  }
+}
