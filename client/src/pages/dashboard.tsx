@@ -357,7 +357,13 @@ export default function DashboardPage() {
           {canSeeChecks && (
             <TrackerCard title="Checks" icon={CheckCircle2} iconColor="text-teal-600" total={allChecks.length} statusCounts={checkStatusCounts} onClick={() => navigate("/checks")} testId="tracker-checks" />
           )}
-          <TrackerCard title="RTP" icon={Archive} iconColor="text-gray-500" total={rtpRecords.length} statusCounts={getStatusCounts(rtpRecords, "status")} onClick={() => navigate("/closed")} testId="tracker-closed" />
+          {(() => {
+            const rtpCounts = getStatusCounts(rtpRecords, "status");
+            const allClosedDone = getStatusCounts(allClosed, "status").done;
+            rtpCounts.done = allClosedDone;
+            const rtpTotal = rtpCounts.unassigned + rtpCounts.assigned + rtpCounts.working + rtpCounts.done;
+            return <TrackerCard title="RTP" icon={Archive} iconColor="text-gray-500" total={rtpTotal} statusCounts={rtpCounts} onClick={() => navigate("/closed")} testId="tracker-closed" />;
+          })()}
         </div>
       </div>
 
