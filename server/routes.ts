@@ -41,6 +41,26 @@ async function getAssigneeUserId(assignedName: string | null | undefined): Promi
   return found?.id ?? null;
 }
 
+function autoAssignStatus(data: any, existing?: any): any {
+  const newAssigned = data.assignedTo !== undefined ? data.assignedTo : existing?.assignedTo;
+  const newStatus = data.status !== undefined ? data.status : existing?.status;
+  const hasAssignee = newAssigned != null && String(newAssigned).trim() !== "";
+  const statusEmpty = !newStatus || ["", "unassigned"].includes(String(newStatus).trim().toLowerCase());
+  if (hasAssignee && statusEmpty) {
+    data.status = "Assigned";
+  }
+  return data;
+}
+
+function autoAssignTaskStatus(data: any, existing?: any): any {
+  const newAssignedId = data.assignedUserId !== undefined ? data.assignedUserId : existing?.assignedUserId;
+  const newStatus = data.status !== undefined ? data.status : existing?.status;
+  if (newAssignedId && (!newStatus || newStatus === "unassigned")) {
+    data.status = "assigned";
+  }
+  return data;
+}
+
 async function handleOutcomeTransfer(
   outcome: string,
   source: string,
@@ -1075,6 +1095,7 @@ export async function registerRoutes(
       if (data.numberOfDays !== undefined && data.numberOfDays !== null) {
         data.numberOfDays = parseInt(data.numberOfDays) || null;
       }
+      autoAssignStatus(data);
       const denial = await storage.createDenial(data);
 
       await storage.createDenialActivity({
@@ -1119,6 +1140,7 @@ export async function registerRoutes(
         }, req.session.userId!);
       }
 
+      autoAssignStatus(data, existing);
       const denialCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       const denialDateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
       const normDenialDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
@@ -1253,6 +1275,7 @@ export async function registerRoutes(
       if (data.numberOfDays !== undefined && data.numberOfDays !== null) {
         data.numberOfDays = parseInt(data.numberOfDays) || null;
       }
+      autoAssignStatus(data);
       const arb = await storage.createArbitration(data);
       await storage.createArbitrationActivity({
         arbitrationId: arb.id,
@@ -1295,6 +1318,7 @@ export async function registerRoutes(
       }
 
       const arbCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+      autoAssignStatus(data, existing);
       const arbDateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
       const normArbDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
       for (const field of [...arbTrackFields, "outcome"]) {
@@ -1378,6 +1402,7 @@ export async function registerRoutes(
       if (data.numberOfVisits !== undefined && data.numberOfVisits !== null) {
         data.numberOfVisits = parseInt(data.numberOfVisits) || null;
       }
+      autoAssignStatus(data);
       const collection = await storage.createCollection(data);
       await storage.createCollectionActivity({
         collectionId: collection.id,
@@ -1791,6 +1816,7 @@ export async function registerRoutes(
           }
         }
       }
+      autoAssignStatus(data, existing);
       const collection = await storage.updateCollection(id, data);
       if (collection && collection.outcome === "Send to RTP") await syncRTPRecord("Collections", id, collection);
       res.json(collection);
@@ -1936,6 +1962,7 @@ export async function registerRoutes(
       for (const f of dateFields) {
         if (data[f]) { data[f] = new Date(data[f]); } else { data[f] = null; }
       }
+      autoAssignStatus(data);
       const posting = await storage.createPosting(data);
       await storage.createPostingActivity({
         postingId: posting.id,
@@ -1997,6 +2024,7 @@ export async function registerRoutes(
           });
         }
       }
+      autoAssignStatus(data, existing);
       const updated = await storage.updatePosting(id, data);
       if (updated && updated.outcome === "Send to RTP") await syncRTPRecord("Posting", id, updated);
       res.json(updated);
@@ -2562,6 +2590,7 @@ export async function registerRoutes(
       for (const f of dateFields) {
         if (data[f]) { data[f] = new Date(data[f]); } else { data[f] = null; }
       }
+      autoAssignStatus(data);
       const check = await storage.createCheck(data);
       await storage.createCheckActivity({
         checkId: check.id,
@@ -2623,6 +2652,7 @@ export async function registerRoutes(
           });
         }
       }
+      autoAssignStatus(data, existing);
       const updated = await storage.updateCheck(id, data);
       if (updated && updated.outcome === "Send to RTP") await syncRTPRecord("Checks", id, updated);
       res.json(updated);
@@ -2701,6 +2731,7 @@ export async function registerRoutes(
       else if (body.fullVisit === "") body.fullVisit = null;
       if (body.numberOfVisits !== undefined && body.numberOfVisits !== "") body.numberOfVisits = parseInt(body.numberOfVisits) || null;
       else if (body.numberOfVisits === "") body.numberOfVisits = null;
+      autoAssignStatus(body);
       const record = await storage.createClosed(body);
       await storage.createClosedActivity({
         closedId: record.id,
@@ -2793,6 +2824,7 @@ export async function registerRoutes(
           });
         }
       }
+      autoAssignStatus(data, existing);
       const updated = await storage.updateClosed(id, data);
       res.json(updated);
     } catch (e: any) {
