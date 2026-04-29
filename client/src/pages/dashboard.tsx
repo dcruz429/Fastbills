@@ -144,8 +144,8 @@ function TrackerCard({ title, icon: Icon, iconColor, total, statusCounts, onClic
 }
 
 function normalizeStatus(status: string | null | undefined): string | null {
-  if (status === null || status === undefined || status === "") return "unassigned";
-  const s = status.toLowerCase().replace(/\s+/g, "_");
+  if (status === null || status === undefined || String(status).trim() === "") return null;
+  const s = String(status).toLowerCase().replace(/\s+/g, "_");
   if (s === "done" || s === "verified" || s === "billed") return "done";
   if (s === "working_on_it") return "working";
   if (s === "assigned") return "assigned";
