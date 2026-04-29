@@ -732,7 +732,7 @@ export default function ClosedPage() {
                   <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
                   <SectionIcon className="h-4 w-4" />
                   <span>{section.label}</span>
-                  <span className="text-xs font-normal opacity-70 ml-1">({sectionItems.length})</span>
+                  <span className="ml-auto text-xs font-normal opacity-70">{sectionItems.length} record{sectionItems.length !== 1 ? "s" : ""}</span>
                 </button>
                 {isOpen && (
                   <div className="bg-background">
