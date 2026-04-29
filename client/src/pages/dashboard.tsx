@@ -240,10 +240,10 @@ export default function DashboardPage() {
   const taskStatusCounts = getStatusCounts(allTasks.filter(t => t.bucket === "for_verification"), "status");
   const billingStatusCounts = getStatusCounts(billingTasks, "status");
 
-  function getDenialStatus(d: any) { return d.denialStatus || d.denial_status || d.status || "unassigned"; }
-  function getArbStatus(a: any) { return a.arbitrationStatus || a.arbitration_status || a.status || "unassigned"; }
-  function getPostingStatus(p: any) { return p.postingStatus || p.posting_status || p.status || "unassigned"; }
-  function getCheckStatus(c: any) { return c.checkStatus || c.check_status || c.status || "unassigned"; }
+  function getDenialStatus(d: any) { return d.denialStatus ?? d.denial_status ?? d.status ?? null; }
+  function getArbStatus(a: any) { return a.arbitrationStatus ?? a.arbitration_status ?? a.status ?? null; }
+  function getPostingStatus(p: any) { return p.postingStatus ?? p.posting_status ?? p.status ?? null; }
+  function getCheckStatus(c: any) { return c.checkStatus ?? c.check_status ?? c.status ?? null; }
 
   const denialStatusCounts = getStatusCounts(allDenials.map(d => ({ s: getDenialStatus(d) })), "s");
   const collectionStatusCounts = getStatusCounts(allCollections, "status");
