@@ -817,11 +817,11 @@ export class DatabaseStorage implements IStorage {
   async getDropdownOptionsByCategory(category: string): Promise<DropdownOption[]> {
     return db.select().from(dropdownOptions)
       .where(eq(dropdownOptions.category, category))
-      .orderBy(dropdownOptions.value);
+      .orderBy(dropdownOptions.sortOrder, dropdownOptions.value);
   }
 
   async getAllDropdownOptions(): Promise<DropdownOption[]> {
-    return db.select().from(dropdownOptions).orderBy(dropdownOptions.category, dropdownOptions.value);
+    return db.select().from(dropdownOptions).orderBy(dropdownOptions.category, dropdownOptions.sortOrder, dropdownOptions.value);
   }
 
   async createDropdownOption(data: InsertDropdownOption): Promise<DropdownOption> {
