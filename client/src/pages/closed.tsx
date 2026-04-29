@@ -643,7 +643,7 @@ export default function ClosedPage() {
           <SelectTrigger className="w-[130px]" data-testid="filter-closed-status"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Statuses</SelectItem>
-            {[...CLOSED_STATUS_OPTIONS].sort((a, b) => a.localeCompare(b)).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {CLOSED_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterSource || "__all__"} onValueChange={v => setFilterSource(v)}>

@@ -639,7 +639,7 @@ export default function CollectionsPage() {
           <SelectTrigger className="w-[130px]" data-testid="filter-status"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Statuses</SelectItem>
-            {[...(statusOpts || [])].sort((a, b) => a.value.localeCompare(b.value)).map(o => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
+            {(statusOpts || []).map(o => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterAssignedTo || "__all__"} onValueChange={v => setFilterAssignedTo(v)}>

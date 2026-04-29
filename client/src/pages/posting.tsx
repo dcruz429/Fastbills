@@ -404,7 +404,7 @@ export default function PostingPage() {
           <SelectTrigger className="w-[140px]" data-testid="filter-posting-status"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Statuses</SelectItem>
-            {[...POSTING_STATUS_OPTIONS].sort((a, b) => a.localeCompare(b)).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {POSTING_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterPriority || "__all__"} onValueChange={v => setFilterPriority(v)}>
