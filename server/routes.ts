@@ -2609,6 +2609,67 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/checks/bulk-update", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !CHECKS_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids, data: rawData } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "ids must be a non-empty array" });
+      }
+      const ALLOWED = new Set(["assignedTo", "clinic", "checkNumber", "amount", "checkDate", "inputDate", "insurance", "fileName", "scannedDate", "type", "status", "postedDate", "depositDate", "depositedBy", "activity"]);
+      const data: any = {};
+      for (const k of Object.keys(rawData || {})) {
+        if (ALLOWED.has(k)) data[k] = rawData[k];
+      }
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ message: "No editable fields provided" });
+      }
+      const dateFields = ["checkDate", "inputDate", "scannedDate", "postedDate", "depositDate"];
+      for (const f of dateFields) {
+        if (data[f] !== undefined) data[f] = data[f] ? new Date(data[f]) : null;
+      }
+      const checkDateFields = new Set(dateFields);
+      const normCheckDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
+
+      let updatedCount = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        const existing = await storage.getCheck(id);
+        if (!existing) continue;
+
+        const checkCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+        for (const field of Object.keys(data)) {
+          const oldRaw = (existing as any)[field];
+          const newRaw = data[field];
+          const oldVal = checkDateFields.has(field) ? normCheckDate(oldRaw) : String(oldRaw || "");
+          const newVal = checkDateFields.has(field) ? normCheckDate(newRaw) : String(newRaw || "");
+          if (newRaw !== undefined && oldVal !== newVal) {
+            const activityUserId = (field === "status" && String(newVal) === "Done") ? (checkCreditId || req.session.userId!) : req.session.userId!;
+            await storage.createCheckActivity({
+              checkId: id,
+              userId: activityUserId,
+              action: `Changed ${field} (bulk)`,
+              field,
+              oldValue: oldVal ? String(oldVal) : null,
+              newValue: newVal ? String(newVal) : null,
+            });
+          }
+        }
+        const perRecord = { ...data };
+        autoAssignStatus(perRecord, existing);
+        await storage.updateCheck(id, perRecord);
+        updatedCount += 1;
+      }
+      res.json({ ok: true, updated: updatedCount });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.patch("/api/checks/:id", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

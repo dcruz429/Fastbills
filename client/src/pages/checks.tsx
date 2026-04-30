@@ -21,8 +21,9 @@ import { TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollSync } from "@/components/scroll-sync";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, ChevronRight, CheckCircle2, Upload, CreditCard } from "lucide-react";
+import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, ChevronRight, CheckCircle2, Upload, CreditCard, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { parseCsvText } from "@/lib/csv-import";
 
 function formatDate(d: string | Date | null | undefined) {
@@ -95,6 +96,10 @@ export default function ChecksPage() {
   const [filterDateField, setFilterDateField] = useState("inputDate");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkField, setBulkField] = useState<string>("");
+  const [bulkValue, setBulkValue] = useState<string>("");
 
   if (!user) {
     return <Redirect to="/" />;
@@ -204,6 +209,20 @@ export default function ChecksPage() {
       toast({ title: "Note added" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: ({ ids, data }: { ids: number[]; data: Record<string, any> }) =>
+      apiRequest("POST", "/api/checks/bulk-update", { ids, data }).then(r => r.json()),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/checks"] });
+      setBulkEditOpen(false);
+      setBulkField("");
+      setBulkValue("");
+      setSelectedIds(new Set());
+      toast({ title: `Updated ${data.updated} record${data.updated !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Bulk update failed", description: e.message, variant: "destructive" }),
   });
 
   const importCsvMutation = useMutation({
@@ -360,6 +379,52 @@ export default function ChecksPage() {
   const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
   const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
 
+  const allActiveSelected = activeRecords.length > 0 && activeRecords.every(r => selectedIds.has(r.id));
+  const someActiveSelected = activeRecords.some(r => selectedIds.has(r.id));
+  const toggleSelectAllActive = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allActiveSelected) {
+        for (const r of activeRecords) next.delete(r.id);
+      } else {
+        for (const r of activeRecords) next.add(r.id);
+      }
+      return next;
+    });
+  };
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const BULK_FIELDS: { value: string; label: string; type: "text" | "number" | "date" | "select"; options?: string[] }[] = [
+    { value: "clinic", label: "Clinic", type: "select", options: activeClinics.map(c => c.name) },
+    { value: "inputDate", label: "Input Date", type: "date" },
+    { value: "checkDate", label: "Check Date", type: "date" },
+    { value: "insurance", label: "Insurance", type: "select", options: insuranceOptions },
+    { value: "checkNumber", label: "Check No.", type: "text" },
+    { value: "amount", label: "Amount", type: "text" },
+    { value: "fileName", label: "File Name", type: "text" },
+    { value: "scannedDate", label: "Scanned Date", type: "date" },
+    { value: "type", label: "Type", type: "select", options: [...CHECKS_TYPE_OPTIONS] },
+    { value: "status", label: "Status", type: "select", options: [...CHECKS_STATUS_OPTIONS] },
+    { value: "postedDate", label: "Posted Date", type: "date" },
+    { value: "assignedTo", label: "Assigned To", type: "select", options: assignedToOptions },
+    { value: "depositDate", label: "Deposit Date", type: "date" },
+    { value: "depositedBy", label: "Deposited By", type: "select", options: assignedToOptions },
+    { value: "activity", label: "Action", type: "select", options: (checksActivityOptions || []).map((o: any) => o.value) },
+  ];
+  const currentBulkField = BULK_FIELDS.find(f => f.value === bulkField);
+  const openBulkEdit = () => { setBulkField(""); setBulkValue(""); setBulkEditOpen(true); };
+  const submitBulkEdit = () => {
+    if (!bulkField) return;
+    const value: any = bulkValue === "" ? null : bulkValue;
+    bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { [bulkField]: value } });
+  };
+
   function toggleDoneSort(col: string) {
     if (doneSortCol === col) { if (doneSortDir === "asc") setDoneSortDir("desc"); else { setDoneSortCol(""); setDoneSortDir("asc"); } }
     else { setDoneSortCol(col); setDoneSortDir("asc"); }
@@ -505,11 +570,34 @@ export default function ChecksPage() {
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
+            {canEdit && selectedIds.size > 0 && (
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-amber-50 dark:bg-amber-950/20" data-testid="bulk-toolbar">
+                <span className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                  {selectedIds.size} selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="default" onClick={openBulkEdit} data-testid="button-bulk-edit">
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> Bulk Edit
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} data-testid="button-bulk-clear">
+                    <X className="h-3.5 w-3.5 mr-1" /> Clear
+                  </Button>
+                </div>
+              </div>
+            )}
             <CardContent className="p-0">
       <ScrollSync className="border-0">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allActiveSelected ? true : (someActiveSelected ? "indeterminate" : false)}
+                  onCheckedChange={toggleSelectAllActive}
+                  aria-label="Select all"
+                  data-testid="checkbox-select-all-active"
+                />
+              </TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic <SortIcon col="clinic" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("inputDate")} data-testid="sort-inputDate">Input Date <SortIcon col="inputDate" /></TableHead>
               <TableHead className="text-xs cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("checkDate")} data-testid="sort-checkDate">Check Date <SortIcon col="checkDate" /></TableHead>
@@ -531,19 +619,28 @@ export default function ChecksPage() {
           <TableBody>
             {activeRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canDelete ? 16 : 15} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={canDelete ? 17 : 16} className="text-center text-sm text-muted-foreground py-8">
                   No checks found
                 </TableCell>
               </TableRow>
             ) : activeRecords.map(d => {
               const isTransferred = (d.notes || "").startsWith("[Transferred from");
+              const isSelected = selectedIds.has(d.id);
               return (
               <TableRow
                 key={d.id}
-                className={`${canEdit ? "cursor-pointer hover:bg-muted/50" : ""} ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`}
+                className={`${canEdit ? "cursor-pointer hover:bg-muted/50" : ""} ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""} ${isSelected ? "bg-amber-50 dark:bg-amber-950/20" : ""}`}
                 onClick={() => canEdit && openEdit(d)}
                 data-testid={`row-check-${d.id}`}
               >
+                <TableCell onClick={(e) => e.stopPropagation()} className="w-10">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelectOne(d.id)}
+                    aria-label={`Select check ${d.id}`}
+                    data-testid={`checkbox-row-check-${d.id}`}
+                  />
+                </TableCell>
                 <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                 <TableCell className="text-xs">{formatDate(d.inputDate)}</TableCell>
                 <TableCell className="text-xs">{formatDate(d.checkDate)}</TableCell>
@@ -922,6 +1019,60 @@ export default function ChecksPage() {
             <Button variant="outline" onClick={() => setCsvDialogOpen(false)}>Cancel</Button>
             <Button disabled={csvPreview.length === 0 || importCsvMutation.isPending} onClick={() => importCsvMutation.mutate(csvPreview)}>
               {importCsvMutation.isPending ? "Importing..." : `Import ${csvPreview.length} Check${csvPreview.length !== 1 ? "s" : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
+        <DialogContent className="max-w-md" data-testid="dialog-bulk-edit">
+          <DialogHeader>
+            <DialogTitle>Bulk Edit {selectedIds.size} record{selectedIds.size !== 1 ? "s" : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs">Column to update</Label>
+              <Select value={bulkField} onValueChange={(v) => { setBulkField(v); setBulkValue(""); }}>
+                <SelectTrigger data-testid="select-bulk-field"><SelectValue placeholder="Select column" /></SelectTrigger>
+                <SelectContent>
+                  {BULK_FIELDS.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {currentBulkField && (
+              <div>
+                <Label className="text-xs">New value</Label>
+                {currentBulkField.type === "select" ? (
+                  <Select value={bulkValue} onValueChange={setBulkValue}>
+                    <SelectTrigger data-testid="select-bulk-value"><SelectValue placeholder="Select value" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__clear__">(Clear)</SelectItem>
+                      {(currentBulkField.options || []).map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : currentBulkField.type === "date" ? (
+                  <Input type="date" value={bulkValue} onChange={e => setBulkValue(e.target.value)} data-testid="input-bulk-value" />
+                ) : (
+                  <Input value={bulkValue} onChange={e => setBulkValue(e.target.value)} placeholder="(blank to clear)" data-testid="input-bulk-value" />
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  This value will overwrite the existing {currentBulkField.label} on all {selectedIds.size} selected record{selectedIds.size !== 1 ? "s" : ""}.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkEditOpen(false)} data-testid="button-bulk-cancel">Cancel</Button>
+            <Button
+              onClick={() => {
+                const value = bulkValue === "__clear__" ? "" : bulkValue;
+                if (!bulkField) return;
+                bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { [bulkField]: value === "" ? null : value } });
+              }}
+              disabled={!bulkField || bulkUpdateMutation.isPending}
+              data-testid="button-bulk-apply"
+            >
+              {bulkUpdateMutation.isPending ? "Applying..." : `Apply to ${selectedIds.size} record${selectedIds.size !== 1 ? "s" : ""}`}
             </Button>
           </DialogFooter>
         </DialogContent>
