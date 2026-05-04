@@ -1170,6 +1170,58 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/denials/bulk-update", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids, data: rawData } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      const ALLOWED = new Set([...denialTrackFields, "patientLastName", "patientFirstName"].filter(k => k !== "outcome"));
+      const data: any = {};
+      for (const k of Object.keys(rawData || {})) if (ALLOWED.has(k)) data[k] = rawData[k];
+      if (Object.keys(data).length === 0) return res.status(400).json({ message: "No editable fields provided" });
+      const dateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
+      for (const f of Array.from(dateFields)) {
+        if (data[f] !== undefined) {
+          if (data[f] === null || data[f] === "") { data[f] = null; }
+          else { const d = new Date(data[f]); if (isNaN(d.getTime())) return res.status(400).json({ message: `Invalid date for ${f}` }); data[f] = d; }
+        }
+      }
+      if (data.numberOfDays !== undefined) {
+        if (data.numberOfDays === null || data.numberOfDays === "") { data.numberOfDays = null; }
+        else { const n = parseInt(String(data.numberOfDays), 10); if (isNaN(n)) return res.status(400).json({ message: "Invalid numberOfDays" }); data.numberOfDays = n; }
+      }
+      const norm = (v: any) => { if (v === null || v === undefined || v === "") return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
+      let updated = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        const existing = await storage.getDenial(id);
+        if (!existing) continue;
+        const creditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+        const perRecord = { ...data };
+        autoAssignStatus(perRecord, existing);
+        await storage.updateDenial(id, perRecord);
+        for (const field of Object.keys(data)) {
+          const oldRaw = (existing as any)[field];
+          const newRaw = data[field];
+          const oldVal = dateFields.has(field) ? norm(oldRaw) : String(oldRaw ?? "");
+          const newVal = dateFields.has(field) ? norm(newRaw) : String(newRaw ?? "");
+          if (newRaw !== undefined && oldVal !== newVal) {
+            const activityUserId = (field === "status" && newVal === "Done") ? (creditId || req.session.userId!) : req.session.userId!;
+            await storage.createDenialActivity({ denialId: id, userId: activityUserId, action: `Updated ${denialFieldLabels[field] || field} (bulk)`, field, oldValue: oldVal || null, newValue: newVal || null });
+          }
+        }
+        updated += 1;
+      }
+      res.json({ ok: true, updated });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/denials/:id/activity", requireAuth, async (req, res) => {
     const denialId = parseInt(req.params.id);
     res.json(await storage.getDenialActivity(denialId));
@@ -1341,6 +1393,58 @@ export async function registerRoutes(
       const arb = await storage.updateArbitration(id, data);
       if (arb && arb.outcome === "Send to RTP") await syncRTPRecord("Arbitration", id, arb);
       res.json(arb);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/arbitrations/bulk-update", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids, data: rawData } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      const ALLOWED = new Set([...arbTrackFields, "patientLastName", "patientFirstName"].filter(k => k !== "outcome"));
+      const data: any = {};
+      for (const k of Object.keys(rawData || {})) if (ALLOWED.has(k)) data[k] = rawData[k];
+      if (Object.keys(data).length === 0) return res.status(400).json({ message: "No editable fields provided" });
+      const dateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
+      for (const f of Array.from(dateFields)) {
+        if (data[f] !== undefined) {
+          if (data[f] === null || data[f] === "") { data[f] = null; }
+          else { const d = new Date(data[f]); if (isNaN(d.getTime())) return res.status(400).json({ message: `Invalid date for ${f}` }); data[f] = d; }
+        }
+      }
+      if (data.numberOfDays !== undefined) {
+        if (data.numberOfDays === null || data.numberOfDays === "") { data.numberOfDays = null; }
+        else { const n = parseInt(String(data.numberOfDays), 10); if (isNaN(n)) return res.status(400).json({ message: "Invalid numberOfDays" }); data.numberOfDays = n; }
+      }
+      const norm = (v: any) => { if (v === null || v === undefined || v === "") return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
+      let updated = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        const existing = await storage.getArbitration(id);
+        if (!existing) continue;
+        const creditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+        const perRecord = { ...data };
+        autoAssignStatus(perRecord, existing);
+        await storage.updateArbitration(id, perRecord);
+        for (const field of Object.keys(data)) {
+          const oldRaw = (existing as any)[field];
+          const newRaw = data[field];
+          const oldVal = dateFields.has(field) ? norm(oldRaw) : String(oldRaw ?? "");
+          const newVal = dateFields.has(field) ? norm(newRaw) : String(newRaw ?? "");
+          if (newRaw !== undefined && oldVal !== newVal) {
+            const activityUserId = (field === "status" && newVal === "Done") ? (creditId || req.session.userId!) : req.session.userId!;
+            await storage.createArbitrationActivity({ arbitrationId: id, userId: activityUserId, action: `Updated ${arbFieldLabels[field] || field} (bulk)`, field, oldValue: oldVal || null, newValue: newVal || null });
+          }
+        }
+        updated += 1;
+      }
+      res.json({ ok: true, updated });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -1825,6 +1929,58 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/collections/bulk-update", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids, data: rawData } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      const ALLOWED = new Set([...collectionTrackFields, "patientLastName", "patientFirstName"].filter(k => k !== "outcome"));
+      const data: any = {};
+      for (const k of Object.keys(rawData || {})) if (ALLOWED.has(k)) data[k] = rawData[k];
+      if (Object.keys(data).length === 0) return res.status(400).json({ message: "No editable fields provided" });
+      const dateFields = new Set(["inputDate", "dosFrom", "dosTo"]);
+      for (const f of Array.from(dateFields)) {
+        if (data[f] !== undefined) {
+          if (data[f] === null || data[f] === "") { data[f] = null; }
+          else { const d = new Date(data[f]); if (isNaN(d.getTime())) return res.status(400).json({ message: `Invalid date for ${f}` }); data[f] = d; }
+        }
+      }
+      if (data.numberOfVisits !== undefined) {
+        if (data.numberOfVisits === null || data.numberOfVisits === "") { data.numberOfVisits = null; }
+        else { const n = parseInt(String(data.numberOfVisits), 10); if (isNaN(n)) return res.status(400).json({ message: "Invalid numberOfVisits" }); data.numberOfVisits = n; }
+      }
+      const norm = (v: any) => { if (v === null || v === undefined || v === "") return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
+      let updated = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        const existing = await storage.getCollection(id);
+        if (!existing) continue;
+        const creditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+        const perRecord = { ...data };
+        autoAssignStatus(perRecord, existing);
+        await storage.updateCollection(id, perRecord);
+        for (const field of Object.keys(data)) {
+          const oldRaw = (existing as any)[field];
+          const newRaw = data[field];
+          const oldVal = dateFields.has(field) ? norm(oldRaw) : String(oldRaw ?? "");
+          const newVal = dateFields.has(field) ? norm(newRaw) : String(newRaw ?? "");
+          if (newRaw !== undefined && oldVal !== newVal) {
+            const activityUserId = (field === "status" && newVal === "Done") ? (creditId || req.session.userId!) : req.session.userId!;
+            await storage.createCollectionActivity({ collectionId: id, userId: activityUserId, action: `Updated ${collectionFieldLabels[field] || field} (bulk)`, field, oldValue: oldVal || null, newValue: newVal || null });
+          }
+        }
+        updated += 1;
+      }
+      res.json({ ok: true, updated });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/collections/:id/activity", requireAuth, async (req, res) => {
     const collectionId = parseInt(req.params.id);
     res.json(await storage.getCollectionActivity(collectionId));
@@ -2028,6 +2184,54 @@ export async function registerRoutes(
       const updated = await storage.updatePosting(id, data);
       if (updated && updated.outcome === "Send to RTP") await syncRTPRecord("Posting", id, updated);
       res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/postings/bulk-update", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids, data: rawData } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      const ALLOWED = new Set(["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount", "activity", "depositDate", "depositedBy", "patientName", "insurance"]);
+      const data: any = {};
+      for (const k of Object.keys(rawData || {})) if (ALLOWED.has(k)) data[k] = rawData[k];
+      if (Object.keys(data).length === 0) return res.status(400).json({ message: "No editable fields provided" });
+      const dateFields = new Set(["scannedDate", "postedDate", "depositDate"]);
+      for (const f of Array.from(dateFields)) {
+        if (data[f] !== undefined) {
+          if (data[f] === null || data[f] === "") { data[f] = null; }
+          else { const d = new Date(data[f]); if (isNaN(d.getTime())) return res.status(400).json({ message: `Invalid date for ${f}` }); data[f] = d; }
+        }
+      }
+      const norm = (v: any) => { if (v === null || v === undefined || v === "") return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
+      let updated = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        const existing = await storage.getPosting(id);
+        if (!existing) continue;
+        const creditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
+        const perRecord = { ...data };
+        autoAssignStatus(perRecord, existing);
+        await storage.updatePosting(id, perRecord);
+        for (const field of Object.keys(data)) {
+          const oldRaw = (existing as any)[field];
+          const newRaw = data[field];
+          const oldVal = dateFields.has(field) ? norm(oldRaw) : String(oldRaw ?? "");
+          const newVal = dateFields.has(field) ? norm(newRaw) : String(newRaw ?? "");
+          if (newRaw !== undefined && oldVal !== newVal) {
+            const activityUserId = (field === "status" && newVal === "Done") ? (creditId || req.session.userId!) : req.session.userId!;
+            await storage.createPostingActivity({ postingId: id, userId: activityUserId, action: `Changed ${field} (bulk)`, field, oldValue: oldVal || null, newValue: newVal || null });
+          }
+        }
+        updated += 1;
+      }
+      res.json({ ok: true, updated });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

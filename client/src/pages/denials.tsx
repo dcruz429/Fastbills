@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkEditPanel, type BulkField } from "@/components/bulk-edit-panel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -72,6 +74,7 @@ export default function DenialsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
@@ -142,6 +145,43 @@ export default function DenialsPage() {
   const activeUsers = (allUsers || []).filter(u => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+
+  const canBulkEdit = user?.role === "admin" || user?.role === "manager" || user?.role === "assigner" || user?.role === "account_manager" || user?.role === "payment_specialist" || user?.role === "case_manager";
+  const DENIAL_BULK_FIELDS: BulkField[] = [
+    { value: "clinic", label: "Clinic", type: "select", options: activeClinics.map(c => c.name) },
+    { value: "insurance", label: "Insurance", type: "select", options: sortedInsurances.map(i => i.name) },
+    { value: "dosFrom", label: "DOS From", type: "date" },
+    { value: "dosTo", label: "DOS To", type: "date" },
+    { value: "numberOfDays", label: "# of Visits", type: "number" },
+    { value: "amount", label: "Amount", type: "text" },
+    { value: "assignedTo", label: "Assigned To", type: "select", options: activeUsers.map(u => u.fullName) },
+    { value: "action", label: "Action", type: "select", options: (actionOpts || []).map(o => o.value) },
+    { value: "status", label: "Status", type: "select", options: ["Unassigned", "Assigned", "Working on it", "Done"] },
+    { value: "denialFileName", label: "File Name", type: "text" },
+    { value: "dateInput", label: "Date Input", type: "date" },
+    { value: "intake", label: "Intake", type: "select", options: activeUsers.map(u => u.fullName) },
+    { value: "doa", label: "DOA", type: "date" },
+    { value: "dateOfLetter", label: "Date of Letter", type: "date" },
+    { value: "typeOfDenial", label: "Type of Denial", type: "select", options: (denialTypeOptions || []).map(o => o.value) },
+    { value: "effectiveDate", label: "Effective Date", type: "date" },
+    { value: "filedTo", label: "Filed To", type: "select", options: (filedToOpts || []).map(o => o.value) },
+    { value: "arbStatus", label: "ARB Status", type: "select", options: (arbStatusOpts || []).map(o => o.value) },
+    { value: "trialDate", label: "Trial Date", type: "date" },
+    { value: "arbPaymentStatus", label: "ARB Payment Status", type: "select", options: (arbPaymentStatusOpts || []).map(o => o.value) },
+    { value: "amountReceived", label: "Amount Received", type: "text" },
+    { value: "checkedBy", label: "Checked By", type: "select", options: activeUsers.map(u => u.fullName) },
+    { value: "comment", label: "Comment", type: "text" },
+  ];
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: ({ ids, data }: { ids: number[]; data: any }) => apiRequest("POST", "/api/denials/bulk-update", { ids, data }).then(r => r.json()),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
+      setSelectedIds(new Set());
+      toast({ title: `Updated ${res.updated} record${res.updated !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Bulk update failed", description: e.message, variant: "destructive" }),
+  });
 
   const createMutation = useMutation({
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/denials", data),
@@ -369,6 +409,14 @@ export default function DenialsPage() {
   });
 
   const activeRecords = filtered.filter(d => ((d as any).status || "").toLowerCase() !== "done");
+  useEffect(() => {
+    if (selectedIds.size === 0) return;
+    const valid = new Set(activeRecords.map(r => r.id));
+    let changed = false;
+    const next = new Set<number>();
+    selectedIds.forEach(id => { if (valid.has(id)) next.add(id); else changed = true; });
+    if (changed) setSelectedIds(next);
+  }, [activeRecords.map(r => r.id).join(",")]);
   const doneRecords = filtered.filter(d => ((d as any).status || "").toLowerCase() === "done");
 
   function toggleDoneSort(col: string) {
@@ -538,10 +586,32 @@ export default function DenialsPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="p-0">
+          {canBulkEdit && (
+            <BulkEditPanel
+              selectedCount={selectedIds.size}
+              fields={DENIAL_BULK_FIELDS}
+              isPending={bulkUpdateMutation.isPending}
+              onApply={(field, value) => bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { [field]: value } })}
+              onClear={() => setSelectedIds(new Set())}
+              testIdPrefix="denial-bulk"
+            />
+          )}
           <ScrollSync>
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
+                  {canBulkEdit && (
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={activeRecords.length > 0 && activeRecords.every(r => selectedIds.has(r.id))}
+                        onCheckedChange={(c) => {
+                          if (c) setSelectedIds(new Set(activeRecords.map(r => r.id)));
+                          else setSelectedIds(new Set());
+                        }}
+                        data-testid="checkbox-select-all-denials"
+                      />
+                    </TableHead>
+                  )}
                   {[
                     { key: "patientName", label: "Patient Name", minW: "130px" },
                     { key: "clinic", label: "Clinic", minW: "100px" },
@@ -582,7 +652,7 @@ export default function DenialsPage() {
               <TableBody>
                 {activeRecords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={20} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={20 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                       No denials found
                     </TableCell>
                   </TableRow>
@@ -596,6 +666,19 @@ export default function DenialsPage() {
                     onClick={() => openEdit(d)}
                     data-testid={`row-denial-${d.id}`}
                   >
+                    {canBulkEdit && (
+                      <TableCell onClick={e => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(d.id)}
+                          onCheckedChange={(c) => {
+                            const next = new Set(selectedIds);
+                            if (c) next.add(d.id); else next.delete(d.id);
+                            setSelectedIds(next);
+                          }}
+                          data-testid={`checkbox-select-denial-${d.id}`}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                     <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                     <TableCell className="text-xs">{d.insurance || "-"}</TableCell>

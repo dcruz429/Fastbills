@@ -18,6 +18,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, X, Search, History, ArrowUpDown, ArrowUp, ArrowDown, Upload, ChevronDown, ChevronRight, Clock, User as UserIcon, MessageSquare, Filter, Copy, CheckCircle2, Banknote } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkEditPanel, type BulkField } from "@/components/bulk-edit-panel";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -99,6 +101,7 @@ export default function CollectionsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [searchQuery, setSearchQuery] = useState("");
@@ -171,6 +174,33 @@ export default function CollectionsPage() {
   const activeUsers = (allUsers || []).filter(u => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).sort((a, b) => a.name.localeCompare(b.name));
   const sortedInsurances = (allInsurances || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+
+  const canBulkEdit = canEdit;
+  const COLLECTION_BULK_FIELDS: BulkField[] = [
+    { value: "clinic", label: "Clinic", type: "select", options: activeClinics.map(c => c.name) },
+    { value: "division", label: "Division", type: "select", options: (divisionOpts || []).map(o => o.value) },
+    { value: "insurance", label: "Insurance", type: "select", options: sortedInsurances.map(i => i.name) },
+    { value: "dosFrom", label: "DOS From", type: "date" },
+    { value: "dosTo", label: "DOS To", type: "date" },
+    { value: "numberOfVisits", label: "# of Visits", type: "number" },
+    { value: "amount", label: "Amount", type: "text" },
+    { value: "assignedTo", label: "Assigned To", type: "select", options: activeUsers.map(u => u.fullName) },
+    { value: "action", label: "Action", type: "select", options: (actionOpts || []).map(o => o.value) },
+    { value: "status", label: "Status", type: "select", options: ["Unassigned", "Assigned", "Working on it", "Done"] },
+    { value: "inputDate", label: "Input Date", type: "date" },
+    { value: "issueType", label: "Issue Type", type: "select", options: (issueTypeOpts || []).map(o => o.value) },
+    { value: "typeOfDenial", label: "Type of Denial", type: "select", options: (denialTypeOpts || []).map(o => o.value) },
+  ];
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: ({ ids, data }: { ids: number[]; data: any }) => apiRequest("POST", "/api/collections/bulk-update", { ids, data }).then(r => r.json()),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      setSelectedIds(new Set());
+      toast({ title: `Updated ${res.updated} record${res.updated !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Bulk update failed", description: e.message, variant: "destructive" }),
+  });
 
   const formToPayload = (f: typeof emptyForm) => {
     const { patientLastName, patientFirstName, ...rest } = f;
@@ -522,6 +552,14 @@ export default function CollectionsPage() {
   }), [filteredUnsorted, sortCol, sortDir]);
 
   const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
+  useEffect(() => {
+    if (selectedIds.size === 0) return;
+    const valid = new Set(activeRecords.map(r => r.id));
+    let changed = false;
+    const next = new Set<number>();
+    selectedIds.forEach(id => { if (valid.has(id)) next.add(id); else changed = true; });
+    if (changed) setSelectedIds(next);
+  }, [activeRecords.map(r => r.id).join(",")]);
   const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
 
   function toggleDoneSort(col: string) {
@@ -708,10 +746,32 @@ export default function CollectionsPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="p-0">
+      {canBulkEdit && (
+        <BulkEditPanel
+          selectedCount={selectedIds.size}
+          fields={COLLECTION_BULK_FIELDS}
+          isPending={bulkUpdateMutation.isPending}
+          onApply={(field, value) => bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { [field]: value } })}
+          onClear={() => setSelectedIds(new Set())}
+          testIdPrefix="collection-bulk"
+        />
+      )}
       <ScrollSync className="border-0">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-20 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <TableRow>
+              {canBulkEdit && (
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={activeRecords.length > 0 && activeRecords.every(r => selectedIds.has(r.id))}
+                    onCheckedChange={(c) => {
+                      if (c) setSelectedIds(new Set(activeRecords.map(r => r.id)));
+                      else setSelectedIds(new Set());
+                    }}
+                    data-testid="checkbox-select-all-collections"
+                  />
+                </TableHead>
+              )}
               <TableHead className="min-w-[160px] cursor-pointer select-none" onClick={() => handleSort("patientName")} data-testid="sort-patientName">Patient's Name <SortIcon col="patientName" /></TableHead>
               <TableHead className="min-w-[60px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic <SortIcon col="clinic" /></TableHead>
               <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("division")} data-testid="sort-division">Division <SortIcon col="division" /></TableHead>
@@ -735,7 +795,7 @@ export default function CollectionsPage() {
           <TableBody>
             {activeRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={18 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                   No collections found
                 </TableCell>
               </TableRow>
@@ -744,6 +804,19 @@ export default function CollectionsPage() {
                 const isTransferred = (d.notes || "").startsWith("[Transferred from");
                 return (
                 <TableRow key={d.id} data-testid={`row-collection-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
+                  {canBulkEdit && (
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.has(d.id)}
+                        onCheckedChange={(c) => {
+                          const next = new Set(selectedIds);
+                          if (c) next.add(d.id); else next.delete(d.id);
+                          setSelectedIds(next);
+                        }}
+                        data-testid={`checkbox-select-collection-${d.id}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
                   <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                   <TableCell className="text-xs">{d.division ? <Badge variant="outline" className="text-xs">{d.division}</Badge> : "-"}</TableCell>

@@ -23,6 +23,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, ChevronRight, CheckCircle2, Upload, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkEditPanel, type BulkField } from "@/components/bulk-edit-panel";
 import { parseCsvText } from "@/lib/csv-import";
 
 function formatDate(d: string | Date | null | undefined) {
@@ -73,6 +75,7 @@ export default function PostingPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc" | "">("asc");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [filterClinic, setFilterClinic] = useState("");
   const [filterDocumentType, setFilterDocumentType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -100,6 +103,7 @@ export default function PostingPage() {
   const isAdminOrManager = user.role === "admin" || user.role === "manager" || user.role === "assigner" || user.role === "account_manager" || user.role === "case_manager" || user.role === "payment_specialist";
   const canEdit = isAdminOrManager;
   const canDelete = ["admin", "case_manager", "account_manager"].includes(user.role);
+  const canBulkEdit = isAdminOrManager;
 
   const { data: postingList, isLoading } = useQuery<Posting[]>({ queryKey: ["/api/postings"] });
 
@@ -129,6 +133,20 @@ export default function PostingPage() {
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).sort((a, b) => a.name.localeCompare(b.name));
+
+  const POSTING_BULK_FIELDS: BulkField[] = [
+    { value: "clinic", label: "Clinic", type: "select", options: activeClinics.map(c => c.name) },
+    { value: "scannedDate", label: "Scanned Date", type: "date" },
+    { value: "documentType", label: "Document Type", type: "select", options: [...POSTING_DOCUMENT_TYPES] },
+    { value: "postedDate", label: "Posted Date", type: "date" },
+    { value: "priority", label: "Priority", type: "select", options: [...POSTING_PRIORITY_OPTIONS] },
+    { value: "assignedTo", label: "Assigned To", type: "select", options: activeUsers.map(u => u.fullName) },
+    { value: "amount", label: "Amount", type: "text" },
+    { value: "status", label: "Status", type: "select", options: [...POSTING_STATUS_OPTIONS] },
+    { value: "depositDate", label: "Deposit Date", type: "date" },
+    { value: "depositedBy", label: "Deposited By", type: "select", options: activeUsers.map(u => u.fullName) },
+    { value: "activity", label: "Action", type: "select", options: (postingActivityOptions || []).map((o: any) => o.value) },
+  ];
 
   const createMutation = useMutation({
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/postings", data),
@@ -173,6 +191,16 @@ export default function PostingPage() {
       toast({ title: "Note added" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: ({ ids, data }: { ids: number[]; data: any }) => apiRequest("POST", "/api/postings/bulk-update", { ids, data }).then(r => r.json()),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
+      setSelectedIds(new Set());
+      toast({ title: `Updated ${res.updated} record${res.updated !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Bulk update failed", description: e.message, variant: "destructive" }),
   });
 
   const importCsvMutation = useMutation({
@@ -327,6 +355,14 @@ export default function PostingPage() {
   });
 
   const activeRecords = filtered.filter(d => (d.status || "").toLowerCase() !== "done");
+  useEffect(() => {
+    if (selectedIds.size === 0) return;
+    const valid = new Set(activeRecords.map(r => r.id));
+    let changed = false;
+    const next = new Set<number>();
+    selectedIds.forEach(id => { if (valid.has(id)) next.add(id); else changed = true; });
+    if (changed) setSelectedIds(next);
+  }, [activeRecords.map(r => r.id).join(",")]);
   const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
 
   function toggleDoneSort(col: string) {
@@ -470,10 +506,32 @@ export default function PostingPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="p-0">
+      {canBulkEdit && (
+        <BulkEditPanel
+          selectedCount={selectedIds.size}
+          fields={POSTING_BULK_FIELDS}
+          isPending={bulkUpdateMutation.isPending}
+          onApply={(field, value) => bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { [field]: value } })}
+          onClear={() => setSelectedIds(new Set())}
+          testIdPrefix="posting-bulk"
+        />
+      )}
       <ScrollSync>
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
+              {canBulkEdit && (
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={activeRecords.length > 0 && activeRecords.every(r => selectedIds.has(r.id))}
+                    onCheckedChange={(c) => {
+                      if (c) setSelectedIds(new Set(activeRecords.map(r => r.id)));
+                      else setSelectedIds(new Set());
+                    }}
+                    data-testid="checkbox-select-all-postings"
+                  />
+                </TableHead>
+              )}
               <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("fileNumber")} data-testid="sort-fileNumber">File # <SortIcon col="fileNumber" /></TableHead>
               <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("clinic")} data-testid="sort-clinic">Clinic <SortIcon col="clinic" /></TableHead>
               <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("scannedDate")} data-testid="sort-scannedDate">Scanned Date <SortIcon col="scannedDate" /></TableHead>
@@ -492,7 +550,7 @@ export default function PostingPage() {
           <TableBody>
             {activeRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canDelete ? 13 : 12} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={(canDelete ? 13 : 12) + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                   No postings found
                 </TableCell>
               </TableRow>
@@ -504,6 +562,19 @@ export default function PostingPage() {
                   onClick={() => canEdit && openEdit(d)}
                   data-testid={`row-posting-${d.id}`}
                 >
+                  {canBulkEdit && (
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.has(d.id)}
+                        onCheckedChange={(c) => {
+                          const next = new Set(selectedIds);
+                          if (c) next.add(d.id); else next.delete(d.id);
+                          setSelectedIds(next);
+                        }}
+                        data-testid={`checkbox-select-posting-${d.id}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="text-sm font-medium">{d.fileNumber || "-"}</TableCell>
                   <TableCell className="text-sm">{d.clinic || "-"}</TableCell>
                   <TableCell className="text-sm">{formatDate(d.scannedDate)}</TableCell>
