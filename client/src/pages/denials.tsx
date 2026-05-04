@@ -359,7 +359,9 @@ export default function DenialsPage() {
       const tb = valB ? new Date(valB as string).getTime() : 0;
       cmp = ta - tb;
     } else if (numberColumns.has(sortCol)) {
-      cmp = (Number(valA) || 0) - (Number(valB) || 0);
+      const nA = parseFloat(String(valA ?? "").replace(/[^0-9.\-]/g, '')) || 0;
+      const nB = parseFloat(String(valB ?? "").replace(/[^0-9.\-]/g, '')) || 0;
+      cmp = nA - nB;
     } else {
       cmp = String(valA || "").localeCompare(String(valB || ""));
     }

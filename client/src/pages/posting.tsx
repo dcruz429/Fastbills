@@ -317,8 +317,8 @@ export default function PostingPage() {
     }
 
     if (numberColumns.has(sortCol)) {
-      const nA = parseFloat(valA) || 0;
-      const nB = parseFloat(valB) || 0;
+      const nA = parseFloat(String(valA).replace(/[^0-9.\-]/g, '')) || 0;
+      const nB = parseFloat(String(valB).replace(/[^0-9.\-]/g, '')) || 0;
       return sortDir === "asc" ? nA - nB : nB - nA;
     }
 

@@ -361,7 +361,9 @@ export default function ArbitrationPage() {
       const bTime = bVal ? new Date(bVal as string).getTime() : 0;
       cmp = aTime - bTime;
     } else if (numberColumns.has(sortCol)) {
-      cmp = (Number(aVal) || 0) - (Number(bVal) || 0);
+      const nA = parseFloat(String(aVal ?? "").replace(/[^0-9.\-]/g, '')) || 0;
+      const nB = parseFloat(String(bVal ?? "").replace(/[^0-9.\-]/g, '')) || 0;
+      cmp = nA - nB;
     } else {
       cmp = String(aVal || "").localeCompare(String(bVal || ""));
     }
