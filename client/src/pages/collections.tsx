@@ -336,6 +336,34 @@ export default function CollectionsPage() {
     const cleaned = text.replace(/^\uFEFF/, "");
     const lines = cleaned.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) return [];
+
+    // Pre-process a line to quote any unquoted thousands-separated numbers
+    // e.g.  ...,1,234.56,...  →  ...,"1,234.56",...
+    // e.g.  ...,$1,234.56,...  →  ...,"$1,234.56",...
+    // e.g.  ...,(1,234.56),...  →  ...,"(1,234.56)",...
+    function quoteNumbers(line: string): string {
+      let result = "";
+      let inQuotes = false;
+      let i = 0;
+      while (i < line.length) {
+        if (line[i] === '"') {
+          inQuotes = !inQuotes;
+          result += line[i++];
+          continue;
+        }
+        if (!inQuotes) {
+          const m = line.slice(i).match(/^(\(?\$?)(\d{1,3})((?:,\d{3})+)(\.\d+)?(\)?)(?=[,\r\n]|$)/);
+          if (m) {
+            result += '"' + m[0] + '"';
+            i += m[0].length;
+            continue;
+          }
+        }
+        result += line[i++];
+      }
+      return result;
+    }
+
     const parseRow = (line: string): string[] => {
       const result: string[] = [];
       let current = "";
@@ -362,7 +390,7 @@ export default function CollectionsPage() {
     });
     const rows: Record<string, string>[] = [];
     for (let i = 1; i < lines.length; i++) {
-      const values = parseRow(lines[i]);
+      const values = parseRow(quoteNumbers(lines[i]));
       if (values.every(v => !v)) continue;
       const row: Record<string, string> = {};
       mappedHeaders.forEach((key, idx) => {
@@ -723,30 +751,14 @@ export default function CollectionsPage() {
         )}
       </div>
 
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        {(() => {
-          const parseAmt = (d: any) => parseFloat((d.amount || "0").replace(/[^0-9.\-]/g, '')) || 0;
-          const totalAll = filtered.reduce((sum, d) => sum + parseAmt(d), 0);
-          const closedOutcomes = new Set(["Paid","Loss","RTP","Send to RTP"]);
-          const outstanding = filtered.filter(d => !closedOutcomes.has(d.outcome || "")).reduce((sum, d) => sum + parseAmt(d), 0);
-          const fmt = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          return (
-            <>
-              <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">
-                <span className="text-sm font-medium text-muted-foreground">Total Amount:</span>
-                <span className="text-lg font-bold" data-testid="sum-amount-value">{fmt(totalAll)}</span>
-                <span className="text-xs text-muted-foreground">({filtered.length} record{filtered.length !== 1 ? "s" : ""})</span>
-              </div>
-              {outstanding !== totalAll && (
-                <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-outstanding-box">
-                  <span className="text-sm font-medium text-muted-foreground">Outstanding:</span>
-                  <span className="text-lg font-bold text-orange-600 dark:text-orange-400" data-testid="sum-outstanding-value">{fmt(outstanding)}</span>
-                  <span className="text-xs text-muted-foreground">(excl. Paid/Loss/RTP)</span>
-                </div>
-              )}
-            </>
-          );
-        })()}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">
+          <span className="text-sm font-medium text-muted-foreground">Total Amount:</span>
+          <span className="text-lg font-bold" data-testid="sum-amount-value">
+            ${filtered.reduce((sum, d) => sum + (parseFloat((d.amount || "0").replace(/[^0-9.\-]/g, '')) || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+          <span className="text-xs text-muted-foreground">({filtered.length} record{filtered.length !== 1 ? "s" : ""})</span>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto pb-6">
