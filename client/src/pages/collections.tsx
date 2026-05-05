@@ -192,6 +192,16 @@ export default function CollectionsPage() {
     { value: "typeOfDenial", label: "Type of Denial", type: "select", options: (denialTypeOpts || []).map(o => o.value) },
   ];
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: number[]) => apiRequest("POST", "/api/collections/bulk-delete", { ids }).then(r => r.json()),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      setSelectedIds(new Set());
+      toast({ title: `Deleted ${result.deleted} record${result.deleted !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
+  });
+
   const bulkUpdateMutation = useMutation({
     mutationFn: ({ ids, data }: { ids: number[]; data: any }) => apiRequest("POST", "/api/collections/bulk-update", { ids, data }).then(r => r.json()),
     onSuccess: (res: any) => {
@@ -790,6 +800,8 @@ export default function CollectionsPage() {
           isPending={bulkUpdateMutation.isPending}
           onApply={(field, value) => bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { [field]: value } })}
           onClear={() => setSelectedIds(new Set())}
+          onDelete={canDelete ? () => bulkDeleteMutation.mutate(Array.from(selectedIds)) : undefined}
+          isDeletePending={bulkDeleteMutation.isPending}
           testIdPrefix="collection-bulk"
         />
       )}

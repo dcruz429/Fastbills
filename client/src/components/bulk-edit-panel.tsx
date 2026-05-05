@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pencil, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 
 export type BulkField = {
   value: string;
@@ -19,11 +19,14 @@ type Props = {
   isPending: boolean;
   onApply: (field: string, value: any) => void;
   onClear: () => void;
+  onDelete?: () => void;
+  isDeletePending?: boolean;
   testIdPrefix?: string;
 };
 
-export function BulkEditPanel({ selectedCount, fields, isPending, onApply, onClear, testIdPrefix = "bulk" }: Props) {
+export function BulkEditPanel({ selectedCount, fields, isPending, onApply, onClear, onDelete, isDeletePending, testIdPrefix = "bulk" }: Props) {
   const [open, setOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [field, setField] = useState("");
   const [value, setValue] = useState("");
 
@@ -44,6 +47,11 @@ export function BulkEditPanel({ selectedCount, fields, isPending, onApply, onCle
     setValue("");
   };
 
+  const handleConfirmDelete = () => {
+    onDelete?.();
+    setConfirmDeleteOpen(false);
+  };
+
   return (
     <>
       {selectedCount > 0 && (
@@ -52,9 +60,14 @@ export function BulkEditPanel({ selectedCount, fields, isPending, onApply, onCle
             {selectedCount} selected
           </span>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="default" onClick={handleOpen} data-testid={`button-${testIdPrefix}-edit`}>
+            <Button size="sm" variant="default" onClick={handleOpen} disabled={isPending} data-testid={`button-${testIdPrefix}-edit`}>
               <Pencil className="h-3.5 w-3.5 mr-1" /> Bulk Edit
             </Button>
+            {onDelete && (
+              <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} disabled={isDeletePending} data-testid={`button-${testIdPrefix}-delete`}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={onClear} data-testid={`button-${testIdPrefix}-clear`}>
               <X className="h-3.5 w-3.5 mr-1" /> Clear
             </Button>
@@ -109,6 +122,23 @@ export function BulkEditPanel({ selectedCount, fields, isPending, onApply, onCle
             <Button variant="outline" onClick={() => setOpen(false)} data-testid={`button-${testIdPrefix}-cancel`}>Cancel</Button>
             <Button onClick={handleApply} disabled={!field || isPending} data-testid={`button-${testIdPrefix}-apply`}>
               {isPending ? "Applying..." : `Apply to ${selectedCount} record${selectedCount !== 1 ? "s" : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <DialogContent className="max-w-sm" data-testid={`dialog-${testIdPrefix}-confirm-delete`}>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedCount} record{selectedCount !== 1 ? "s" : ""}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            This will permanently delete {selectedCount} selected record{selectedCount !== 1 ? "s" : ""}. This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)} data-testid={`button-${testIdPrefix}-confirm-cancel`}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeletePending} data-testid={`button-${testIdPrefix}-confirm-delete`}>
+              {isDeletePending ? "Deleting..." : `Delete ${selectedCount} record${selectedCount !== 1 ? "s" : ""}`}
             </Button>
           </DialogFooter>
         </DialogContent>

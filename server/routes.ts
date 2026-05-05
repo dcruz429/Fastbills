@@ -1303,6 +1303,27 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/denials/bulk-delete", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      let deleted = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        await storage.deleteDenial(id);
+        deleted += 1;
+      }
+      res.json({ ok: true, deleted });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // Arbitration routes
   app.get("/api/arbitrations", requireAuth, async (req, res) => {
     try {
@@ -1481,6 +1502,27 @@ export async function registerRoutes(
       }
       await storage.deleteArbitration(parseInt(req.params.id));
       res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/arbitrations/bulk-delete", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      let deleted = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        await storage.deleteArbitration(id);
+        deleted += 1;
+      }
+      res.json({ ok: true, deleted });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -2103,6 +2145,27 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/collections/bulk-delete", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      let deleted = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        await storage.deleteCollection(id);
+        deleted += 1;
+      }
+      res.json({ ok: true, deleted });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // Postings
   const PAYMENT_DOC_ROLES = ["admin", "payment_specialist", "account_manager"];
 
@@ -2296,6 +2359,27 @@ export async function registerRoutes(
       }
       await storage.deletePosting(parseInt(req.params.id));
       res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/postings/bulk-delete", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      let deleted = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        await storage.deletePosting(id);
+        deleted += 1;
+      }
+      res.json({ ok: true, deleted });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -2988,6 +3072,27 @@ export async function registerRoutes(
       }
       await storage.deleteCheck(parseInt(req.params.id));
       res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/checks/bulk-delete", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      let deleted = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        await storage.deleteCheck(id);
+        deleted += 1;
+      }
+      res.json({ ok: true, deleted });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

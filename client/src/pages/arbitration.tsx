@@ -178,6 +178,16 @@ export default function ArbitrationPage() {
     { value: "comment", label: "Comment", type: "text" },
   ];
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: number[]) => apiRequest("POST", "/api/arbitrations/bulk-delete", { ids }).then(r => r.json()),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
+      setSelectedIds(new Set());
+      toast({ title: `Deleted ${result.deleted} record${result.deleted !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
+  });
+
   const bulkUpdateMutation = useMutation({
     mutationFn: ({ ids, data }: { ids: number[]; data: any }) => apiRequest("POST", "/api/arbitrations/bulk-update", { ids, data }).then(r => r.json()),
     onSuccess: (res: any) => {
@@ -594,6 +604,8 @@ export default function ArbitrationPage() {
               isPending={bulkUpdateMutation.isPending}
               onApply={(field, value) => bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { [field]: value } })}
               onClear={() => setSelectedIds(new Set())}
+              onDelete={canDelete ? () => bulkDeleteMutation.mutate(Array.from(selectedIds)) : undefined}
+              isDeletePending={bulkDeleteMutation.isPending}
               testIdPrefix="arbitration-bulk"
             />
           )}

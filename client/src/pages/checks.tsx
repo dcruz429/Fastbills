@@ -98,6 +98,7 @@ export default function ChecksPage() {
   const [filterDateTo, setFilterDateTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [bulkField, setBulkField] = useState<string>("");
   const [bulkValue, setBulkValue] = useState<string>("");
 
@@ -223,6 +224,16 @@ export default function ChecksPage() {
       toast({ title: `Updated ${data.updated} record${data.updated !== 1 ? "s" : ""}` });
     },
     onError: (e: any) => toast({ title: "Bulk update failed", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: number[]) => apiRequest("POST", "/api/checks/bulk-delete", { ids }).then(r => r.json()),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/checks"] });
+      setSelectedIds(new Set());
+      toast({ title: `Deleted ${result.deleted} record${result.deleted !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
   });
 
   const importCsvMutation = useMutation({
@@ -579,6 +590,11 @@ export default function ChecksPage() {
                   <Button size="sm" variant="default" onClick={openBulkEdit} data-testid="button-bulk-edit">
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Bulk Edit
                   </Button>
+                  {canDelete && (
+                    <Button size="sm" variant="destructive" onClick={() => setBulkDeleteConfirmOpen(true)} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-delete">
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} data-testid="button-bulk-clear">
                     <X className="h-3.5 w-3.5 mr-1" /> Clear
                   </Button>
@@ -1073,6 +1089,23 @@ export default function ChecksPage() {
               data-testid="button-bulk-apply"
             >
               {bulkUpdateMutation.isPending ? "Applying..." : `Apply to ${selectedIds.size} record${selectedIds.size !== 1 ? "s" : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+        <DialogContent className="max-w-sm" data-testid="dialog-bulk-confirm-delete">
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} record{selectedIds.size !== 1 ? "s" : ""}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            This will permanently delete {selectedIds.size} selected record{selectedIds.size !== 1 ? "s" : ""}. This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteConfirmOpen(false)} data-testid="button-bulk-confirm-cancel">Cancel</Button>
+            <Button variant="destructive" onClick={() => { bulkDeleteMutation.mutate(Array.from(selectedIds)); setBulkDeleteConfirmOpen(false); }} disabled={bulkDeleteMutation.isPending} data-testid="button-bulk-confirm-delete">
+              {bulkDeleteMutation.isPending ? "Deleting..." : `Delete ${selectedIds.size} record${selectedIds.size !== 1 ? "s" : ""}`}
             </Button>
           </DialogFooter>
         </DialogContent>
