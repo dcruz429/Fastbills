@@ -723,14 +723,30 @@ export default function CollectionsPage() {
         )}
       </div>
 
-      <div className="flex items-center gap-2 mb-3">
-        <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">
-          <span className="text-sm font-medium text-muted-foreground">Total Amount:</span>
-          <span className="text-lg font-bold" data-testid="sum-amount-value">
-            ${filtered.filter(d => !["Paid","Loss","RTP","Send to RTP"].includes(d.outcome||"")).reduce((sum, d) => sum + (parseFloat((d.amount || "0").replace(/[^0-9.\-]/g, '')) || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-          <span className="text-xs text-muted-foreground">({filtered.length} record{filtered.length !== 1 ? "s" : ""})</span>
-        </div>
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        {(() => {
+          const parseAmt = (d: any) => parseFloat((d.amount || "0").replace(/[^0-9.\-]/g, '')) || 0;
+          const totalAll = filtered.reduce((sum, d) => sum + parseAmt(d), 0);
+          const closedOutcomes = new Set(["Paid","Loss","RTP","Send to RTP"]);
+          const outstanding = filtered.filter(d => !closedOutcomes.has(d.outcome || "")).reduce((sum, d) => sum + parseAmt(d), 0);
+          const fmt = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return (
+            <>
+              <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-amount-box">
+                <span className="text-sm font-medium text-muted-foreground">Total Amount:</span>
+                <span className="text-lg font-bold" data-testid="sum-amount-value">{fmt(totalAll)}</span>
+                <span className="text-xs text-muted-foreground">({filtered.length} record{filtered.length !== 1 ? "s" : ""})</span>
+              </div>
+              {outstanding !== totalAll && (
+                <div className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex items-center gap-2" data-testid="sum-outstanding-box">
+                  <span className="text-sm font-medium text-muted-foreground">Outstanding:</span>
+                  <span className="text-lg font-bold text-orange-600 dark:text-orange-400" data-testid="sum-outstanding-value">{fmt(outstanding)}</span>
+                  <span className="text-xs text-muted-foreground">(excl. Paid/Loss/RTP)</span>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto pb-6">
