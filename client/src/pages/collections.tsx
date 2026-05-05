@@ -257,7 +257,16 @@ export default function CollectionsPage() {
         variant: result.errors.length > 0 ? "destructive" : "default",
       });
     },
-    onError: (e: any) => toast({ title: "Import failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      const isAuthError = e.message?.includes("401") || e.message?.includes("Not authenticated");
+      toast({
+        title: isAuthError ? "Session expired" : "Import failed",
+        description: isAuthError
+          ? "Your session has expired. Please refresh the page and log in again, then retry the import."
+          : e.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const removeDuplicatesMutation = useMutation({
