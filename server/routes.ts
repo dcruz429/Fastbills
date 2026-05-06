@@ -1094,7 +1094,7 @@ export async function registerRoutes(
     comments: "Comments", filedTo: "Filed To", arbStatus: "ARB Status", trialDate: "Trial Date",
     arbPaymentStatus: "ARB Payment Status", amountReceived: "Amount Received",
     checkedBy: "Checked By", comment: "Comment", assignedTo: "Assigned To",
-    action: "Activity",
+    action: "Activity", status: "Status",
   };
 
   const denialTrackFields = Object.keys(denialFieldLabels);
@@ -1348,7 +1348,7 @@ export async function registerRoutes(
     comments: "Comments", filedTo: "Filed To", arbStatus: "ARB Status", trialDate: "Trial Date",
     arbPaymentStatus: "ARB Payment Status", amountReceived: "Amount Received",
     checkedBy: "Checked By", comment: "Comment", assignedTo: "Assigned To",
-    activity: "Activity",
+    activity: "Activity", status: "Status",
   };
   const arbTrackFields = Object.keys(arbFieldLabels);
 
