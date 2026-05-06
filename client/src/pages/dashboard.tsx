@@ -250,7 +250,7 @@ export default function DashboardPage() {
   const arbStatusCounts = getStatusCounts(allArbitrations.map(a => ({ s: getArbStatus(a) })), "s");
   const postingStatusCounts = getStatusCounts(allPostings.map(p => ({ s: getPostingStatus(p) })), "s");
   const checkStatusCounts = getStatusCounts(allChecks.map(c => ({ s: getCheckStatus(c) })), "s");
-  const rtpRecords = allClosed.filter((c: any) => c.source === "Verification/Billing");
+  const rtpRecords = allClosed;
 
   const trackerSummary = [
     { name: "Verification", count: verificationTasks.length, color: "hsl(25 90% 48%)" },
@@ -260,7 +260,7 @@ export default function DashboardPage() {
     { name: "Arbitration", count: allArbitrations.length, color: "hsl(140 60% 40%)" },
     { name: "Posting", count: allPostings.length, color: "hsl(270 60% 55%)" },
     ...(canSeeChecks ? [{ name: "Checks", count: allChecks.length, color: "hsl(175 60% 40%)" }] : []),
-    { name: "RTP", count: rtpRecords.length, color: "hsl(0 0% 50%)" },
+    { name: "RTP", count: allClosed.length, color: "hsl(0 0% 50%)" },
   ].filter(t => t.count > 0);
 
   const clinicGroups: Record<string, number> = {};
@@ -268,7 +268,8 @@ export default function DashboardPage() {
     const name = t.clinic?.name || "Unknown";
     clinicGroups[name] = (clinicGroups[name] || 0) + 1;
   });
-  [allDenials, allCollections, allArbitrations, allPostings, allClosed].forEach(list => {
+  const clinicTrackerLists = [allDenials, allCollections, allArbitrations, allPostings, allClosed, ...(canSeeChecks ? [allChecks] : [])];
+  clinicTrackerLists.forEach(list => {
     list.forEach((item: any) => {
       const name = item.clinic || "Unknown";
       if (name !== "Unknown") clinicGroups[name] = (clinicGroups[name] || 0) + 1;
@@ -357,13 +358,7 @@ export default function DashboardPage() {
           {canSeeChecks && (
             <TrackerCard title="Checks" icon={CheckCircle2} iconColor="text-teal-600" total={allChecks.length} statusCounts={checkStatusCounts} onClick={() => navigate("/checks")} testId="tracker-checks" />
           )}
-          {(() => {
-            const rtpCounts = getStatusCounts(rtpRecords, "status");
-            const allClosedDone = getStatusCounts(allClosed, "status").done;
-            rtpCounts.done = allClosedDone;
-            const rtpTotal = rtpCounts.unassigned + rtpCounts.assigned + rtpCounts.working + rtpCounts.done;
-            return <TrackerCard title="RTP" icon={Archive} iconColor="text-gray-500" total={rtpTotal} statusCounts={rtpCounts} onClick={() => navigate("/closed")} testId="tracker-closed" />;
-          })()}
+          <TrackerCard title="RTP" icon={Archive} iconColor="text-gray-500" total={allClosed.length} statusCounts={getStatusCounts(allClosed, "status")} onClick={() => navigate("/closed")} testId="tracker-closed" />
         </div>
       </div>
 
@@ -371,7 +366,7 @@ export default function DashboardPage() {
         <Card className="shadow-sm">
           <CardHeader className="pb-2 px-5 pt-5">
             <h3 className="text-sm font-semibold">Records by Clinic</h3>
-            <p className="text-xs text-muted-foreground">Tasks, Denials & Collections combined</p>
+            <p className="text-xs text-muted-foreground">All trackers combined</p>
           </CardHeader>
           <CardContent className="px-4 pb-4">
             {clinicData.length > 0 ? (
