@@ -3215,6 +3215,22 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/cleanup-legacy-rtp", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") return res.status(403).json({ message: "Admin only" });
+      const legacy = await db.select({ id: closed.id }).from(closed).where(eq(closed.source, "RTP"));
+      let deleted = 0;
+      for (const row of legacy) {
+        await storage.deleteClosed(row.id);
+        deleted++;
+      }
+      res.json({ ok: true, deleted, message: `Deleted ${deleted} legacy RTP record(s)` });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.post("/api/closed/export", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
