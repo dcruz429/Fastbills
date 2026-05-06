@@ -300,7 +300,7 @@ async function handleOutcomeTransfer(
         clinic,
         insurance,
         amount,
-        assignedTo,
+        assignedTo: null,
         dosFrom,
         dosTo,
         numberOfVisits,
