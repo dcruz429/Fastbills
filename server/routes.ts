@@ -3138,6 +3138,83 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/closed/bulk-update", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !ADMIN_ROLES.includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids, data: rawData } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      const ALLOWED = new Set(["patientName", "clinic", "insurance", "assignedTo", "status", "outcome", "priority", "action", "reason", "amount", "dosFrom", "dosTo", "numberOfVisits", "regularVisit", "fullVisit", "reportedDate"]);
+      const data: any = {};
+      for (const k of Object.keys(rawData || {})) if (ALLOWED.has(k)) data[k] = rawData[k];
+      if (Object.keys(data).length === 0) return res.status(400).json({ message: "No editable fields provided" });
+      const dateFields = new Set(["dosFrom", "dosTo", "reportedDate"]);
+      for (const f of Array.from(dateFields)) {
+        if (data[f] !== undefined) {
+          if (data[f] === null || data[f] === "") { data[f] = null; }
+          else { const d = new Date(data[f]); if (isNaN(d.getTime())) return res.status(400).json({ message: `Invalid date for ${f}` }); data[f] = d; }
+        }
+      }
+      for (const f of ["numberOfVisits", "regularVisit", "fullVisit"]) {
+        if (data[f] !== undefined) {
+          if (data[f] === null || data[f] === "") { data[f] = null; }
+          else { const n = parseInt(String(data[f]), 10); if (isNaN(n)) return res.status(400).json({ message: `Invalid value for ${f}` }); data[f] = n; }
+        }
+      }
+      const fieldLabels: Record<string, string> = {
+        patientName: "Patient Name", clinic: "Clinic", insurance: "Insurance", assignedTo: "Assigned To",
+        status: "Status", outcome: "Outcome", priority: "Priority", action: "Action", reason: "Reason",
+        amount: "Amount", dosFrom: "DOS From", dosTo: "DOS To", numberOfVisits: "# of Visits",
+        regularVisit: "Regular Visit", fullVisit: "Full Visit", reportedDate: "Reported Date",
+      };
+      const norm = (v: any) => { if (v === null || v === undefined || v === "") return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
+      let updated = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        const existing = await storage.getClosed(id);
+        if (!existing) continue;
+        await storage.updateClosed(id, data);
+        for (const field of Object.keys(data)) {
+          const oldRaw = (existing as any)[field];
+          const newRaw = data[field];
+          const oldVal = dateFields.has(field) ? norm(oldRaw) : String(oldRaw ?? "");
+          const newVal = dateFields.has(field) ? norm(newRaw) : String(newRaw ?? "");
+          if (newRaw !== undefined && oldVal !== newVal) {
+            await storage.createClosedActivity({ closedId: id, userId: req.session.userId!, action: `Updated ${fieldLabels[field] || field} (bulk)`, field, oldValue: oldVal || null, newValue: newVal || null });
+          }
+        }
+        updated++;
+      }
+      res.json({ ok: true, updated });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/closed/bulk-delete", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      let deleted = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        await storage.deleteClosed(id);
+        deleted++;
+      }
+      res.json({ ok: true, deleted });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.post("/api/closed/export", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

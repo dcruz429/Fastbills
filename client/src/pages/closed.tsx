@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Search, History, ArrowUpDown, ArrowUp, ArrowDown, X, Filter, MessageSquare, User as UserIcon, Clock, ChevronDown, FileText, CreditCard, ClipboardList, ShieldAlert, Scale, Package, RotateCcw, Download, CheckSquare, Upload } from "lucide-react";
 import { parseCsvText } from "@/lib/csv-import";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BulkEditPanel, type BulkField } from "@/components/bulk-edit-panel";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -399,6 +400,26 @@ export default function ClosedPage() {
     onError: (e: any) => toast({ title: "Import failed", description: e.message, variant: "destructive" }),
   });
 
+  const bulkUpdateMutation = useMutation({
+    mutationFn: ({ ids, data }: { ids: number[]; data: any }) => apiRequest("POST", "/api/closed/bulk-update", { ids, data }).then(r => r.json()),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/closed"] });
+      setSelectedIds(new Set());
+      toast({ title: `Updated ${res.updated} record${res.updated !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Bulk update failed", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: number[]) => apiRequest("POST", "/api/closed/bulk-delete", { ids }).then(r => r.json()),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/closed"] });
+      setSelectedIds(new Set());
+      toast({ title: `Deleted ${result.deleted} record${result.deleted !== 1 ? "s" : ""}` });
+    },
+    onError: (e: any) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
+  });
+
   const CSV_COLUMN_MAP: Record<string, string> = {
     "patient name": "patientName", "patient": "patientName",
     "last name": "lastName", "first name": "firstName",
@@ -589,6 +610,27 @@ export default function ClosedPage() {
     return result;
   }, [filtered]);
 
+  const activeClinics = (allClinics || []).filter((c: any) => c.active !== false).map((c: any) => c.name).sort();
+  const activeInsurances = (allInsurances || []).filter((i: any) => i.active !== false).map((i: any) => i.name).sort();
+
+  const CLOSED_BULK_FIELDS: BulkField[] = [
+    { value: "clinic", label: "Clinic", type: "select", options: activeClinics },
+    { value: "insurance", label: "Insurance", type: "select", options: activeInsurances },
+    { value: "assignedTo", label: "Assigned To", type: "select", options: activeUsers.map(u => u.fullName) },
+    { value: "status", label: "Status", type: "select", options: ["Unassigned", "Assigned", "Working on it", "Done"] },
+    { value: "outcome", label: "Outcome", type: "select", options: ["Paid", "Loss", "Send to Verification", "Send to Billing", "Send to Posting", "Send to Collections", "Send to Denials", "Send to Arbitration", "Send to Closed", "Send to RTP"] },
+    { value: "priority", label: "Priority", type: "select", options: ["Low", "Medium", "High", "Critical"] },
+    { value: "reason", label: "Reason", type: "select", options: (rtpReasonOpts || []).map(o => o.value) },
+    { value: "action", label: "Action", type: "text" },
+    { value: "amount", label: "Amount", type: "text" },
+    { value: "dosFrom", label: "DOS From", type: "date" },
+    { value: "dosTo", label: "DOS To", type: "date" },
+    { value: "numberOfVisits", label: "# of Visits", type: "number" },
+    { value: "regularVisit", label: "Regular Visit", type: "number" },
+    { value: "fullVisit", label: "Full Visit", type: "number" },
+    { value: "reportedDate", label: "Reported Date", type: "date" },
+  ];
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4 animate-fade-in">
@@ -710,6 +752,17 @@ export default function ClosedPage() {
           <span className="text-xs text-muted-foreground">({filtered.length} record{filtered.length !== 1 ? "s" : ""})</span>
         </div>
       </div>
+
+      <BulkEditPanel
+        selectedCount={selectedIds.size}
+        fields={CLOSED_BULK_FIELDS}
+        isPending={bulkUpdateMutation.isPending}
+        onApply={(field, value) => bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), data: { [field]: value } })}
+        onClear={() => setSelectedIds(new Set())}
+        onDelete={canDelete ? () => bulkDeleteMutation.mutate(Array.from(selectedIds)) : undefined}
+        isDeletePending={bulkDeleteMutation.isPending}
+        testIdPrefix="bulk-closed"
+      />
 
       <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar space-y-4">
         {(() => {
