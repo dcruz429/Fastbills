@@ -772,6 +772,23 @@ function MaintenanceSettings() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const [cleanupResult, setCleanupResult] = useState<{ deleted: number; message: string } | null>(null);
+  const [cleanupConfirm, setCleanupConfirm] = useState(false);
+
+  const cleanupMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/cleanup-legacy-rtp");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setCleanupResult(data);
+      setCleanupConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/closed"] });
+      toast({ title: data.deleted > 0 ? `Deleted ${data.deleted} legacy record(s)` : "No legacy records found" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const renameMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/admin/rename-kimberly");
@@ -885,6 +902,49 @@ function MaintenanceSettings() {
             {renameResult.total === 0 && (
               <p className="text-muted-foreground">Nothing to rename — no records found with name exactly "{renameResult.from}".</p>
             )}
+          </div>
+        )}
+      </div>
+
+      <div className="border border-red-200 dark:border-red-900 rounded-md p-4 space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold flex items-center gap-2 text-red-700 dark:text-red-400">
+            <Trash2 className="h-4 w-4" />
+            Delete Legacy RTP Records
+          </h4>
+          <p className="text-xs text-muted-foreground mt-1">
+            Permanently deletes RTP records created with the old "RTP" source label (before the outcome was renamed to "Send to RTP"). This is a one-time cleanup — irreversible.
+          </p>
+        </div>
+        {!cleanupConfirm ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+            onClick={() => setCleanupConfirm(true)}
+            data-testid="button-cleanup-legacy-rtp"
+          >
+            Delete Legacy Records
+          </Button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => cleanupMutation.mutate()}
+              disabled={cleanupMutation.isPending}
+              data-testid="button-cleanup-legacy-rtp-confirm"
+            >
+              {cleanupMutation.isPending ? "Deleting..." : "Yes, Delete Permanently"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setCleanupConfirm(false)}>
+              Cancel
+            </Button>
+          </div>
+        )}
+        {cleanupResult && (
+          <div className="mt-2 p-3 rounded-md bg-muted/50 text-xs">
+            <p className="font-medium">{cleanupResult.message}</p>
           </div>
         )}
       </div>
