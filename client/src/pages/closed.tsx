@@ -605,10 +605,20 @@ export default function ClosedPage() {
     const result: Record<string, typeof filtered> = {};
     for (const section of SOURCE_SECTIONS) result[section.key] = [];
     for (const d of filtered) {
-      if (result[d.source || ""]) result[d.source || ""].push(d);
+      const key = d.source || "";
+      if (!result[key]) result[key] = [];
+      result[key].push(d);
     }
     return result;
   }, [filtered]);
+
+  const extraSections = useMemo(() => {
+    const knownKeys = new Set(SOURCE_SECTIONS.map(s => s.key));
+    return Object.keys(groupedBySource)
+      .filter(k => k && !knownKeys.has(k) && groupedBySource[k].length > 0)
+      .sort()
+      .map(k => ({ key: k, label: k.toUpperCase(), icon: RotateCcw, color: "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800" }));
+  }, [groupedBySource]);
 
   const activeClinics = (allClinics || []).filter((c: any) => c.active !== false).map((c: any) => c.name).sort();
   const activeInsurances = (allInsurances || []).filter((i: any) => i.active !== false).map((i: any) => i.name).sort();
@@ -766,9 +776,10 @@ export default function ClosedPage() {
 
       <div className="overflow-auto flex-1 min-h-0 always-show-scrollbar space-y-4">
         {(() => {
+          const allSections = [...SOURCE_SECTIONS, ...extraSections];
           const sectionsToShow = filterSource && filterSource !== "__all__"
-            ? SOURCE_SECTIONS.filter(s => s.key === filterSource)
-            : SOURCE_SECTIONS;
+            ? allSections.filter(s => s.key === filterSource)
+            : allSections;
 
           return sectionsToShow.map(section => {
             const sectionItems = groupedBySource[section.key] || [];
