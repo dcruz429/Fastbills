@@ -3456,6 +3456,58 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/ceo-box/bulk-update", requireCeoAccess, async (req, res) => {
+    try {
+      const { ids, data: rawData } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      const ALLOWED = new Set(["work", "sender", "company", "clinic", "action", "status", "priority", "dateOfLetter", "dueDate"]);
+      const data: any = {};
+      for (const k of Object.keys(rawData || {})) if (ALLOWED.has(k)) data[k] = rawData[k];
+      if (Object.keys(data).length === 0) return res.status(400).json({ message: "No editable fields provided" });
+      const dateFields = new Set(["dateOfLetter", "dueDate"]);
+      for (const f of Array.from(dateFields)) {
+        if (data[f] !== undefined) {
+          if (data[f] === null || data[f] === "") { data[f] = null; }
+          else { const d = new Date(data[f]); if (isNaN(d.getTime())) return res.status(400).json({ message: `Invalid date for ${f}` }); data[f] = d; }
+        }
+      }
+      let updated = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        const existing = await storage.getCeoBoxRecord(id);
+        if (!existing) continue;
+        await storage.updateCeoBoxRecord(id, data);
+        updated += 1;
+      }
+      res.json({ ok: true, updated });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/ceo-box/bulk-delete", requireCeoAccess, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "ids must be a non-empty array" });
+      let deleted = 0;
+      for (const rawId of ids) {
+        const id = parseInt(String(rawId));
+        if (isNaN(id)) continue;
+        const existing = await storage.getCeoBoxRecord(id);
+        if (!existing) continue;
+        if (existing.createdById !== user.id) continue;
+        await storage.deleteCeoBoxRecord(id);
+        deleted += 1;
+      }
+      res.json({ ok: true, deleted });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.patch("/api/ceo-box/:id", requireCeoAccess, upload.array("newAttachments"), async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

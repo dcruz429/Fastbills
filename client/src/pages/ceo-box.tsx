@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -16,9 +16,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Search, X, Paperclip, FileText, Image, FileSpreadsheet, Download, Lock, Eye, MessageSquare, Clock, User as UserIcon } from "lucide-react";
+import { Plus, Trash2, Search, X, Paperclip, FileText, Image, FileSpreadsheet, Download, Lock, MessageSquare, Clock, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BulkEditPanel, type BulkField } from "@/components/bulk-edit-panel";
 
 const STATUS_OPTIONS = ["todo", "working", "done", "closed"];
 const PRIORITY_OPTIONS = ["low", "medium", "high", "urgent"];
@@ -80,6 +80,9 @@ function PriorityBadge({ priority }: { priority: string }) {
   );
 }
 
+type SortCol = "work" | "dateOfLetter" | "sender" | "company" | "clinic" | "action" | "status" | "createdAt" | "dueDate" | "priority";
+type SortDir = "asc" | "desc";
+
 type CeoBoxWithCreator = CeoBox & { creatorName?: string };
 
 const emptyForm = {
@@ -95,11 +98,35 @@ const emptyForm = {
   confidential: false,
 };
 
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+const STATUS_ORDER: Record<string, number> = { todo: 0, working: 1, done: 2, closed: 3 };
+
+function SortIcon({ col, sortCol, sortDir }: { col: SortCol; sortCol: SortCol | null; sortDir: SortDir }) {
+  if (sortCol !== col) return <ChevronsUpDown className="h-3 w-3 ml-1 text-muted-foreground/40" />;
+  return sortDir === "asc"
+    ? <ChevronUp className="h-3 w-3 ml-1 text-foreground" />
+    : <ChevronDown className="h-3 w-3 ml-1 text-foreground" />;
+}
+
+const BULK_FIELDS: BulkField[] = [
+  { value: "sender", label: "Sender", type: "text" },
+  { value: "company", label: "Company", type: "text" },
+  { value: "clinic", label: "Clinic", type: "text" },
+  { value: "action", label: "Action", type: "text" },
+  { value: "status", label: "Status", type: "select", options: STATUS_OPTIONS.map(s => CEO_STATUS_LABELS[s] || s) },
+  { value: "priority", label: "Priority", type: "select", options: PRIORITY_OPTIONS.map(p => CEO_PRIORITY_LABELS[p] || p) },
+  { value: "dateOfLetter", label: "Date of Letter", type: "date" },
+  { value: "dueDate", label: "Due Date", type: "date" },
+];
+
 export default function CeoBoxPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
   const [search, setSearch] = useState("");
+  const [sortCol, setSortCol] = useState<SortCol | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<typeof emptyForm>({ ...emptyForm });
@@ -188,6 +215,38 @@ export default function CeoBoxPage() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async ({ ids, field, value }: { ids: number[]; field: string; value: any }) => {
+      const labelToKey: Record<string, string> = {};
+      STATUS_OPTIONS.forEach(s => { labelToKey[CEO_STATUS_LABELS[s] || s] = s; });
+      PRIORITY_OPTIONS.forEach(p => { labelToKey[CEO_PRIORITY_LABELS[p] || p] = p; });
+      const resolved = (field === "status" || field === "priority") && value !== null
+        ? (labelToKey[value] ?? value)
+        : value;
+      const res = await apiRequest("POST", "/api/ceo-box/bulk-update", { ids, data: { [field]: resolved } });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ceo-box"] });
+      setSelectedIds(new Set());
+      toast({ title: `Updated ${data.updated} record${data.updated !== 1 ? "s" : ""}` });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const res = await apiRequest("POST", "/api/ceo-box/bulk-delete", { ids });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ceo-box"] });
+      setSelectedIds(new Set());
+      toast({ title: `Deleted ${data.deleted} record${data.deleted !== 1 ? "s" : ""}` });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   function openCreate() {
     setEditingId(null);
     setForm({ ...emptyForm });
@@ -220,21 +279,92 @@ export default function CeoBoxPage() {
     else createMutation.mutate(form);
   }
 
-  const filtered = records.filter(r => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      (r.work || "").toLowerCase().includes(q) ||
-      (r.sender || "").toLowerCase().includes(q) ||
-      (r.company || "").toLowerCase().includes(q) ||
-      (r.clinic || "").toLowerCase().includes(q) ||
-      (r.action || "").toLowerCase().includes(q)
-    );
-  });
+  function toggleSort(col: SortCol) {
+    if (sortCol === col) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  }
+
+  function getVal(r: CeoBoxWithCreator, col: SortCol): string | number {
+    switch (col) {
+      case "work": return (r.work || "").toLowerCase();
+      case "dateOfLetter": return r.dateOfLetter ? new Date(r.dateOfLetter).getTime() : 0;
+      case "sender": return (r.sender || "").toLowerCase();
+      case "company": return (r.company || "").toLowerCase();
+      case "clinic": return (r.clinic || "").toLowerCase();
+      case "action": return (r.action || "").toLowerCase();
+      case "status": return STATUS_ORDER[r.status] ?? 99;
+      case "createdAt": return r.createdAt ? new Date(r.createdAt).getTime() : 0;
+      case "dueDate": return r.dueDate ? new Date(r.dueDate).getTime() : Infinity;
+      case "priority": return PRIORITY_ORDER[r.priority] ?? 99;
+    }
+  }
+
+  const filtered = useMemo(() => {
+    let rows = records.filter(r => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        (r.work || "").toLowerCase().includes(q) ||
+        (r.sender || "").toLowerCase().includes(q) ||
+        (r.company || "").toLowerCase().includes(q) ||
+        (r.clinic || "").toLowerCase().includes(q) ||
+        (r.action || "").toLowerCase().includes(q)
+      );
+    });
+    if (sortCol) {
+      rows = [...rows].sort((a, b) => {
+        const av = getVal(a, sortCol);
+        const bv = getVal(b, sortCol);
+        const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return rows;
+  }, [records, search, sortCol, sortDir]);
 
   const canDelete = (record: CeoBoxWithCreator) => record.createdById === user.id;
+  const selectedCanDelete = [...selectedIds].every(id => {
+    const r = records.find(x => x.id === id);
+    return r && r.createdById === user.id;
+  });
+
+  const allSelected = filtered.length > 0 && filtered.every(r => selectedIds.has(r.id));
+  const someSelected = filtered.some(r => selectedIds.has(r.id));
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(r => r.id)));
+    }
+  }
+
+  function toggleRow(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const selectedCount = selectedIds.size;
+
+  const SH = ({ col, children, className }: { col: SortCol; children: React.ReactNode; className?: string }) => (
+    <TableHead
+      className={cn("cursor-pointer select-none hover:bg-muted/60 transition-colors", className)}
+      onClick={() => toggleSort(col)}
+    >
+      <span className="inline-flex items-center">
+        {children}
+        <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
+      </span>
+    </TableHead>
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -261,6 +391,17 @@ export default function CeoBoxPage() {
         </div>
       </div>
 
+      <BulkEditPanel
+        selectedCount={selectedCount}
+        fields={BULK_FIELDS}
+        isPending={bulkUpdateMutation.isPending}
+        onApply={(field, value) => bulkUpdateMutation.mutate({ ids: [...selectedIds], field, value })}
+        onClear={() => setSelectedIds(new Set())}
+        onDelete={selectedCanDelete ? () => bulkDeleteMutation.mutate([...selectedIds]) : undefined}
+        isDeletePending={bulkDeleteMutation.isPending}
+        testIdPrefix="ceo-bulk"
+      />
+
       <div className="flex-1 min-h-0 overflow-auto">
         {isLoading ? (
           <div className="p-6 space-y-2">
@@ -270,17 +411,27 @@ export default function CeoBoxPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="w-8 pl-4">#</TableHead>
-                <TableHead className="min-w-[160px]">Name of Doc</TableHead>
-                <TableHead className="min-w-[110px]">Date of Letter</TableHead>
-                <TableHead className="min-w-[120px]">Sender</TableHead>
-                <TableHead className="min-w-[140px]">Company</TableHead>
-                <TableHead className="min-w-[130px]">Clinic</TableHead>
-                <TableHead className="min-w-[120px]">Action</TableHead>
-                <TableHead className="min-w-[100px]">Status</TableHead>
-                <TableHead className="min-w-[110px]">Created</TableHead>
-                <TableHead className="min-w-[110px]">Due Date</TableHead>
-                <TableHead className="min-w-[90px]">Priority</TableHead>
+                <TableHead className="w-10 pl-4">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={el => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                    onChange={toggleAll}
+                    className="rounded border-border cursor-pointer"
+                    data-testid="checkbox-select-all-ceo"
+                  />
+                </TableHead>
+                <TableHead className="w-8 text-xs text-muted-foreground">#</TableHead>
+                <SH col="work" className="min-w-[160px]">Name of Doc</SH>
+                <SH col="dateOfLetter" className="min-w-[110px]">Date of Letter</SH>
+                <SH col="sender" className="min-w-[120px]">Sender</SH>
+                <SH col="company" className="min-w-[140px]">Company</SH>
+                <SH col="clinic" className="min-w-[130px]">Clinic</SH>
+                <SH col="action" className="min-w-[120px]">Action</SH>
+                <SH col="status" className="min-w-[100px]">Status</SH>
+                <SH col="createdAt" className="min-w-[110px]">Created</SH>
+                <SH col="dueDate" className="min-w-[110px]">Due Date</SH>
+                <SH col="priority" className="min-w-[90px]">Priority</SH>
                 <TableHead className="min-w-[120px]">Attachments</TableHead>
                 <TableHead className="min-w-[80px]">Created By</TableHead>
                 <TableHead className="w-20 text-right pr-4">Actions</TableHead>
@@ -289,7 +440,7 @@ export default function CeoBoxPage() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="text-center py-16 text-muted-foreground">
+                  <TableCell colSpan={15} className="text-center py-16 text-muted-foreground">
                     {search ? "No records match your search." : "No records yet. Click 'New Record' to add one."}
                   </TableCell>
                 </TableRow>
@@ -298,12 +449,22 @@ export default function CeoBoxPage() {
                   key={record.id}
                   className={cn(
                     "cursor-pointer hover:bg-muted/30 transition-colors",
-                    record.confidential ? "bg-purple-50/40 dark:bg-purple-950/20" : ""
+                    selectedIds.has(record.id) ? "bg-blue-50/60 dark:bg-blue-950/20" : "",
+                    record.confidential && !selectedIds.has(record.id) ? "bg-purple-50/40 dark:bg-purple-950/20" : ""
                   )}
                   onClick={() => openEdit(record)}
                   data-testid={`row-ceo-record-${record.id}`}
                 >
-                  <TableCell className="pl-4 text-xs text-muted-foreground font-mono">{idx + 1}</TableCell>
+                  <TableCell className="pl-4" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(record.id)}
+                      onChange={() => toggleRow(record.id)}
+                      className="rounded border-border cursor-pointer"
+                      data-testid={`checkbox-ceo-${record.id}`}
+                    />
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground font-mono">{idx + 1}</TableCell>
                   <TableCell className="font-medium max-w-[200px]">
                     <div className="flex items-center gap-1.5">
                       {record.confidential && <Lock className="h-3 w-3 text-purple-500 flex-shrink-0" title="Confidential — only visible to Dr. Al" />}
