@@ -189,6 +189,16 @@ async function handleOutcomeTransfer(
       });
       newRecordId = task.id;
       targetType = "task";
+      const billingNotifyRoles = ["admin", "manager", "account_manager", "case_manager", "biller"];
+      const billingNotifyUsers = allUsers.filter(u => billingNotifyRoles.includes(u.role) && u.active !== false);
+      for (const u of billingNotifyUsers) {
+        await storage.createNotification({
+          userId: u.id,
+          taskId: task.id,
+          message: `New billing task arrived: ${patientName} — ready to be assigned`,
+          read: false,
+        });
+      }
       break;
     }
     case "Send to Posting": {
@@ -911,6 +921,10 @@ export async function registerRoutes(
         }
       }
 
+      const SEND_TO_OUTCOMES = [
+        "Send to Verification", "Send to Billing", "Send to Posting", "Send to Collections",
+        "Send to Denials", "Send to Arbitration", "Send to RTP", "Send to Closed",
+      ];
       if (updates.outcome && OUTCOME_OPTIONS.includes(updates.outcome) && updates.outcome !== existing.outcome) {
         const clinicName = existing.clinicId ? (await storage.getAllClinics()).find(c => c.id === existing.clinicId)?.name : null;
         const insuranceName = existing.insuranceId ? (await storage.getAllInsurances()).find(i => i.id === existing.insuranceId)?.name : null;
@@ -923,6 +937,9 @@ export async function registerRoutes(
           notes: existing.notes,
           activityHistory: taskActivityHistory.map(a => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
+        if (SEND_TO_OUTCOMES.includes(updates.outcome)) {
+          updates.status = "done";
+        }
       }
 
       const [allClinicsForLog, allInsurancesForLog, allUsersForLog] = await Promise.all([
