@@ -180,11 +180,11 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
     if (taskId) {
       const task = tasks.find(t => String(t.id) === taskId);
       if (task) {
-        if (!form.patientName) set("patientName", task.patientName || "");
-        if (task.clinic?.name && !form.clinic) set("clinic", task.clinic.name);
-        if (task.insurance?.name && !form.insurance) set("insurance", task.insurance.name);
-        if (task.assignedUserId && !form.assignedUserId) set("assignedUserId", String(task.assignedUserId));
-        if (task.priority && !form.priority) set("priority", task.priority);
+        if (task.patientName) set("patientName", task.patientName);
+        if (task.clinic?.name) set("clinic", task.clinic.name);
+        if (task.insurance?.name) set("insurance", task.insurance.name);
+        if (task.assignedUserId) set("assignedUserId", String(task.assignedUserId));
+        if (task.priority) set("priority", task.priority);
       }
     }
   };
