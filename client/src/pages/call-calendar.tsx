@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
@@ -422,6 +422,11 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
+  const { data: freshCall } = useQuery<any>({
+    queryKey: ["/api/calls", call?.id],
+    enabled: !!call?.id && open,
+  });
+
   const { data: attempts = [] } = useQuery<any[]>({
     queryKey: ["/api/calls", call?.id, "attempts"],
     enabled: !!call?.id && open,
@@ -434,21 +439,32 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
 
   const startMutation = useMutation({
     mutationFn: async () => { await apiRequest("POST", `/api/calls/${call?.id}/start`, {}); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/calls"] }); toast({ title: "Call started" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calls", call?.id] });
+      toast({ title: "Call started" });
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const cancelMutation = useMutation({
     mutationFn: async () => { await apiRequest("POST", `/api/calls/${call?.id}/cancel`, { reason: cancelReason }); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/calls"] }); toast({ title: "Call cancelled" }); setCancelOpen(false); onClose(); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calls", call?.id] });
+      toast({ title: "Call cancelled" });
+      setCancelOpen(false);
+      onClose();
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   if (!call) return null;
 
-  const overdue = isOverdue(call);
+  const displayCall = freshCall || call;
+  const overdue = isOverdue(displayCall);
   const isManager = currentUser && ["admin", "manager", "account_manager", "case_manager"].includes(currentUser.role);
-  const isActive = !["Resolved", "Completed", "Cancelled"].includes(call.callStatus);
+  const isActive = !["Resolved", "Completed", "Cancelled"].includes(displayCall.callStatus);
 
   return (
     <>
@@ -467,14 +483,14 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Patient</p>
               <div className="space-y-1">
-                <p className="font-semibold text-base">{call.patientName}</p>
-                {call.phoneNumber && (
-                  <a href={`tel:${call.phoneNumber}`} className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                    <Phone className="h-3 w-3" />{call.phoneNumber}
+                <p className="font-semibold text-base">{displayCall.patientName}</p>
+                {displayCall.phoneNumber && (
+                  <a href={`tel:${displayCall.phoneNumber}`} className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                    <Phone className="h-3 w-3" />{displayCall.phoneNumber}
                   </a>
                 )}
-                {call.clinic && <p className="text-sm text-muted-foreground">Clinic: {call.clinic}</p>}
-                {call.insurance && <p className="text-sm text-muted-foreground">Insurance: {call.insurance}</p>}
+                {displayCall.clinic && <p className="text-sm text-muted-foreground">Clinic: {displayCall.clinic}</p>}
+                {displayCall.insurance && <p className="text-sm text-muted-foreground">Insurance: {displayCall.insurance}</p>}
               </div>
             </div>
 
@@ -484,40 +500,40 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
               <div className="space-y-1.5 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Status</span>
-                  <Badge className={cn("text-xs", STATUS_COLORS[call.callStatus] || "")}>{call.callStatus}</Badge>
+                  <Badge className={cn("text-xs", STATUS_COLORS[displayCall.callStatus] || "")}>{displayCall.callStatus}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Priority</span>
-                  <Badge className={cn("text-xs capitalize", PRIORITY_COLORS[call.priority] || "")}>{call.priority}</Badge>
+                  <Badge className={cn("text-xs capitalize", PRIORITY_COLORS[displayCall.priority] || "")}>{displayCall.priority}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Scheduled</span>
-                  <span>{formatDate(call.scheduledAt)} {formatTime(call.scheduledAt)}</span>
+                  <span>{formatDate(displayCall.scheduledAt)} {formatTime(displayCall.scheduledAt)}</span>
                 </div>
-                {call.department && (
+                {displayCall.department && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Department</span>
-                    <span>{call.department}</span>
+                    <span>{displayCall.department}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Assigned To</span>
-                  <span>{call.assignedUserName || <span className="text-muted-foreground italic">Unassigned</span>}</span>
+                  <span>{displayCall.assignedUserName || <span className="text-muted-foreground italic">Unassigned</span>}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Reason</span>
-                  <span className="text-right max-w-[60%]">{call.callReason}</span>
+                  <span className="text-right max-w-[60%]">{displayCall.callReason}</span>
                 </div>
-                {call.relatedTaskId && (
+                {displayCall.relatedTaskId && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Related Task</span>
-                    <span className="text-blue-600 dark:text-blue-400">#{call.relatedTaskId}</span>
+                    <span className="text-blue-600 dark:text-blue-400">#{displayCall.relatedTaskId}</span>
                   </div>
                 )}
-                {call.notes && (
+                {displayCall.notes && (
                   <div className="pt-1">
                     <p className="text-muted-foreground text-xs mb-1">Notes</p>
-                    <p className="text-sm bg-muted/40 rounded p-2">{call.notes}</p>
+                    <p className="text-sm bg-muted/40 rounded p-2">{displayCall.notes}</p>
                   </div>
                 )}
               </div>
@@ -526,7 +542,7 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
             {/* Actions */}
             {isActive && (
               <div className="flex flex-wrap gap-2">
-                {call.callStatus !== "In Progress" && (
+                {displayCall.callStatus !== "In Progress" && (
                   <Button size="sm" onClick={() => startMutation.mutate()} disabled={startMutation.isPending} data-testid="button-start-call">
                     <PhoneCall className="h-3 w-3 mr-1" />Start Call
                   </Button>
@@ -742,16 +758,6 @@ function DayView({ date, calls, onCallClick }: { date: Date; calls: any[]; onCal
 
 // ── Agenda View ───────────────────────────────────────────────────────────────
 function AgendaView({ calls, onCallClick }: { calls: any[]; onCallClick: (c: any) => void }) {
-  if (calls.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <PhoneMissed className="h-10 w-10 mb-3 opacity-30" />
-        <p className="text-lg font-medium">No calls found</p>
-        <p className="text-sm">Try adjusting filters or schedule a new call</p>
-      </div>
-    );
-  }
-
   const grouped = useMemo(() => {
     const map: Record<string, any[]> = {};
     for (const c of [...calls].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())) {
@@ -761,6 +767,16 @@ function AgendaView({ calls, onCallClick }: { calls: any[]; onCallClick: (c: any
     }
     return map;
   }, [calls]);
+
+  if (calls.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <PhoneMissed className="h-10 w-10 mb-3 opacity-30" />
+        <p className="text-lg font-medium">No calls found</p>
+        <p className="text-sm">Try adjusting filters or schedule a new call</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -876,16 +892,17 @@ export default function CallCalendarPage() {
     };
   }, [view, currentDate, filterDateFrom, filterDateTo]);
 
-  const queryParams = new URLSearchParams({
-    dateFrom: apiDateFrom, dateTo: apiDateTo,
-    ...(filterStatus !== "all" ? { callStatus: filterStatus } : {}),
-    ...(filterDept !== "all" ? { department: filterDept } : {}),
-    ...(filterAssigned !== "all" ? { assignedUserId: filterAssigned } : {}),
-  });
-
-  const { data: rawCalls = [], isLoading, refetch } = useQuery<any[]>({
+  const { data: rawCalls = [], isLoading, isFetching, refetch } = useQuery<any[]>({
     queryKey: ["/api/calls", apiDateFrom, apiDateTo, filterStatus, filterDept, filterAssigned],
-    queryFn: () => fetch(`/api/calls?${queryParams}`).then(r => r.json()),
+    queryFn: ({ queryKey }) => {
+      const [, dateFrom, dateTo, callStatus, department, assignedUserId] = queryKey as string[];
+      const params = new URLSearchParams({ dateFrom, dateTo });
+      if (callStatus !== "all") params.set("callStatus", callStatus);
+      if (department !== "all") params.set("department", department);
+      if (assignedUserId !== "all") params.set("assignedUserId", assignedUserId);
+      return fetch(`/api/calls?${params}`).then(r => r.json());
+    },
+    placeholderData: keepPreviousData,
   });
 
   const { data: stats } = useQuery<any>({ queryKey: ["/api/calls/stats"] });
@@ -923,12 +940,6 @@ export default function CallCalendarPage() {
     setSelectedCall(c);
     setDetailOpen(true);
   }, []);
-
-  function addDays(d: Date, n: number): Date {
-    const r = new Date(d);
-    r.setDate(r.getDate() + n);
-    return r;
-  }
 
   const hasFilters = !!(search || filterStatus !== "all" || filterDept !== "all" || filterPriority !== "all" || filterAssigned !== "all" || filterDateFrom || filterDateTo || filterOverdueOnly);
 
@@ -1036,7 +1047,12 @@ export default function CallCalendarPage() {
       </div>
 
       {/* Calendar Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 relative">
+        {isFetching && !isLoading && (
+          <div className="absolute top-2 right-4 z-10 flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded-full border shadow-sm">
+            <RefreshCw className="h-3 w-3 animate-spin" />Updating…
+          </div>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <div className="text-muted-foreground">Loading calls…</div>

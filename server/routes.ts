@@ -3854,7 +3854,7 @@ export async function registerRoutes(
       const { dateFrom, dateTo, assignedUserId, callStatus, department, myCallsOnly } = req.query;
       const filters: any = {};
       if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
-      if (dateTo) { const d = new Date(dateTo as string); d.setHours(23, 59, 59, 999); filters.dateTo = d; }
+      if (dateTo) { const d = new Date(dateTo as string); d.setUTCHours(23, 59, 59, 999); filters.dateTo = d; }
       if (callStatus && callStatus !== "all") filters.callStatus = callStatus as string;
       if (department && department !== "all") filters.department = department as string;
       if (!isManager || myCallsOnly === "true") {
