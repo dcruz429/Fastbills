@@ -207,7 +207,9 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
               <SelectContent>
                 <SelectItem value="none">-- No related task --</SelectItem>
                 {tasks.slice(0, 100).map(t => (
-                  <SelectItem key={t.id} value={String(t.id)}>{t.patientName} (#{t.id})</SelectItem>
+                  <SelectItem key={t.id} value={String(t.id)}>
+                    #{t.id} — {t.patientName}{t.chartNumber ? ` · ${t.chartNumber}` : ""}{t.bucket ? ` [${t.bucket.replace(/_/g, " ")}]` : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
