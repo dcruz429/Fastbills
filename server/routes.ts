@@ -3909,6 +3909,30 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/calls/agent-stats", requireAuth, async (req, res) => {
+    try {
+      const { dateFrom, dateTo } = req.query;
+      const filters: any = {};
+      if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
+      if (dateTo) { const d = new Date(dateTo as string); d.setUTCHours(23, 59, 59, 999); filters.dateTo = d; }
+      const calls = await storage.getScheduledCalls(filters);
+      const agentMap: Record<number, any> = {};
+      for (const call of calls) {
+        if (!call.assignedUserId) continue;
+        if (!agentMap[call.assignedUserId]) {
+          agentMap[call.assignedUserId] = { userId: call.assignedUserId, userName: (call as any).assignedUserName || "Unknown", assigned: 0, done: 0, pending: 0, rescheduled: 0 };
+        }
+        const s = agentMap[call.assignedUserId];
+        s.assigned++;
+        if (["Completed", "Resolved"].includes(call.callStatus)) s.done++;
+        else if (call.callStatus === "Rescheduled") s.rescheduled++;
+        else s.pending++;
+      }
+      const result = Object.values(agentMap).map((s: any) => ({ ...s, successRate: s.assigned > 0 ? Math.round((s.done / s.assigned) * 100) : 0 })).sort((a: any, b: any) => b.assigned - a.assigned);
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.get("/api/calls/:id", requireAuth, async (req, res) => {
     try {
       const call = await storage.getScheduledCall(Number(req.params.id));

@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type CalendarView = "month" | "week" | "day" | "agenda";
+type CalendarView = "list" | "month" | "week" | "day" | "agenda";
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -48,8 +48,32 @@ const STATUS_COLORS: Record<string, string> = {
   "Overdue": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
 };
 
+const STATUS_DOT: Record<string, string> = {
+  "Scheduled": "bg-blue-500",
+  "In Progress": "bg-purple-500",
+  "Attempted": "bg-yellow-500",
+  "Follow-Up Required": "bg-yellow-500",
+  "Rescheduled": "bg-orange-500",
+  "Resolved": "bg-green-500",
+  "Completed": "bg-green-500",
+  "Cancelled": "bg-gray-400",
+  "Missed": "bg-red-500",
+};
+
+const ROW_BORDER_COLOR: Record<string, string> = {
+  "Scheduled": "border-l-blue-400",
+  "In Progress": "border-l-purple-400",
+  "Attempted": "border-l-yellow-400",
+  "Follow-Up Required": "border-l-yellow-500",
+  "Rescheduled": "border-l-orange-400",
+  "Resolved": "border-l-green-400",
+  "Completed": "border-l-green-400",
+  "Cancelled": "border-l-gray-300",
+  "Missed": "border-l-red-400",
+};
+
 function isOverdue(call: any): boolean {
-  if (["Resolved", "Completed", "Cancelled"].includes(call.callStatus)) return false;
+  if (["Resolved", "Completed", "Cancelled", "Rescheduled", "Missed"].includes(call.callStatus)) return false;
   return new Date(call.scheduledAt) < new Date();
 }
 
@@ -848,12 +872,320 @@ function AgendaView({ calls, onCallClick }: { calls: any[]; onCallClick: (c: any
   );
 }
 
+// ── Move to Another Day Dialog ─────────────────────────────────────────────────
+function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: boolean; onClose: () => void; onSave: (iso: string) => void; isPending: boolean }) {
+  const [option, setOption] = useState<"tomorrow" | "pick">("tomorrow");
+  const [pickedDate, setPickedDate] = useState("");
+  const tomorrowKey = addDays(new Date(), 1).toISOString().split("T")[0];
+  const tomorrowLabel = new Date(tomorrowKey + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" });
+
+  const handleSave = () => {
+    const dateKey = option === "tomorrow" ? tomorrowKey : pickedDate;
+    if (!dateKey) return;
+    const d = new Date(`${dateKey}T09:00:00`);
+    onSave(d.toISOString());
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="sm:max-w-xs">
+        <DialogHeader><DialogTitle>Move Call To</DialogTitle></DialogHeader>
+        <div className="space-y-3 pt-1">
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input type="radio" checked={option === "tomorrow"} onChange={() => setOption("tomorrow")} className="accent-primary" />
+            <span className="text-sm">Tomorrow ({tomorrowLabel})</span>
+          </label>
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input type="radio" checked={option === "pick"} onChange={() => setOption("pick")} className="accent-primary" />
+            <span className="text-sm">Pick Date</span>
+          </label>
+          {option === "pick" && (
+            <Input type="date" value={pickedDate} onChange={e => setPickedDate(e.target.value)} min={tomorrowKey} className="h-8 text-sm ml-5" data-testid="input-move-date" />
+          )}
+        </div>
+        <DialogFooter className="mt-2">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={handleSave} disabled={isPending || (option === "pick" && !pickedDate)} data-testid="button-confirm-move">
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Daily List View ────────────────────────────────────────────────────────────
+function DailyListView({ date, calls, onCallClick }: { date: Date; calls: any[]; onCallClick: (c: any) => void }) {
+  const { toast } = useToast();
+  const todayKey = getDateKey(date);
+
+  const dayCalls = useMemo(() =>
+    calls.filter(c => getDateKey(c.scheduledAt) === todayKey)
+         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
+  [calls, todayKey]);
+
+  const nextCallMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const c of calls) {
+      if (c.parentCallId && c.callStatus !== "Cancelled") {
+        const existing = map[c.parentCallId];
+        if (!existing || new Date(c.scheduledAt) < new Date(existing)) {
+          map[c.parentCallId] = c.scheduledAt;
+        }
+      }
+    }
+    return map;
+  }, [calls]);
+
+  const [pendingCallId, setPendingCallId] = useState<number | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+
+  const quickMutation = useMutation({
+    mutationFn: async ({ callId, action, nextDate }: { callId: number; action: string; nextDate?: string }) => {
+      const tomorrow = addDays(new Date(), 1);
+      tomorrow.setHours(9, 0, 0, 0);
+      const tomorrowISO = tomorrow.toISOString();
+      switch (action) {
+        case "done":      return apiRequest("PATCH", `/api/calls/${callId}`, { callStatus: "Completed" });
+        case "resolved":  return apiRequest("PATCH", `/api/calls/${callId}`, { callStatus: "Resolved", completedAt: new Date().toISOString() });
+        case "voicemail": return apiRequest("POST", `/api/calls/${callId}/attempts`, { outcome: "Left Voicemail", followUpRequired: true, nextScheduledAt: tomorrowISO });
+        case "wrong":     return apiRequest("POST", `/api/calls/${callId}/attempts`, { outcome: "Wrong Number", followUpRequired: false });
+        case "callback":  return apiRequest("POST", `/api/calls/${callId}/attempts`, { outcome: "Patient Requested Callback", followUpRequired: true, nextScheduledAt: tomorrowISO });
+        case "unable":    return apiRequest("POST", `/api/calls/${callId}/attempts`, { outcome: "No Answer", followUpRequired: true, nextScheduledAt: tomorrowISO });
+        case "move":      return apiRequest("PATCH", `/api/calls/${callId}`, { scheduledAt: nextDate });
+        default: throw new Error("Unknown action");
+      }
+    },
+    onSuccess: (_, v) => {
+      setPendingCallId(null);
+      // Optimistic status map — immediately update the cache so the UI reflects the change without waiting for refetch
+      const optimisticStatus: Record<string, string> = {
+        done: "Completed", resolved: "Resolved",
+        voicemail: "Rescheduled", wrong: "Attempted",
+        callback: "Rescheduled", unable: "Follow-Up Required",
+        move: "Rescheduled",
+      };
+      const newStatus = optimisticStatus[v.action];
+      if (newStatus) {
+        queryClient.setQueriesData<any[]>({ queryKey: ["/api/calls"] }, (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map(c => c.id === v.callId ? { ...c, callStatus: newStatus } : c);
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
+      const msgs: Record<string, string> = {
+        done: "Marked as Done", resolved: "Marked as Resolved",
+        voicemail: "Voicemail recorded — follow-up set for tomorrow",
+        wrong: "Marked as Wrong Number",
+        callback: "Callback scheduled for tomorrow",
+        unable: "Unable to reach — follow-up scheduled for tomorrow",
+        move: "Call moved to new date",
+      };
+      toast({ title: msgs[v.action] || "Updated" });
+    },
+    onError: (e: Error) => { setPendingCallId(null); toast({ title: "Error", description: e.message, variant: "destructive" }); },
+  });
+
+  const handleAction = (callId: number, action: string) => {
+    setPendingCallId(callId);
+    if (action === "move") { setMoveOpen(true); }
+    else quickMutation.mutate({ callId, action });
+  };
+
+  const handleMove = (isoDate: string) => {
+    if (pendingCallId) { quickMutation.mutate({ callId: pendingCallId, action: "move", nextDate: isoDate }); }
+    setMoveOpen(false);
+    setPendingCallId(null);
+  };
+
+  if (dayCalls.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <PhoneOff className="h-10 w-10 mb-3 opacity-30" />
+        <p className="text-lg font-medium">No calls for this day</p>
+        <p className="text-sm">Schedule a new call or navigate to another date</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="rounded-md border overflow-hidden">
+        <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">
+            Daily Patient List — {date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+          </h2>
+          <span className="text-xs text-muted-foreground">{dayCalls.length} call{dayCalls.length !== 1 ? "s" : ""}</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b bg-muted/10">
+                {["Status", "Patient", "Phone", "Clinic", "Insurance", "Assigned To", "Call Reason", "Notes", "Next Call", "Actions"].map(h => (
+                  <th key={h} className="text-left px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {dayCalls.map(c => {
+                const overdue = isOverdue(c);
+                const borderCls = overdue ? "border-l-red-500" : (ROW_BORDER_COLOR[c.callStatus] || "border-l-gray-300");
+                const dotCls = overdue ? "bg-red-500" : (STATUS_DOT[c.callStatus] || "bg-gray-400");
+                const nextCallDate = nextCallMap[c.id];
+                const isActive = !["Resolved", "Completed", "Cancelled"].includes(c.callStatus);
+                const isMutating = quickMutation.isPending && pendingCallId === c.id;
+
+                return (
+                  <tr key={c.id} data-testid={`daily-row-${c.id}`}
+                    className={cn("border-b border-l-4 hover:bg-muted/10 transition-colors", borderCls, !isActive && "opacity-70")}>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", dotCls, overdue && "animate-pulse")} />
+                        <span className="text-xs font-medium">{overdue ? "Overdue" : c.callStatus}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <button onClick={() => onCallClick(c)} className="font-medium hover:underline text-left whitespace-nowrap" data-testid={`button-view-daily-${c.id}`}>
+                        {c.patientName}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {c.phoneNumber ? (
+                        <a href={`tel:${c.phoneNumber}`} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 text-xs">
+                          <Phone className="h-3 w-3" />{c.phoneNumber}
+                        </a>
+                      ) : <span className="text-muted-foreground text-xs">—</span>}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs">{c.clinic || <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs">{c.insurance || <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs">
+                      {c.assignedUserName ? c.assignedUserName : <span className="text-muted-foreground italic">Unassigned</span>}
+                    </td>
+                    <td className="px-3 py-2.5 max-w-[150px] truncate text-xs">{c.callReason}</td>
+                    <td className="px-3 py-2.5 max-w-[120px] text-xs">
+                      {c.notes ? (
+                        <span className="text-muted-foreground truncate block max-w-[120px]" title={c.notes}>
+                          {c.notes.length > 35 ? c.notes.slice(0, 35) + "…" : c.notes}
+                        </span>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs">
+                      {nextCallDate ? (
+                        <span className="text-orange-600 dark:text-orange-400 font-medium">
+                          {new Date(nextCallDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}
+                        </span>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {isActive ? (
+                        <div className="flex flex-wrap gap-1 min-w-[340px]">
+                          <button onClick={() => handleAction(c.id, "done")} disabled={isMutating} data-testid={`btn-done-${c.id}`}
+                            className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700 disabled:opacity-50 whitespace-nowrap">
+                            ✅ Done
+                          </button>
+                          <button onClick={() => handleAction(c.id, "resolved")} disabled={isMutating} data-testid={`btn-resolved-${c.id}`}
+                            className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700 disabled:opacity-50 whitespace-nowrap">
+                            ✓ Resolved
+                          </button>
+                          <button onClick={() => handleAction(c.id, "move")} disabled={isMutating} data-testid={`btn-move-${c.id}`}
+                            className="text-xs px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-700 disabled:opacity-50 whitespace-nowrap">
+                            📅 Move
+                          </button>
+                          <button onClick={() => handleAction(c.id, "voicemail")} disabled={isMutating} data-testid={`btn-voicemail-${c.id}`}
+                            className="text-xs px-1.5 py-0.5 rounded border border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-700 disabled:opacity-50 whitespace-nowrap">
+                            📞 Voicemail
+                          </button>
+                          <button onClick={() => handleAction(c.id, "wrong")} disabled={isMutating} data-testid={`btn-wrong-${c.id}`}
+                            className="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700 disabled:opacity-50 whitespace-nowrap">
+                            🚫 Wrong #
+                          </button>
+                          <button onClick={() => handleAction(c.id, "callback")} disabled={isMutating} data-testid={`btn-callback-${c.id}`}
+                            className="text-xs px-1.5 py-0.5 rounded border border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700 disabled:opacity-50 whitespace-nowrap">
+                            ⏱ Call Back
+                          </button>
+                          <button onClick={() => handleAction(c.id, "unable")} disabled={isMutating} data-testid={`btn-unable-${c.id}`}
+                            className="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700 disabled:opacity-50 whitespace-nowrap">
+                            ✗ Unable
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">{c.callStatus}</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <MoveToAnotherDayDialog
+        open={moveOpen}
+        onClose={() => { setMoveOpen(false); setPendingCallId(null); }}
+        onSave={handleMove}
+        isPending={quickMutation.isPending}
+      />
+    </>
+  );
+}
+
+// ── Manager Dashboard ──────────────────────────────────────────────────────────
+function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: string }) {
+  const { data: agentStats = [] } = useQuery<any[]>({
+    queryKey: ["/api/calls/agent-stats", dateFrom, dateTo],
+    queryFn: ({ queryKey }) => {
+      const [, df, dt] = queryKey as string[];
+      return fetch(`/api/calls/agent-stats?dateFrom=${df}&dateTo=${dt}`, { credentials: "include" }).then(r => r.json());
+    },
+  });
+
+  return (
+    <div className="mt-5 rounded-md border overflow-hidden" data-testid="manager-dashboard">
+      <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center gap-2">
+        <UserIcon className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">Manager Dashboard</h3>
+        <span className="text-xs text-muted-foreground ml-1">— agent stats for selected day</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" data-testid="agent-stats-table">
+          <thead>
+            <tr className="border-b bg-muted/10">
+              {["Agent", "Assigned", "Done", "Pending", "Rescheduled", "Success Rate"].map(h => (
+                <th key={h} className={cn("px-4 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "Agent" ? "text-left" : "text-center")}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {agentStats.length === 0 ? (
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">No assigned calls for this day</td></tr>
+            ) : agentStats.map((s: any) => (
+              <tr key={s.userId} className="border-b hover:bg-muted/10 transition-colors" data-testid={`agent-row-${s.userId}`}>
+                <td className="px-4 py-2 font-medium">{s.userName}</td>
+                <td className="px-4 py-2 text-center">{s.assigned}</td>
+                <td className="px-4 py-2 text-center text-green-600 dark:text-green-400 font-medium">{s.done}</td>
+                <td className="px-4 py-2 text-center text-yellow-600 dark:text-yellow-400">{s.pending}</td>
+                <td className="px-4 py-2 text-center text-orange-600 dark:text-orange-400">{s.rescheduled}</td>
+                <td className="px-4 py-2 text-center">
+                  <span className={cn("font-medium", s.successRate >= 80 ? "text-green-600 dark:text-green-400" : s.successRate >= 60 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400")}>
+                    {s.successRate}%
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CallCalendarPage() {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
 
-  const [view, setView] = useState<CalendarView>("agenda");
+  const [view, setView] = useState<CalendarView>("list");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedCall, setSelectedCall] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -864,6 +1196,8 @@ export default function CallCalendarPage() {
   const [filterDept, setFilterDept] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterAssigned, setFilterAssigned] = useState("all");
+  const [filterClinic, setFilterClinic] = useState("all");
+  const [filterInsurance, setFilterInsurance] = useState("all");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterOverdueOnly, setFilterOverdueOnly] = useState(false);
@@ -884,6 +1218,9 @@ export default function CallCalendarPage() {
     } else if (view === "day") {
       const key = getDateKey(d);
       return { apiDateFrom: key, apiDateTo: key };
+    } else if (view === "list") {
+      // Load selected day + 30 more days so child calls (Next Call dates) are included
+      return { apiDateFrom: getDateKey(d), apiDateTo: getDateKey(addDays(d, 30)) };
     }
     // Agenda: use filter range or default 30 days
     return {
@@ -907,15 +1244,30 @@ export default function CallCalendarPage() {
 
   const { data: stats } = useQuery<any>({ queryKey: ["/api/calls/stats"] });
 
+  // Unique clinic/insurance values from loaded calls for filter dropdowns
+  const uniqueClinics = useMemo(() => {
+    const s = new Set<string>();
+    rawCalls.forEach(c => { if (c.clinic) s.add(c.clinic); });
+    return Array.from(s).sort();
+  }, [rawCalls]);
+
+  const uniqueInsurances = useMemo(() => {
+    const s = new Set<string>();
+    rawCalls.forEach(c => { if (c.insurance) s.add(c.insurance); });
+    return Array.from(s).sort();
+  }, [rawCalls]);
+
   const calls = useMemo(() => rawCalls.filter(c => {
     if (filterPriority !== "all" && c.priority !== filterPriority) return false;
     if (filterOverdueOnly && !isOverdue(c)) return false;
+    if (filterClinic !== "all" && c.clinic !== filterClinic) return false;
+    if (filterInsurance !== "all" && c.insurance !== filterInsurance) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!c.patientName?.toLowerCase().includes(q) && !c.callReason?.toLowerCase().includes(q) && !c.clinic?.toLowerCase().includes(q) && !c.assignedUserName?.toLowerCase().includes(q)) return false;
     }
     return true;
-  }), [rawCalls, filterPriority, filterOverdueOnly, search]);
+  }), [rawCalls, filterPriority, filterOverdueOnly, filterClinic, filterInsurance, search]);
 
   const navigate = useCallback((dir: 1 | -1) => {
     const d = new Date(currentDate);
@@ -932,7 +1284,7 @@ export default function CallCalendarPage() {
       const we = addDays(ws, 6);
       return `${ws.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${we.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
     }
-    if (view === "day") return currentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    if (view === "day" || view === "list") return currentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
     return "Agenda";
   }, [view, currentDate]);
 
@@ -941,7 +1293,13 @@ export default function CallCalendarPage() {
     setDetailOpen(true);
   }, []);
 
-  const hasFilters = !!(search || filterStatus !== "all" || filterDept !== "all" || filterPriority !== "all" || filterAssigned !== "all" || filterDateFrom || filterDateTo || filterOverdueOnly);
+  const clearFilters = useCallback(() => {
+    setSearch(""); setFilterStatus("all"); setFilterDept("all"); setFilterPriority("all");
+    setFilterAssigned("all"); setFilterClinic("all"); setFilterInsurance("all");
+    setFilterDateFrom(""); setFilterDateTo(""); setFilterOverdueOnly(false);
+  }, []);
+
+  const hasFilters = !!(search || filterStatus !== "all" || filterDept !== "all" || filterPriority !== "all" || filterAssigned !== "all" || filterClinic !== "all" || filterInsurance !== "all" || filterDateFrom || filterDateTo || filterOverdueOnly);
 
   return (
     <div className="flex flex-col h-full">
@@ -972,17 +1330,17 @@ export default function CallCalendarPage() {
       {/* View Tabs + Nav */}
       <div className="flex items-center gap-2 px-4 py-2 border-b flex-wrap">
         <div className="flex items-center border rounded-md overflow-hidden">
-          {(["month", "week", "day", "agenda"] as CalendarView[]).map(v => (
+          {(["list", "month", "week", "day", "agenda"] as CalendarView[]).map(v => (
             <button key={v} onClick={() => setView(v)} data-testid={`tab-view-${v}`}
               className={cn("px-3 py-1.5 text-xs font-medium capitalize transition-colors", view === v ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
-              {v}
+              {v === "list" ? "Daily" : v}
             </button>
           ))}
         </div>
         {view !== "agenda" && (
           <div className="flex items-center gap-1">
             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => navigate(-1)} data-testid="button-prev"><ChevronLeft className="h-4 w-4" /></Button>
-            <span className="text-sm font-medium min-w-[180px] text-center">{rangeLabel}</span>
+            <span className="text-sm font-medium min-w-[200px] text-center">{rangeLabel}</span>
             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => navigate(1)} data-testid="button-next"><ChevronRight className="h-4 w-4" /></Button>
           </div>
         )}
@@ -1018,6 +1376,24 @@ export default function CallCalendarPage() {
             {["low", "medium", "high", "critical"].map(p => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}
           </SelectContent>
         </Select>
+        {uniqueClinics.length > 0 && (
+          <Select value={filterClinic} onValueChange={setFilterClinic}>
+            <SelectTrigger className="h-8 w-36 text-xs" data-testid="select-filter-clinic"><SelectValue placeholder="All Clinics" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Clinics</SelectItem>
+              {uniqueClinics.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        {uniqueInsurances.length > 0 && (
+          <Select value={filterInsurance} onValueChange={setFilterInsurance}>
+            <SelectTrigger className="h-8 w-36 text-xs" data-testid="select-filter-insurance"><SelectValue placeholder="All Insurances" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Insurances</SelectItem>
+              {uniqueInsurances.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         {isManager && (
           <Select value={filterAssigned} onValueChange={setFilterAssigned}>
             <SelectTrigger className="h-8 w-40 text-xs" data-testid="select-filter-assigned"><SelectValue /></SelectTrigger>
@@ -1029,7 +1405,7 @@ export default function CallCalendarPage() {
             </SelectContent>
           </Select>
         )}
-        {view === "agenda" && (
+        {(view === "agenda" || view === "list") && (
           <>
             <Input type="date" className="h-8 w-36 text-xs" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} data-testid="input-filter-date-from" />
             <Input type="date" className="h-8 w-36 text-xs" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} data-testid="input-filter-date-to" />
@@ -1040,7 +1416,7 @@ export default function CallCalendarPage() {
           <Label htmlFor="overdueOnly" className="text-xs cursor-pointer text-muted-foreground">Overdue only</Label>
         </div>
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setSearch(""); setFilterStatus("all"); setFilterDept("all"); setFilterPriority("all"); setFilterAssigned("all"); setFilterDateFrom(""); setFilterDateTo(""); setFilterOverdueOnly(false); }} data-testid="button-clear-filters">
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters} data-testid="button-clear-filters">
             <X className="h-3 w-3 mr-1" />Clear
           </Button>
         )}
@@ -1057,6 +1433,11 @@ export default function CallCalendarPage() {
           <div className="flex items-center justify-center py-16">
             <div className="text-muted-foreground">Loading calls…</div>
           </div>
+        ) : view === "list" ? (
+          <>
+            <DailyListView date={currentDate} calls={calls} onCallClick={openCall} />
+            {isManager && <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} />}
+          </>
         ) : view === "month" ? (
           <MonthView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : view === "week" ? (
