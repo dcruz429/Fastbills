@@ -3844,5 +3844,179 @@ export async function registerRoutes(
     }
   });
 
+  // ── Call Calendar ─────────────────────────────────────────────────────────
+
+  app.get("/api/calls", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const isManager = ADMIN_ROLES.includes(user.role);
+      const { dateFrom, dateTo, assignedUserId, callStatus, department, myCallsOnly } = req.query;
+      const filters: any = {};
+      if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
+      if (dateTo) { const d = new Date(dateTo as string); d.setHours(23, 59, 59, 999); filters.dateTo = d; }
+      if (callStatus && callStatus !== "all") filters.callStatus = callStatus as string;
+      if (department && department !== "all") filters.department = department as string;
+      if (!isManager || myCallsOnly === "true") {
+        if (assignedUserId && assignedUserId !== "all") filters.assignedUserId = Number(assignedUserId);
+        else if (!isManager) filters.assignedUserId = user.id;
+      } else if (assignedUserId && assignedUserId !== "all") {
+        filters.assignedUserId = Number(assignedUserId);
+      }
+      const calls = await storage.getScheduledCalls(filters);
+      res.json(calls);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/calls", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const { patientName, relatedTaskId, department, assignedUserId, scheduledAt, callReason, priority, phoneNumber, notes, clinic, insurance } = req.body;
+      if (!patientName?.trim()) return res.status(400).json({ message: "Patient name is required" });
+      if (!scheduledAt) return res.status(400).json({ message: "Scheduled date/time is required" });
+      if (!callReason?.trim()) return res.status(400).json({ message: "Call reason is required" });
+      const call = await storage.createScheduledCall({
+        patientName: patientName.trim(), relatedTaskId: relatedTaskId ? Number(relatedTaskId) : null,
+        department: department || null, assignedUserId: assignedUserId ? Number(assignedUserId) : null,
+        createdByUserId: user.id, scheduledAt: new Date(scheduledAt), timezone: "America/New_York",
+        callReason: callReason.trim(), priority: priority || "medium", callStatus: "Scheduled",
+        phoneNumber: phoneNumber?.trim() || null, notes: notes?.trim() || null, clinic: clinic || null, insurance: insurance || null,
+      });
+      await storage.createCallActivity({ scheduledCallId: call.id, actorUserId: user.id, eventType: "Call Scheduled", newValues: JSON.stringify({ patientName, scheduledAt, callReason }) });
+      if (assignedUserId && Number(assignedUserId) !== user.id) {
+        await storage.createNotification({ userId: Number(assignedUserId), message: `A call has been assigned to you: ${patientName} – ${callReason}`, read: false } as any);
+      }
+      res.json(call);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/calls/stats", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart.getTime() + 86400000 - 1);
+      const allCalls = await storage.getScheduledCalls({ dateFrom: todayStart, dateTo: todayEnd });
+      res.json({
+        scheduledToday: allCalls.length,
+        resolvedToday: allCalls.filter((c: any) => ["Resolved", "Completed"].includes(c.callStatus)).length,
+        overdueToday: allCalls.filter((c: any) => !["Resolved", "Completed", "Cancelled"].includes(c.callStatus) && new Date(c.scheduledAt) < now).length,
+        followUpRequired: allCalls.filter((c: any) => c.callStatus === "Follow-Up Required").length,
+        unassigned: allCalls.filter((c: any) => !c.assignedUserId).length,
+      });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/calls/:id", requireAuth, async (req, res) => {
+    try {
+      const call = await storage.getScheduledCall(Number(req.params.id));
+      if (!call) return res.status(404).json({ message: "Call not found" });
+      res.json(call);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/calls/:id", requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const existing = await storage.getScheduledCall(id);
+      if (!existing) return res.status(404).json({ message: "Call not found" });
+      if (!ADMIN_ROLES.includes(user.role) && existing.assignedUserId !== user.id) return res.status(403).json({ message: "Not authorized" });
+      const allowed = ["patientName", "relatedTaskId", "department", "assignedUserId", "scheduledAt", "callReason", "priority", "callStatus", "phoneNumber", "notes", "clinic", "insurance", "completedAt", "cancelledAt", "cancellationReason"];
+      const updates: any = {};
+      for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
+      if (updates.scheduledAt) updates.scheduledAt = new Date(updates.scheduledAt);
+      const call = await storage.updateScheduledCall(id, updates);
+      await storage.createCallActivity({ scheduledCallId: id, actorUserId: user.id, eventType: "Call Updated", oldValues: JSON.stringify({ callStatus: existing.callStatus, scheduledAt: existing.scheduledAt }), newValues: JSON.stringify(updates) });
+      res.json(call);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/calls/:id/start", requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const existing = await storage.getScheduledCall(id);
+      if (!existing) return res.status(404).json({ message: "Call not found" });
+      const call = await storage.updateScheduledCall(id, { callStatus: "In Progress" });
+      await storage.createCallActivity({ scheduledCallId: id, actorUserId: user.id, eventType: "Call Started", oldValues: JSON.stringify({ callStatus: existing.callStatus }), newValues: JSON.stringify({ callStatus: "In Progress" }) });
+      res.json(call);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/calls/:id/cancel", requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const existing = await storage.getScheduledCall(id);
+      if (!existing) return res.status(404).json({ message: "Call not found" });
+      if (!ADMIN_ROLES.includes(user.role) && existing.assignedUserId !== user.id) return res.status(403).json({ message: "Not authorized" });
+      const call = await storage.updateScheduledCall(id, { callStatus: "Cancelled", cancelledAt: new Date(), cancellationReason: req.body.reason || null });
+      await storage.createCallActivity({ scheduledCallId: id, actorUserId: user.id, eventType: "Call Cancelled", newValues: JSON.stringify({ reason: req.body.reason }) });
+      res.json(call);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/calls/:id/attempts", requireAuth, async (req, res) => {
+    try {
+      const attempts = await storage.getCallAttempts(Number(req.params.id));
+      res.json(attempts);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/calls/:id/attempts", requireAuth, async (req, res) => {
+    try {
+      const callId = Number(req.params.id);
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const existing = await storage.getScheduledCall(callId);
+      if (!existing) return res.status(404).json({ message: "Call not found" });
+      const { outcome, contactPerson, notes, startedAt, endedAt, followUpRequired, nextScheduledAt, nextAssignedUserId, updateTaskStatus, newTaskStatus, otherExplanation } = req.body;
+      if (!outcome) return res.status(400).json({ message: "Outcome is required" });
+      if (outcome === "Other" && !otherExplanation?.trim()) return res.status(400).json({ message: "Explanation required when outcome is Other" });
+      let durationSeconds: number | null = null;
+      if (startedAt && endedAt) durationSeconds = Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000);
+      const attempt = await storage.createCallAttempt({
+        scheduledCallId: callId, attemptedByUserId: user.id,
+        startedAt: startedAt ? new Date(startedAt) : null, endedAt: endedAt ? new Date(endedAt) : null,
+        durationSeconds, outcome: outcome + (outcome === "Other" && otherExplanation ? `: ${otherExplanation}` : ""),
+        contactPerson: contactPerson?.trim() || null, notes: notes?.trim() || null, followUpRequired: !!followUpRequired,
+      });
+      const RESOLVED_OUTCOMES = ["Spoke With Patient", "Spoke With Authorized Contact", "Resolved", "Documentation Received"];
+      const FOLLOWUP_OUTS = ["Left Voicemail", "No Answer", "Busy", "Patient Requested Callback", "Insurance Follow-Up Required", "Clinic Follow-Up Required", "Documentation Requested", "Language Assistance Needed"];
+      let newCallStatus = "Attempted";
+      if (RESOLVED_OUTCOMES.includes(outcome)) newCallStatus = "Resolved";
+      else if (followUpRequired || FOLLOWUP_OUTS.includes(outcome)) newCallStatus = "Follow-Up Required";
+      let nextCall: any = null;
+      if (nextScheduledAt && followUpRequired) {
+        nextCall = await storage.createScheduledCall({ patientName: existing.patientName, relatedTaskId: existing.relatedTaskId, department: existing.department, assignedUserId: nextAssignedUserId ? Number(nextAssignedUserId) : existing.assignedUserId, createdByUserId: user.id, scheduledAt: new Date(nextScheduledAt), timezone: "America/New_York", callReason: existing.callReason, priority: existing.priority, callStatus: "Scheduled", phoneNumber: existing.phoneNumber, clinic: existing.clinic, insurance: existing.insurance, parentCallId: callId });
+        newCallStatus = "Rescheduled";
+        await storage.createCallActivity({ scheduledCallId: callId, callAttemptId: attempt.id, actorUserId: user.id, eventType: "Follow-Up Scheduled", newValues: JSON.stringify({ nextScheduledAt, nextCallId: nextCall.id }) });
+      }
+      await storage.updateScheduledCall(callId, { callStatus: newCallStatus, ...(newCallStatus === "Resolved" ? { completedAt: new Date() } : {}) });
+      await storage.createCallActivity({ scheduledCallId: callId, callAttemptId: attempt.id, actorUserId: user.id, eventType: "Attempt Recorded", newValues: JSON.stringify({ outcome, callStatus: newCallStatus }) });
+      if (updateTaskStatus && newTaskStatus && existing.relatedTaskId) {
+        const VALID_STATUSES = ["unassigned", "assigned", "working_on_it", "done"];
+        if (VALID_STATUSES.includes(newTaskStatus)) {
+          await storage.updateTask(existing.relatedTaskId, { status: newTaskStatus });
+          await storage.createCallActivity({ scheduledCallId: callId, actorUserId: user.id, eventType: "Related Task Status Updated", newValues: JSON.stringify({ taskId: existing.relatedTaskId, newStatus: newTaskStatus }) });
+        }
+      }
+      res.json({ attempt, nextCall });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/calls/:id/activity", requireAuth, async (req, res) => {
+    try {
+      const activity = await storage.getCallActivityLog(Number(req.params.id));
+      res.json(activity);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   return httpServer;
 }

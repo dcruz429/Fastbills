@@ -21,6 +21,7 @@ import {
   User as UserIcon,
   CheckCircle2,
   Briefcase,
+  CalendarClock,
 } from "lucide-react";
 import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
@@ -57,6 +58,7 @@ import { useQuery } from "@tanstack/react-query";
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "My Tasks", url: "/my-tasks", icon: UserIcon, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
+  { title: "Call Calendar", url: "/call-calendar", icon: CalendarClock, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Verification", url: "/verification", icon: ShieldCheck, roles: ["admin", "manager", "verifier", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Billing", url: "/", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Posting", url: "/posting", icon: FileText, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },

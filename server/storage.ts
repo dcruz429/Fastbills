@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, gte, lte, between } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -12,6 +12,9 @@ import {
   tickets,
   ticketComments,
   ticketActivity,
+  scheduledCalls,
+  callAttempts,
+  callActivity,
   type User,
   type InsertUser,
   type Task,
@@ -202,6 +205,16 @@ export interface IStorage {
   createCeoBoxRecord(data: Partial<CeoBox>, userId: number): Promise<CeoBox>;
   updateCeoBoxRecord(id: number, data: Partial<CeoBox>): Promise<CeoBox | undefined>;
   deleteCeoBoxRecord(id: number): Promise<void>;
+
+  getScheduledCalls(filters?: { dateFrom?: Date; dateTo?: Date; assignedUserId?: number; callStatus?: string; department?: string; }): Promise<any[]>;
+  getScheduledCall(id: number): Promise<any | undefined>;
+  createScheduledCall(data: any): Promise<any>;
+  updateScheduledCall(id: number, data: any): Promise<any | undefined>;
+  deleteScheduledCall(id: number): Promise<void>;
+  getCallAttempts(callId: number): Promise<any[]>;
+  createCallAttempt(data: any): Promise<any>;
+  getCallActivityLog(callId: number): Promise<any[]>;
+  createCallActivity(data: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -996,6 +1009,148 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCeoBoxRecord(id: number): Promise<void> {
     await db.delete(ceoBox).where(eq(ceoBox.id, id));
+  }
+
+  async getScheduledCalls(filters?: { dateFrom?: Date; dateTo?: Date; assignedUserId?: number; callStatus?: string; department?: string; }): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: scheduledCalls.id,
+        patientName: scheduledCalls.patientName,
+        relatedTaskId: scheduledCalls.relatedTaskId,
+        department: scheduledCalls.department,
+        assignedUserId: scheduledCalls.assignedUserId,
+        createdByUserId: scheduledCalls.createdByUserId,
+        scheduledAt: scheduledCalls.scheduledAt,
+        timezone: scheduledCalls.timezone,
+        callReason: scheduledCalls.callReason,
+        priority: scheduledCalls.priority,
+        callStatus: scheduledCalls.callStatus,
+        phoneNumber: scheduledCalls.phoneNumber,
+        notes: scheduledCalls.notes,
+        parentCallId: scheduledCalls.parentCallId,
+        completedAt: scheduledCalls.completedAt,
+        cancelledAt: scheduledCalls.cancelledAt,
+        cancellationReason: scheduledCalls.cancellationReason,
+        clinic: scheduledCalls.clinic,
+        insurance: scheduledCalls.insurance,
+        createdAt: scheduledCalls.createdAt,
+        updatedAt: scheduledCalls.updatedAt,
+        assignedUserName: users.fullName,
+      })
+      .from(scheduledCalls)
+      .leftJoin(users, eq(scheduledCalls.assignedUserId, users.id))
+      .orderBy(asc(scheduledCalls.scheduledAt));
+
+    return rows.filter((r: any) => {
+      if (filters?.dateFrom && r.scheduledAt < filters.dateFrom) return false;
+      if (filters?.dateTo && r.scheduledAt > filters.dateTo) return false;
+      if (filters?.assignedUserId && r.assignedUserId !== filters.assignedUserId) return false;
+      if (filters?.callStatus && r.callStatus !== filters.callStatus) return false;
+      if (filters?.department && r.department !== filters.department) return false;
+      return true;
+    });
+  }
+
+  async getScheduledCall(id: number): Promise<any | undefined> {
+    const rows = await db
+      .select({
+        id: scheduledCalls.id,
+        patientName: scheduledCalls.patientName,
+        relatedTaskId: scheduledCalls.relatedTaskId,
+        department: scheduledCalls.department,
+        assignedUserId: scheduledCalls.assignedUserId,
+        createdByUserId: scheduledCalls.createdByUserId,
+        scheduledAt: scheduledCalls.scheduledAt,
+        timezone: scheduledCalls.timezone,
+        callReason: scheduledCalls.callReason,
+        priority: scheduledCalls.priority,
+        callStatus: scheduledCalls.callStatus,
+        phoneNumber: scheduledCalls.phoneNumber,
+        notes: scheduledCalls.notes,
+        parentCallId: scheduledCalls.parentCallId,
+        completedAt: scheduledCalls.completedAt,
+        cancelledAt: scheduledCalls.cancelledAt,
+        cancellationReason: scheduledCalls.cancellationReason,
+        clinic: scheduledCalls.clinic,
+        insurance: scheduledCalls.insurance,
+        createdAt: scheduledCalls.createdAt,
+        updatedAt: scheduledCalls.updatedAt,
+        assignedUserName: users.fullName,
+      })
+      .from(scheduledCalls)
+      .leftJoin(users, eq(scheduledCalls.assignedUserId, users.id))
+      .where(eq(scheduledCalls.id, id));
+    return rows[0];
+  }
+
+  async createScheduledCall(data: any): Promise<any> {
+    const [row] = await db.insert(scheduledCalls).values(data).returning();
+    return row;
+  }
+
+  async updateScheduledCall(id: number, data: any): Promise<any | undefined> {
+    const [row] = await db.update(scheduledCalls).set({ ...data, updatedAt: new Date() }).where(eq(scheduledCalls.id, id)).returning();
+    return row;
+  }
+
+  async deleteScheduledCall(id: number): Promise<void> {
+    await db.delete(callActivity).where(eq(callActivity.scheduledCallId, id));
+    await db.delete(callAttempts).where(eq(callAttempts.scheduledCallId, id));
+    await db.delete(scheduledCalls).where(eq(scheduledCalls.id, id));
+  }
+
+  async getCallAttempts(callId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: callAttempts.id,
+        scheduledCallId: callAttempts.scheduledCallId,
+        attemptedByUserId: callAttempts.attemptedByUserId,
+        startedAt: callAttempts.startedAt,
+        endedAt: callAttempts.endedAt,
+        durationSeconds: callAttempts.durationSeconds,
+        outcome: callAttempts.outcome,
+        contactPerson: callAttempts.contactPerson,
+        notes: callAttempts.notes,
+        followUpRequired: callAttempts.followUpRequired,
+        nextScheduledCallId: callAttempts.nextScheduledCallId,
+        createdAt: callAttempts.createdAt,
+        userName: users.fullName,
+      })
+      .from(callAttempts)
+      .leftJoin(users, eq(callAttempts.attemptedByUserId, users.id))
+      .where(eq(callAttempts.scheduledCallId, callId))
+      .orderBy(desc(callAttempts.createdAt));
+    return rows;
+  }
+
+  async createCallAttempt(data: any): Promise<any> {
+    const [row] = await db.insert(callAttempts).values(data).returning();
+    return row;
+  }
+
+  async getCallActivityLog(callId: number): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: callActivity.id,
+        scheduledCallId: callActivity.scheduledCallId,
+        callAttemptId: callActivity.callAttemptId,
+        actorUserId: callActivity.actorUserId,
+        eventType: callActivity.eventType,
+        oldValues: callActivity.oldValues,
+        newValues: callActivity.newValues,
+        createdAt: callActivity.createdAt,
+        userName: users.fullName,
+      })
+      .from(callActivity)
+      .leftJoin(users, eq(callActivity.actorUserId, users.id))
+      .where(eq(callActivity.scheduledCallId, callId))
+      .orderBy(desc(callActivity.createdAt));
+    return rows;
+  }
+
+  async createCallActivity(data: any): Promise<any> {
+    const [row] = await db.insert(callActivity).values(data).returning();
+    return row;
   }
 }
 

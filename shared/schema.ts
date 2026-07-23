@@ -751,6 +751,101 @@ export const CEO_PRIORITY_LABELS: Record<string, string> = {
   urgent: "Urgent",
 };
 
+export const CALL_STATUS_OPTIONS = [
+  "Scheduled", "In Progress", "Attempted", "Follow-Up Required",
+  "Rescheduled", "Resolved", "Completed", "Cancelled", "Missed", "Overdue",
+];
+
+export const CALL_OUTCOME_OPTIONS = [
+  "Spoke With Patient", "Spoke With Authorized Contact", "Resolved",
+  "Left Voicemail", "No Answer", "Busy", "Disconnected Number", "Wrong Number",
+  "Patient Requested Callback", "Insurance Follow-Up Required",
+  "Clinic Follow-Up Required", "Documentation Requested", "Documentation Received",
+  "Unable to Verify Identity", "Language Assistance Needed",
+  "Escalated to Supervisor", "Other",
+];
+
+export const CALL_FOLLOWUP_OUTCOMES = [
+  "Left Voicemail", "No Answer", "Busy", "Patient Requested Callback",
+  "Insurance Follow-Up Required", "Clinic Follow-Up Required",
+  "Documentation Requested", "Language Assistance Needed",
+];
+
+export const CALL_DEPARTMENTS = [
+  "Verification", "Billing", "Posting", "Collections",
+  "Denials", "Arbitration", "RTP", "Checks", "Other",
+];
+
+export const scheduledCalls = pgTable("scheduled_calls", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  patientName: text("patient_name").notNull(),
+  relatedTaskId: integer("related_task_id").references(() => tasks.id),
+  department: text("department"),
+  assignedUserId: integer("assigned_user_id").references(() => users.id),
+  createdByUserId: integer("created_by_user_id").references(() => users.id),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  timezone: text("timezone").notNull().default("America/New_York"),
+  callReason: text("call_reason").notNull(),
+  priority: text("priority").notNull().default("medium"),
+  callStatus: text("call_status").notNull().default("Scheduled"),
+  phoneNumber: text("phone_number"),
+  notes: text("notes"),
+  parentCallId: integer("parent_call_id"),
+  completedAt: timestamp("completed_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  cancellationReason: text("cancellation_reason"),
+  clinic: text("clinic"),
+  insurance: text("insurance"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  index("scheduled_calls_scheduled_at_idx").on(t.scheduledAt),
+  index("scheduled_calls_assigned_user_id_idx").on(t.assignedUserId),
+  index("scheduled_calls_call_status_idx").on(t.callStatus),
+  index("scheduled_calls_related_task_id_idx").on(t.relatedTaskId),
+]);
+
+export const callAttempts = pgTable("call_attempts", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  scheduledCallId: integer("scheduled_call_id").notNull().references(() => scheduledCalls.id),
+  attemptedByUserId: integer("attempted_by_user_id").references(() => users.id),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  durationSeconds: integer("duration_seconds"),
+  outcome: text("outcome").notNull(),
+  contactPerson: text("contact_person"),
+  notes: text("notes"),
+  followUpRequired: boolean("follow_up_required").notNull().default(false),
+  nextScheduledCallId: integer("next_scheduled_call_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("call_attempts_scheduled_call_id_idx").on(t.scheduledCallId),
+]);
+
+export const callActivity = pgTable("call_activity", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  scheduledCallId: integer("scheduled_call_id").notNull().references(() => scheduledCalls.id),
+  callAttemptId: integer("call_attempt_id"),
+  actorUserId: integer("actor_user_id").references(() => users.id),
+  eventType: text("event_type").notNull(),
+  oldValues: text("old_values"),
+  newValues: text("new_values"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("call_activity_scheduled_call_id_idx").on(t.scheduledCallId),
+]);
+
+export const insertScheduledCallSchema = createInsertSchema(scheduledCalls).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCallAttemptSchema = createInsertSchema(callAttempts).omit({ id: true, createdAt: true });
+export const insertCallActivitySchema = createInsertSchema(callActivity).omit({ id: true, createdAt: true });
+
+export type ScheduledCall = typeof scheduledCalls.$inferSelect;
+export type InsertScheduledCall = z.infer<typeof insertScheduledCallSchema>;
+export type CallAttempt = typeof callAttempts.$inferSelect;
+export type InsertCallAttempt = z.infer<typeof insertCallAttemptSchema>;
+export type CallActivityRecord = typeof callActivity.$inferSelect;
+export type InsertCallActivity = z.infer<typeof insertCallActivitySchema>;
+
 export const DROPDOWN_CATEGORIES = [
   { key: "denial_type", label: "Type of Denial" },
   { key: "filed_to", label: "Filed To" },

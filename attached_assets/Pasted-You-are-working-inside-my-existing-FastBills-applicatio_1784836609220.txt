@@ -1,0 +1,1211 @@
+You are working inside my existing FastBills application. Build a production-ready Call Center Calendar and call-follow-up workflow that integrates directly with the current task-management system.
+
+IMPORTANT DEVELOPMENT RULES
+
+1. Inspect the existing codebase before changing anything.
+2. Identify the current:
+   - Frontend framework
+   - Backend framework
+   - Database and ORM
+   - Authentication system
+   - User and role structure
+   - Task schema
+   - Notification system
+   - Existing reusable UI components
+   - Existing audit/history functionality
+3. Do not replace the existing technology stack.
+4. Do not rebuild the application from scratch.
+5. Reuse the current FastBills components, styles, tables, buttons, filters, modals, side panels, badges, typography, spacing, authentication, and permissions.
+6. Make all database changes through safe migrations.
+7. Preserve all existing FastBills functionality.
+8. Do not delete, rename, or repurpose existing database fields unless absolutely necessary.
+9. Before implementation, provide a brief technical summary of the current architecture and the files that will be modified.
+10. Then implement the feature rather than stopping after the plan.
+11. Keep the application responsive and usable on standard office desktop screens, laptops, tablets, and mobile devices.
+12. Use America/New_York as the default application timezone unless the existing user profile already stores a timezone.
+13. Do not insert real patient information into seeds, tests, logs, screenshots, or sample data.
+14. Do not expose passwords, authentication tokens, connection strings, or secrets in source code.
+15. Do not create a separate standalone calendar application. This must be part of FastBills.
+
+PROJECT OBJECTIVE
+
+Add a Call Center Calendar that lets staff and managers:
+
+- See which patients must be called today.
+- Schedule patient calls for future dates and times.
+- Record every call attempt and its outcome.
+- Reschedule follow-up calls without erasing previous attempts.
+- Assign calls to staff members.
+- View calls by day, week, month, and agenda.
+- Filter calls by department, employee, clinic, insurance, priority, task status, and call outcome.
+- Identify overdue calls.
+- Track call productivity and resolution rates.
+- Maintain a complete audit history.
+- Open the related FastBills task or patient record from the scheduled call.
+- Keep task status separate from call outcome.
+
+CURRENT FASTBILLS DESIGN
+
+The application currently has a left navigation menu containing areas such as:
+
+- Dashboard
+- My Tasks
+- Verification
+- Billing
+- Posting
+- Collections
+- Denials
+- Arbitration
+- RTP
+- Checks
+- Message Board
+- Messages
+- Suggestion Box
+- CEO Box
+- Workload
+- Billing Queue
+- Productivity
+- Reports
+- Notifications
+- Settings
+
+Department pages currently use:
+
+- Search
+- Status filter
+- Priority filter
+- Clinic filter
+- Assigned-user filter
+- Date filter
+- Start and end date filters
+- Collapsible task sections
+- Patient rows
+- Clinic
+- Insurance
+- Input or IE date
+- Due date
+- Priority badges
+- Status badges
+- Assigned employee
+- New Task button
+- CSV import
+- Overdue row highlighting
+
+The new functionality must visually feel like a native part of this interface.
+
+NAVIGATION
+
+Add a new left-navigation item named:
+
+Call Calendar
+
+Place it immediately below My Tasks.
+
+Use an appropriate calendar or phone-calendar icon consistent with the current icon library.
+
+Only display the navigation item to users who have permission to access call scheduling.
+
+CALL CALENDAR PAGE
+
+Create a dedicated route using the existing routing conventions. Use an appropriate path such as:
+
+/call-calendar
+
+Do not hardcode this route if the existing application uses named routes or a different route structure.
+
+PAGE HEADER
+
+Display:
+
+Call Center Calendar
+
+Include these actions on the right:
+
+- New Call
+- Today
+- Refresh
+- Optional export action, if FastBills already supports exports
+
+VIEW OPTIONS
+
+Provide four views:
+
+1. Month
+2. Week
+3. Day
+4. Agenda
+
+Remember each user’s most recently selected view when practical.
+
+DEFAULT BEHAVIOR
+
+- Regular agents should initially see their own assigned calls.
+- Managers and administrators should initially see all calls they are authorized to manage.
+- Default the date to today.
+- Provide an obvious way to return to today.
+- Display the current visible date range in the page header.
+- Support previous and next date-range navigation.
+
+FILTER BAR
+
+Match the existing FastBills filter style.
+
+Include:
+
+- Search patients
+- All Departments
+- All Call Statuses
+- All Call Outcomes
+- All Priorities
+- All Clinics
+- All Insurance Companies
+- All Assigned Users
+- Date range
+- Overdue only toggle
+- Unassigned only toggle
+- Clear Filters button
+
+Search should work with the fields already available in FastBills, including:
+
+- Patient name
+- Patient identifier
+- Clinic
+- Insurance company
+- Task identifier
+- Assigned employee
+- Call reason
+
+Do not expose restricted patient information to users without permission.
+
+CALENDAR DISPLAY
+
+Each scheduled call must appear as a calendar card or event.
+
+Display as much of the following as space allows:
+
+- Scheduled time
+- Patient name
+- Clinic
+- Insurance
+- Department
+- Call reason
+- Assigned employee
+- Priority
+- Current call status
+- Overdue indicator
+- Number of previous call attempts
+
+On smaller cards, show only the most important information and provide the remaining information in a tooltip or accessible detail popover.
+
+Use the existing FastBills badge styling.
+
+Recommended color behavior:
+
+- Red: overdue or critical
+- Orange: follow-up required or rescheduled
+- Yellow: medium priority
+- Blue: assigned or scheduled
+- Green: resolved or completed
+- Gray: cancelled, unassigned, or no longer active
+
+Do not rely on color alone. Include icons, text, badges, or patterns for accessibility.
+
+Clicking a calendar event should open a side panel or modal using the application’s existing interaction pattern.
+
+AGENDA VIEW
+
+Create a table-style agenda view grouped by date.
+
+Columns should include:
+
+- Scheduled Time
+- Patient
+- Phone
+- Clinic
+- Insurance
+- Department
+- Call Reason
+- Priority
+- Call Status
+- Last Outcome
+- Attempts
+- Assigned To
+- Related Task
+- Actions
+
+Allow sorting by:
+
+- Scheduled date and time
+- Patient
+- Priority
+- Status
+- Assigned employee
+- Number of attempts
+
+Provide pagination or virtual scrolling using the same pattern as the existing application.
+
+PHONE NUMBER DISPLAY
+
+Use the phone number from the existing patient record where available.
+
+Requirements:
+
+- Do not duplicate patient phone data unnecessarily.
+- Respect existing patient-access permissions.
+- Format phone numbers consistently.
+- Allow click-to-call using a `tel:` link when supported.
+- Do not build call recording.
+- Do not automatically place calls without explicit user action.
+- If the existing app masks sensitive data for certain roles, preserve that behavior.
+
+NEW CALL WORKFLOW
+
+The New Call button should open a modal or side panel.
+
+Fields:
+
+- Patient
+- Related FastBills task
+- Department
+- Call reason
+- Scheduled date
+- Scheduled time
+- Assigned employee
+- Priority
+- Phone number, preferably inherited from patient
+- Optional initial notes
+- Reminder option
+- Recurrence option, if recurring scheduling can be implemented safely
+- Created by
+- Created date and time
+
+Patient selection should use the existing patient search or patient picker.
+
+When a related task is selected, automatically populate available information such as:
+
+- Patient
+- Clinic
+- Insurance
+- Department
+- Assigned employee
+- Priority
+
+Allow authorized users to override fields when appropriate.
+
+Prevent saving when required fields are missing.
+
+Required fields:
+
+- Patient
+- Scheduled date
+- Call reason
+- Assigned employee, unless the user has permission to create unassigned calls
+
+CALL DETAIL PANEL
+
+When a user opens a scheduled call, display:
+
+PATIENT INFORMATION
+
+- Patient name
+- Phone number
+- Clinic
+- Insurance
+- Relevant identifiers already permitted in FastBills
+
+CALL INFORMATION
+
+- Scheduled date
+- Scheduled time
+- Call reason
+- Department
+- Priority
+- Assigned employee
+- Current call status
+- Related task
+- Created by
+- Created date
+- Last updated date
+
+CALL HISTORY
+
+Display a chronological timeline containing:
+
+- Scheduled
+- Assigned
+- Reassigned
+- Attempted
+- Rescheduled
+- Completed
+- Cancelled
+- Outcome recorded
+- Notes added
+- Task status changed, when relevant
+
+Each history record should show:
+
+- Date
+- Time
+- User
+- Action
+- Outcome
+- Notes
+- Previous scheduled date and time
+- New scheduled date and time
+
+Do not overwrite previous call attempts when a call is rescheduled.
+
+CALL ACTIONS
+
+Provide these actions according to permissions:
+
+- Start Call
+- Record Call Attempt
+- Mark Resolved
+- Reschedule
+- Reassign
+- Edit
+- Cancel Call
+- Open Related Task
+- Open Patient Record
+
+START CALL BEHAVIOR
+
+When the user clicks Start Call:
+
+- Record a started timestamp.
+- Change call status to In Progress.
+- Open or expose the patient phone number.
+- Optionally activate the `tel:` link.
+- Do not automatically mark the call successful.
+- Do not automatically change the related FastBills task status.
+
+RECORD CALL ATTEMPT FORM
+
+Include:
+
+Call Outcome, required:
+
+- Spoke With Patient
+- Spoke With Authorized Contact
+- Resolved
+- Left Voicemail
+- No Answer
+- Busy
+- Disconnected Number
+- Wrong Number
+- Patient Requested Callback
+- Insurance Follow-Up Required
+- Clinic Follow-Up Required
+- Documentation Requested
+- Documentation Received
+- Unable to Verify Identity
+- Language Assistance Needed
+- Escalated to Supervisor
+- Other
+
+Additional fields:
+
+- Call notes
+- Contact person
+- Start time
+- End time
+- Call duration
+- Follow-up required: Yes or No
+- Next follow-up date
+- Next follow-up time
+- Reassign follow-up to
+- Update related task status checkbox
+- Related task status, shown only when the checkbox is selected
+
+Call duration may be calculated automatically from Start Call and End Call timestamps, but allow authorized correction if necessary.
+
+If Other is selected, require an explanation.
+
+CALL STATUS
+
+Create a separate call-status field with values such as:
+
+- Scheduled
+- In Progress
+- Attempted
+- Follow-Up Required
+- Rescheduled
+- Resolved
+- Completed
+- Cancelled
+- Missed
+- Overdue
+
+Do not use call outcome as the call status.
+
+TASK STATUS VERSUS CALL OUTCOME
+
+This distinction is mandatory.
+
+A FastBills task can remain Assigned or In Progress even when today’s call attempt is complete.
+
+Examples:
+
+- Task Status: Assigned
+  Call Outcome: No Answer
+  Call Status: Follow-Up Required
+
+- Task Status: In Progress
+  Call Outcome: Left Voicemail
+  Call Status: Rescheduled
+
+- Task Status: Completed
+  Call Outcome: Resolved
+  Call Status: Resolved
+
+Do not automatically complete the FastBills task merely because a call attempt was recorded.
+
+Only update the task status when:
+
+- The user explicitly selects a task-status update, or
+- A configurable business rule authorizes the update.
+
+RESCHEDULING
+
+When a user records outcomes such as:
+
+- Left Voicemail
+- No Answer
+- Busy
+- Patient Requested Callback
+- Insurance Follow-Up Required
+- Clinic Follow-Up Required
+- Documentation Requested
+- Language Assistance Needed
+
+Prompt the user to schedule a follow-up.
+
+Quick options:
+
+- Later Today
+- Tomorrow
+- In 3 Days
+- In 7 Days
+- Choose Date and Time
+- No Follow-Up
+
+When rescheduling:
+
+1. Save the current attempt as a permanent history record.
+2. Mark the current scheduled occurrence appropriately.
+3. Create or update the next scheduled occurrence.
+4. Preserve the same patient and related FastBills task.
+5. Allow the next call to be assigned to a different employee.
+6. Record who changed the schedule.
+7. Record the original and new date and time.
+8. Prevent silent loss of the previous call attempt.
+9. Prevent duplicate active follow-ups unless the user confirms that multiple calls are intentional.
+
+OVERDUE LOGIC
+
+A call becomes overdue when:
+
+- Its scheduled date and time have passed,
+- It has not been resolved, completed, or cancelled,
+- And no valid later follow-up has replaced it.
+
+Overdue calls should:
+
+- Appear with a red visual indicator.
+- Be filterable.
+- Appear on the user’s dashboard or My Tasks area when practical.
+- Contribute to manager reporting.
+- Create an in-app notification according to configured notification rules.
+- Not generate repeated duplicate notifications every page refresh.
+
+MISSED CALLS
+
+At an appropriate scheduled job interval, calls that have passed their scheduled time without activity may be marked Missed or Overdue according to business rules.
+
+Do not require the user to have the page open for overdue status to update.
+
+Use the application’s existing scheduled-job mechanism. If no scheduled-job mechanism exists, implement the safest option supported by the current stack and Replit deployment.
+
+DEPARTMENT INTEGRATION
+
+Calls must be associated with one of the existing FastBills departments or workflows, including:
+
+- Verification
+- Billing
+- Posting
+- Collections
+- Denials
+- Arbitration
+- RTP
+- Checks
+- Other existing departments discovered in the application
+
+Do not create duplicate department records if FastBills already has a department or module model.
+
+RELATED TASK INTEGRATION
+
+A scheduled call should preferably reference an existing FastBills task.
+
+From a department task row, add a small action such as:
+
+- Schedule Call
+- Phone icon
+- Add Follow-Up
+
+Use the existing row-action pattern.
+
+When clicked, prepopulate the call form with:
+
+- Patient
+- Related task
+- Department
+- Clinic
+- Insurance
+- Priority
+- Assigned employee
+
+Do not require users to reenter information that already exists.
+
+TASK TABLE ENHANCEMENTS
+
+On applicable FastBills task tables, add these fields or indicators without making the table unusably wide:
+
+- Next Call
+- Last Call Outcome
+- Call Attempts
+- Call Follow-Up Status
+
+If the existing table cannot support all columns cleanly, place some information in:
+
+- A compact call-status column
+- A tooltip
+- An expandable row
+- The existing detail panel
+
+Provide a Schedule Call action beside the patient or within the row actions.
+
+MY TASKS INTEGRATION
+
+Add a section or tab to My Tasks for:
+
+- Calls Due Today
+- Upcoming Calls
+- Overdue Calls
+
+Regular employees should only see their authorized calls.
+
+Managers may see team calls.
+
+NOTIFICATIONS
+
+Use the existing FastBills notification system.
+
+Possible notifications:
+
+- A call was assigned to you.
+- A scheduled call is due soon.
+- A call is overdue.
+- A call was reassigned.
+- A follow-up was rescheduled.
+- A supervisor escalation was created.
+
+Avoid notification spam.
+
+Store notification state so the same event does not create unlimited duplicates.
+
+If configurable reminders are supported, allow:
+
+- At scheduled time
+- 15 minutes before
+- 30 minutes before
+- 1 hour before
+- 1 day before
+
+ROLE-BASED PERMISSIONS
+
+Integrate with the existing authentication and authorization system.
+
+At minimum, support these behaviors:
+
+AGENT
+
+- View calls assigned to the agent
+- Create calls when permitted
+- Record attempts
+- Add notes
+- Reschedule authorized calls
+- View permitted patient and task data
+
+SUPERVISOR OR MANAGER
+
+- View team calls
+- Assign and reassign calls
+- Edit scheduling
+- View workload
+- View performance metrics
+- Review overdue calls
+- Export authorized data
+
+ADMINISTRATOR
+
+- Full access
+- Configure call outcomes
+- Configure departments
+- Configure reminder defaults
+- Configure permissions
+- View full audit logs
+- Correct records when necessary
+
+Do not rely only on hidden buttons for authorization. Enforce permissions on the server.
+
+DATABASE DESIGN
+
+Adapt the following structure to the current database and naming conventions.
+
+Do not blindly create all tables if equivalent structures already exist.
+
+SCHEDULED CALLS
+
+Suggested fields:
+
+- id
+- patient_id
+- related_task_id
+- department_id or department type
+- assigned_user_id
+- created_by_user_id
+- scheduled_start_at
+- scheduled_end_at, optional
+- timezone
+- call_reason
+- priority
+- call_status
+- phone_number_reference or snapshot only if operationally necessary
+- reminder_setting
+- recurrence_rule, optional
+- parent_call_id, optional
+- original_call_id, optional
+- completed_at
+- cancelled_at
+- cancellation_reason
+- created_at
+- updated_at
+- deleted_at, only if soft deletion is used
+
+CALL ATTEMPTS
+
+Suggested fields:
+
+- id
+- scheduled_call_id
+- patient_id
+- related_task_id
+- attempted_by_user_id
+- started_at
+- ended_at
+- duration_seconds
+- outcome
+- contact_person
+- notes
+- follow_up_required
+- next_scheduled_call_id
+- created_at
+- updated_at
+
+CALL AUDIT EVENTS
+
+Suggested fields:
+
+- id
+- scheduled_call_id
+- call_attempt_id, optional
+- actor_user_id
+- event_type
+- old_values, preferably structured JSON
+- new_values, preferably structured JSON
+- metadata
+- created_at
+
+CALL SETTINGS OR OUTCOMES
+
+Only create configurable tables if the existing application uses database-driven settings.
+
+Possible fields:
+
+- code
+- display_name
+- active
+- display_order
+- requires_follow_up
+- requires_note
+- closes_call
+- default_follow_up_interval
+- badge style
+
+INDEXES
+
+Add appropriate indexes for:
+
+- scheduled_start_at
+- assigned_user_id
+- patient_id
+- related_task_id
+- department
+- call_status
+- priority
+- created_at
+
+Add composite indexes based on actual query patterns.
+
+DATABASE INTEGRITY
+
+Enforce:
+
+- Valid patient references
+- Valid user references
+- Valid task references
+- Required timestamps
+- Allowed call statuses
+- Allowed outcomes
+- Prevention of orphaned records
+- Safe deletion rules
+- No destructive cascade that removes historical call attempts when a user or task is deactivated
+
+If the database supports soft deletion, use the application’s existing soft-delete conventions.
+
+API OR SERVER ACTIONS
+
+Follow the project’s existing API style.
+
+Create secure actions or endpoints for:
+
+- List calls by date range
+- Get call details
+- Create call
+- Update call
+- Start call
+- Record attempt
+- Reschedule call
+- Reassign call
+- Cancel call
+- Resolve call
+- Retrieve call history
+- Retrieve calendar statistics
+- Retrieve manager workload metrics
+- Export authorized calls
+
+Requirements:
+
+- Authenticate every request.
+- Authorize every action.
+- Validate all input on the server.
+- Do not trust client-provided user IDs or department access.
+- Protect against cross-site request forgery where relevant.
+- Prevent mass-assignment vulnerabilities.
+- Sanitize notes according to the application’s existing conventions.
+- Return useful validation errors.
+- Log operational errors without exposing patient information unnecessarily.
+
+CONCURRENCY
+
+Prevent two employees from unknowingly overwriting each other’s updates.
+
+Use the existing application’s concurrency strategy, or add:
+
+- Updated-at validation
+- Version field
+- Transactional updates
+- Clear conflict messages
+
+Example conflict message:
+
+“This call was updated by another user. Refresh to review the latest information before saving.”
+
+DRAG-AND-DROP
+
+If compatible with the existing frontend, support drag-and-drop rescheduling in month and week views.
+
+Requirements:
+
+- Only authorized users can drag calls.
+- Ask for confirmation before saving.
+- Display the original date and new date.
+- Save an audit event.
+- Handle failed updates by returning the event to its original position.
+- Support keyboard-accessible rescheduling as an alternative.
+
+If drag-and-drop would introduce instability or accessibility problems, implement it after the core scheduling workflow is complete.
+
+MANAGER DASHBOARD
+
+Add a Call Center section to the existing Workload, Productivity, or Reports area.
+
+Metrics:
+
+- Calls Scheduled Today
+- Calls Attempted Today
+- Calls Completed
+- Calls Resolved
+- Calls Requiring Follow-Up
+- Calls Rescheduled
+- Overdue Calls
+- Unassigned Calls
+- Patients Reached
+- Voicemails
+- No Answers
+- Wrong Numbers
+- Average Call Duration
+- Average Attempts Before Resolution
+- Resolution Rate
+- Contact Rate
+
+Agent table:
+
+- Employee
+- Scheduled
+- Attempted
+- Reached
+- Resolved
+- Follow-Up Required
+- Rescheduled
+- Overdue
+- Average Duration
+- Resolution Rate
+
+Allow filtering by:
+
+- Date range
+- Department
+- Employee
+- Clinic
+- Insurance
+- Outcome
+- Priority
+
+Do not measure productivity using calls created for future dates as though they were completed work.
+
+CALENDAR CAPACITY
+
+In month view, display the number of scheduled calls per day.
+
+Use a visual workload indicator such as:
+
+- Normal
+- Moderate
+- High
+- Over Capacity
+
+If the application has staffing capacity data, use it.
+
+Otherwise, make thresholds configurable rather than permanently hardcoding them.
+
+Managers should be able to identify overloaded days before they become operational bottlenecks.
+
+REPORTS AND EXPORTS
+
+Add authorized exports using the application’s existing export method.
+
+Export fields may include:
+
+- Scheduled date
+- Scheduled time
+- Patient identifier
+- Patient name, only when permitted
+- Clinic
+- Insurance
+- Department
+- Assigned employee
+- Call reason
+- Priority
+- Call status
+- Outcome
+- Attempt count
+- Call duration
+- Follow-up date
+- Resolution date
+
+Do not export hidden or unauthorized fields.
+
+Do not place sensitive patient information into exported filenames.
+
+AUDIT REQUIREMENTS
+
+Every important action must be auditable:
+
+- Call created
+- Call edited
+- Call assigned
+- Call reassigned
+- Call started
+- Call attempted
+- Outcome selected
+- Notes entered
+- Call rescheduled
+- Call resolved
+- Call cancelled
+- Related task status updated
+- Record corrected by administrator
+
+Audit entries should identify:
+
+- User
+- Timestamp
+- Action
+- Previous value
+- New value
+- Related call
+- Related task
+- Reason, when applicable
+
+Audit history must not be editable by ordinary users.
+
+SECURITY AND PRIVACY
+
+Because FastBills contains healthcare-related operational information:
+
+- Follow the existing patient-access rules.
+- Apply least-privilege permissions.
+- Do not expose patient information in frontend error messages.
+- Do not log full patient records.
+- Do not place patient names or phone numbers in server logs unless the existing secure logging policy explicitly allows it.
+- Do not send patient information in browser notification text.
+- Do not send patient information to third-party analytics.
+- Do not add call recording.
+- Do not add automated voice transcription.
+- Do not add external AI services.
+- Do not store unnecessary copies of patient data.
+- Keep session and authorization checks consistent with the rest of FastBills.
+
+ACCESSIBILITY
+
+The calendar must be keyboard accessible.
+
+Requirements:
+
+- Visible focus states
+- Proper labels
+- Form error descriptions
+- Screen-reader-friendly buttons
+- Accessible dialogs
+- Do not rely only on color
+- Keyboard alternative to drag-and-drop
+- Adequate text contrast
+- Usable zoom behavior
+- Logical tab order
+
+RESPONSIVE DESIGN
+
+Desktop:
+
+- Full calendar
+- Full filter bar
+- Side panel for call details
+
+Tablet:
+
+- Condensed filters
+- Calendar or agenda toggle
+- Slide-over detail panel
+
+Mobile:
+
+- Default to agenda or day view
+- Stack filters in a drawer
+- Use large touch targets
+- Avoid horizontally unusable tables
+- Keep call actions easy to reach
+
+EMPTY AND ERROR STATES
+
+Create polished states for:
+
+- No calls scheduled
+- No calls match filters
+- No calls assigned to the user
+- No patient phone number
+- Related task unavailable
+- Calendar failed to load
+- Permission denied
+- Record updated by another user
+- Offline or temporary server error
+
+Provide clear actions such as:
+
+- Schedule New Call
+- Clear Filters
+- Retry
+- Open Patient Record
+- Contact Administrator
+
+PERFORMANCE
+
+The calendar must not load the entire call-history database at once.
+
+Requirements:
+
+- Query only the visible date range.
+- Load full history only when opening call details.
+- Paginate agenda and report data.
+- Use database indexes.
+- Debounce search.
+- Avoid unnecessary rerenders.
+- Avoid one database query per calendar event.
+- Use existing caching patterns when available.
+- Invalidate cache correctly after updates.
+
+TESTING
+
+Add tests consistent with the current project.
+
+At minimum, test:
+
+1. Agent can view an assigned call.
+2. Agent cannot view a restricted call.
+3. Manager can view team calls.
+4. User can create a call.
+5. User can record an attempt.
+6. No Answer can create a future follow-up.
+7. Previous attempt remains in history after rescheduling.
+8. Call outcome does not automatically complete the related task.
+9. Authorized user can explicitly update the related task.
+10. Unauthorized user cannot reassign calls.
+11. Overdue logic works.
+12. Completed calls do not become overdue.
+13. Cancelled calls do not become overdue.
+14. Drag-and-drop saves the correct date, if implemented.
+15. Failed drag-and-drop restores the original event.
+16. Date and time behavior works in America/New_York.
+17. Daylight-saving-time transitions do not shift calls incorrectly.
+18. Duplicate submissions do not create duplicate attempts.
+19. Calendar filters return correct results.
+20. Export respects authorization.
+21. Audit entries are created.
+22. Concurrent edits produce a conflict instead of silent data loss.
+23. Mobile agenda view remains usable.
+24. Required fields are validated on both client and server.
+
+SEED AND DEMO DATA
+
+Use fictional information only.
+
+Example fictional records:
+
+- Jordan Sample
+- Taylor Demo
+- Morgan Test
+
+Do not use actual FastBills patients, employees, phone numbers, clinics, or claims in seeded test data.
+
+IMPLEMENTATION PHASES
+
+PHASE 1: DISCOVERY
+
+- Inspect the application.
+- Identify reusable models and components.
+- Identify the safest database integration.
+- List files to be changed.
+- Confirm how roles and permissions work.
+
+PHASE 2: DATABASE AND SERVER
+
+- Add migrations.
+- Add models.
+- Add validation.
+- Add authorization.
+- Add API or server actions.
+- Add audit events.
+- Add overdue handling.
+
+PHASE 3: CORE UI
+
+- Add navigation.
+- Add Call Calendar page.
+- Add month, week, day, and agenda views.
+- Add filter bar.
+- Add call-detail panel.
+- Add New Call form.
+- Add call-attempt form.
+- Add rescheduling.
+
+PHASE 4: FASTBILLS INTEGRATION
+
+- Add Schedule Call actions to applicable task pages.
+- Add call indicators to task rows.
+- Add call sections to My Tasks.
+- Connect patient, task, department, clinic, insurance, priority, and assignments.
+
+PHASE 5: MANAGEMENT
+
+- Add workload metrics.
+- Add productivity metrics.
+- Add reports and exports.
+- Add notification support.
+
+PHASE 6: QUALITY
+
+- Add tests.
+- Review authorization.
+- Review responsive behavior.
+- Review accessibility.
+- Review performance.
+- Fix edge cases.
+- Verify existing modules still work.
+
+MINIMUM ACCEPTANCE CRITERIA
+
+The feature is not complete until all of the following work:
+
+1. Call Calendar appears below My Tasks.
+2. Authorized users can open the calendar.
+3. Calls can be scheduled for a patient.
+4. Calls can reference an existing FastBills task.
+5. Calls appear on the correct calendar date and time.
+6. Calls can be assigned.
+7. Calls can be opened from the calendar.
+8. A call attempt can be recorded.
+9. The outcome and notes are saved.
+10. Follow-up calls can be scheduled.
+11. Previous attempts remain visible.
+12. Call status remains separate from task status.
+13. Calls can be filtered.
+14. Overdue calls are clearly visible.
+15. Managers can see team workload.
+16. Permissions are enforced on the server.
+17. Important actions are audited.
+18. Existing FastBills workflows continue functioning.
+19. The feature works in the deployed Replit environment.
+20. Database migrations can be applied without losing existing data.
+
+FINAL DELIVERY
+
+When implementation is complete, provide:
+
+- Summary of the architecture used
+- Database migration summary
+- List of files created
+- List of files modified
+- New routes or endpoints
+- New permissions
+- Testing performed
+- Any environment variables required
+- Deployment steps
+- Rollback instructions
+- Known limitations
+- Recommended future enhancements
+
+Do not claim completion until the feature has been run and tested.
+
+Before finishing, start the application and verify:
+
+- Login works.
+- Existing Billing and department pages still load.
+- Call Calendar loads.
+- A test call can be created.
+- A test attempt can be recorded.
+- A follow-up can be scheduled.
+- The history remains intact.
+- Permissions work.
+- No browser console errors appear.
+- No server errors appear.
+- The database migration succeeds.
