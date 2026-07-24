@@ -1224,6 +1224,10 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
 
 // ── Manager Dashboard ──────────────────────────────────────────────────────────
 function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: string }) {
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
+  const [filterDept, setFilterDept] = useState<string>("all");
+  const [patientSearch, setPatientSearch] = useState<string>("");
+
   const { data: agentStats = [] } = useQuery<any[]>({
     queryKey: ["/api/calls/agent-stats", dateFrom, dateTo],
     queryFn: ({ queryKey }) => {
@@ -1232,41 +1236,194 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
     },
   });
 
+  const { data: teams = [] } = useQuery<{ id: number; name: string; members: { id: number; fullName?: string }[] }[]>({
+    queryKey: ["/api/teams"],
+  });
+
+  const { data: allUsers = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
+
+  const vcTeam = teams.find(t => t.name.toLowerCase() === "vc team");
+  const vcMembers: User[] = vcTeam
+    ? (vcTeam.members
+        .map(m => allUsers.find((u: User) => u.id === m.id))
+        .filter(Boolean) as User[])
+    : [];
+
+  const { data: rawPatients = [], isFetching: patientsFetching } = useQuery<any[]>({
+    queryKey: ["/api/calls/daily-schedule", dateFrom, selectedUserId],
+    queryFn: () => {
+      const params = new URLSearchParams({ date: dateFrom });
+      if (selectedUserId !== "all") params.set("userId", selectedUserId);
+      return fetch(`/api/calls/daily-schedule?${params}`, { credentials: "include" }).then(r => r.json());
+    },
+    enabled: selectedUserId !== "all" || vcMembers.length > 0,
+  });
+
+  // If "all" is selected, fetch for each VC member and merge
+  const { data: allMemberPatients = [] } = useQuery<any[]>({
+    queryKey: ["/api/calls/daily-schedule/all-vc", dateFrom, vcMembers.map(m => m.id).join(",")],
+    queryFn: async () => {
+      if (vcMembers.length === 0) return [];
+      const results = await Promise.all(
+        vcMembers.map(m =>
+          fetch(`/api/calls/daily-schedule?date=${dateFrom}&userId=${m.id}`, { credentials: "include" })
+            .then(r => r.json())
+            .then((pts: any[]) => pts.map((p: any) => ({ ...p, agentName: m.fullName, agentId: m.id })))
+        )
+      );
+      return results.flat();
+    },
+    enabled: selectedUserId === "all" && vcMembers.length > 0,
+  });
+
+  const patients: any[] = selectedUserId === "all"
+    ? allMemberPatients
+    : rawPatients.map((p: any) => ({
+        ...p,
+        agentName: allUsers.find((u: User) => u.id === Number(selectedUserId))?.fullName || "—",
+        agentId: Number(selectedUserId),
+      }));
+
+  const DEPT_OPTIONS = ["Verification", "Collections", "Denials", "Arbitration", "Posting", "Checks"];
+  const DEPT_COLORS: Record<string, string> = {
+    Verification: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+    Collections: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+    Denials: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    Arbitration: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+    Posting: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    Checks: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  };
+
+  const filteredPatients = patients.filter(p => {
+    if (filterDept !== "all" && p.department !== filterDept) return false;
+    if (patientSearch && !p.patientName?.toLowerCase().includes(patientSearch.toLowerCase())) return false;
+    return true;
+  });
+
   return (
-    <div className="mt-5 rounded-md border overflow-hidden" data-testid="manager-dashboard">
-      <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center gap-2">
-        <UserIcon className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold">Manager Dashboard</h3>
-        <span className="text-xs text-muted-foreground ml-1">— agent stats for selected day</span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm" data-testid="agent-stats-table">
-          <thead>
-            <tr className="border-b bg-muted/10">
-              {["Agent", "Assigned", "Done", "Pending", "Rescheduled", "Success Rate"].map(h => (
-                <th key={h} className={cn("px-4 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "Agent" ? "text-left" : "text-center")}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {agentStats.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">No assigned calls for this day</td></tr>
-            ) : agentStats.map((s: any) => (
-              <tr key={s.userId} className="border-b hover:bg-muted/10 transition-colors" data-testid={`agent-row-${s.userId}`}>
-                <td className="px-4 py-2 font-medium">{s.userName}</td>
-                <td className="px-4 py-2 text-center">{s.assigned}</td>
-                <td className="px-4 py-2 text-center text-green-600 dark:text-green-400 font-medium">{s.done}</td>
-                <td className="px-4 py-2 text-center text-yellow-600 dark:text-yellow-400">{s.pending}</td>
-                <td className="px-4 py-2 text-center text-orange-600 dark:text-orange-400">{s.rescheduled}</td>
-                <td className="px-4 py-2 text-center">
-                  <span className={cn("font-medium", s.successRate >= 80 ? "text-green-600 dark:text-green-400" : s.successRate >= 60 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400")}>
-                    {s.successRate}%
-                  </span>
-                </td>
+    <div className="space-y-4" data-testid="manager-dashboard">
+      {/* Agent Stats */}
+      <div className="rounded-md border overflow-hidden">
+        <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center gap-2">
+          <UserIcon className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold">Agent Stats</h3>
+          <span className="text-xs text-muted-foreground ml-1">— call activity for selected day</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" data-testid="agent-stats-table">
+            <thead>
+              <tr className="border-b bg-muted/10">
+                {["Agent", "Assigned", "Done", "Pending", "Rescheduled", "Success Rate"].map(h => (
+                  <th key={h} className={cn("px-4 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "Agent" ? "text-left" : "text-center")}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {agentStats.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">No assigned calls for this day</td></tr>
+              ) : agentStats.map((s: any) => (
+                <tr key={s.userId} className="border-b hover:bg-muted/10 transition-colors" data-testid={`agent-row-${s.userId}`}>
+                  <td className="px-4 py-2 font-medium">{s.userName}</td>
+                  <td className="px-4 py-2 text-center">{s.assigned}</td>
+                  <td className="px-4 py-2 text-center text-green-600 dark:text-green-400 font-medium">{s.done}</td>
+                  <td className="px-4 py-2 text-center text-yellow-600 dark:text-yellow-400">{s.pending}</td>
+                  <td className="px-4 py-2 text-center text-orange-600 dark:text-orange-400">{s.rescheduled}</td>
+                  <td className="px-4 py-2 text-center">
+                    <span className={cn("font-medium", s.successRate >= 80 ? "text-green-600 dark:text-green-400" : s.successRate >= 60 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400")}>
+                      {s.successRate}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* VC Team Patient Lists */}
+      <div className="rounded-md border overflow-hidden">
+        <div className="px-4 py-2.5 border-b bg-blue-50 dark:bg-blue-950/30 flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-blue-900 dark:text-blue-200">📋 VC Team Patient Lists</span>
+          <span className="text-xs text-blue-600 dark:text-blue-400 ml-1">— auto-scheduled for selected day</span>
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+            {/* Patient search */}
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                className="pl-7 h-7 w-40 text-xs rounded-md border bg-background px-2"
+                placeholder="Search patients…"
+                value={patientSearch}
+                onChange={e => setPatientSearch(e.target.value)}
+                data-testid="input-mgr-patient-search"
+              />
+            </div>
+            {/* Agent filter */}
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger className="h-7 w-40 text-xs" data-testid="select-mgr-agent">
+                <SelectValue placeholder="All Agents" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All VC Agents</SelectItem>
+                {vcMembers.map(m => (
+                  <SelectItem key={m.id} value={String(m.id)}>{m.fullName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Department filter */}
+            <Select value={filterDept} onValueChange={setFilterDept}>
+              <SelectTrigger className="h-7 w-36 text-xs" data-testid="select-mgr-dept">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {DEPT_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {vcMembers.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+            No VC Team found. Create a team named "VC Team" in Settings → Teams and add members.
+          </div>
+        ) : patientsFetching ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading…</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" data-testid="vc-patient-list-table">
+              <thead>
+                <tr className="border-b bg-muted/10">
+                  {["#", "Agent", "Patient Name", "Clinic", "Insurance", "Department"].map(h => (
+                    <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPatients.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No patients scheduled for this day</td></tr>
+                ) : filteredPatients.map((p, i) => (
+                  <tr key={`${p.agentId}-${p.department}-${p.sourceId}`} className="border-b hover:bg-muted/10 transition-colors" data-testid={`mgr-patient-row-${i}`}>
+                    <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
+                    <td className="px-3 py-2 text-xs font-medium whitespace-nowrap">{p.agentName || "—"}</td>
+                    <td className="px-3 py-2 font-medium whitespace-nowrap">{p.patientName}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.clinic || "—"}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.insurance || "—"}</td>
+                    <td className="px-3 py-2">
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800")}>
+                        {p.department}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {filteredPatients.length > 0 && (
+          <div className="px-4 py-2 border-t bg-muted/10 text-xs text-muted-foreground">
+            Showing {filteredPatients.length} patient{filteredPatients.length !== 1 ? "s" : ""}
+            {selectedUserId === "all" ? ` across ${vcMembers.length} VC agent${vcMembers.length !== 1 ? "s" : ""}` : ""}
+          </div>
+        )}
       </div>
     </div>
   );
