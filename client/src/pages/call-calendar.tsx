@@ -292,18 +292,34 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
 }
 
 // ── Record Attempt Dialog ─────────────────────────────────────────────────────
-function RecordAttemptDialog({ open, onClose, call, users }: { open: boolean; onClose: () => void; call: any; users: User[] }) {
+function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { open: boolean; onClose: () => void; call: any; users: User[]; defaultOutcome?: string }) {
   const { toast } = useToast();
-  const [outcome, setOutcome] = useState("");
+  const [outcome, setOutcome] = useState(defaultOutcome || "");
   const [otherExplanation, setOtherExplanation] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [notes, setNotes] = useState("");
-  const [followUpRequired, setFollowUpRequired] = useState(false);
-  const [nextDate, setNextDate] = useState("");
+  const [followUpRequired, setFollowUpRequired] = useState(defaultOutcome ? CALL_FOLLOWUP_OUTCOMES.includes(defaultOutcome) : false);
+  const [nextDate, setNextDate] = useState(defaultOutcome && defaultOutcome !== "Wrong Number" ? addDays(new Date(), 1).toISOString().split("T")[0] : "");
   const [nextTime, setNextTime] = useState("09:00");
   const [nextAssignedUserId, setNextAssignedUserId] = useState("");
   const [updateTaskStatus, setUpdateTaskStatus] = useState(false);
   const [newTaskStatus, setNewTaskStatus] = useState("");
+
+  // Reset state when dialog opens with a new call/outcome
+  useEffect(() => {
+    if (open) {
+      setOutcome(defaultOutcome || "");
+      setOtherExplanation("");
+      setContactPerson("");
+      setNotes("");
+      setFollowUpRequired(defaultOutcome ? CALL_FOLLOWUP_OUTCOMES.includes(defaultOutcome) : false);
+      setNextDate(defaultOutcome && defaultOutcome !== "Wrong Number" ? addDays(new Date(), 1).toISOString().split("T")[0] : "");
+      setNextTime("09:00");
+      setNextAssignedUserId("");
+      setUpdateTaskStatus(false);
+      setNewTaskStatus("");
+    }
+  }, [open, defaultOutcome]);
 
   const isFollowUpOutcome = CALL_FOLLOWUP_OUTCOMES.includes(outcome);
 
@@ -917,7 +933,7 @@ function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: bo
 }
 
 // ── Daily List View ────────────────────────────────────────────────────────────
-function DailyListView({ date, calls, onCallClick }: { date: Date; calls: any[]; onCallClick: (c: any) => void }) {
+function DailyListView({ date, calls, onCallClick, users }: { date: Date; calls: any[]; onCallClick: (c: any) => void; users: User[] }) {
   const { toast } = useToast();
   const todayKey = getDateKey(date);
 
@@ -941,6 +957,9 @@ function DailyListView({ date, calls, onCallClick }: { date: Date; calls: any[];
 
   const [pendingCallId, setPendingCallId] = useState<number | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [attemptCall, setAttemptCall] = useState<any>(null);
+  const [attemptOutcome, setAttemptOutcome] = useState<string>("");
+  const [attemptOpen, setAttemptOpen] = useState(false);
 
   const quickMutation = useMutation({
     mutationFn: async ({ callId, action, nextDate }: { callId: number; action: string; nextDate?: string }) => {
@@ -988,10 +1007,25 @@ function DailyListView({ date, calls, onCallClick }: { date: Date; calls: any[];
     onError: (e: Error) => { setPendingCallId(null); toast({ title: "Error", description: e.message, variant: "destructive" }); },
   });
 
+  const ATTEMPT_ACTION_OUTCOMES: Record<string, string> = {
+    voicemail: "Left Voicemail",
+    wrong: "Wrong Number",
+    callback: "Patient Requested Callback",
+    unable: "No Answer",
+  };
+
   const handleAction = (callId: number, action: string) => {
     setPendingCallId(callId);
-    if (action === "move") { setMoveOpen(true); }
-    else quickMutation.mutate({ callId, action });
+    if (action === "move") {
+      setMoveOpen(true);
+    } else if (ATTEMPT_ACTION_OUTCOMES[action]) {
+      const call = dayCalls.find(c => c.id === callId);
+      setAttemptCall(call);
+      setAttemptOutcome(ATTEMPT_ACTION_OUTCOMES[action]);
+      setAttemptOpen(true);
+    } else {
+      quickMutation.mutate({ callId, action });
+    }
   };
 
   const handleMove = (isoDate: string) => {
@@ -1128,6 +1162,15 @@ function DailyListView({ date, calls, onCallClick }: { date: Date; calls: any[];
         onSave={handleMove}
         isPending={quickMutation.isPending}
       />
+      {attemptCall && (
+        <RecordAttemptDialog
+          open={attemptOpen}
+          onClose={() => { setAttemptOpen(false); setAttemptCall(null); setPendingCallId(null); }}
+          call={attemptCall}
+          users={users}
+          defaultOutcome={attemptOutcome}
+        />
+      )}
     </>
   );
 }
@@ -1437,7 +1480,7 @@ export default function CallCalendarPage() {
           </div>
         ) : view === "list" ? (
           <>
-            <DailyListView date={currentDate} calls={calls} onCallClick={openCall} />
+            <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} />
             {isManager && <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} />}
           </>
         ) : view === "month" ? (
