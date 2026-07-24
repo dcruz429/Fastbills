@@ -58,7 +58,7 @@ import { useQuery } from "@tanstack/react-query";
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "My Tasks", url: "/my-tasks", icon: UserIcon, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
-  { title: "Call Calendar", url: "/call-calendar", icon: CalendarClock, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
+  { title: "Call Calendar", url: "/call-calendar", icon: CalendarClock, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"], vcTeamOnly: true },
   { title: "Verification", url: "/verification", icon: ShieldCheck, roles: ["admin", "manager", "verifier", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Billing", url: "/", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Posting", url: "/posting", icon: FileText, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
@@ -175,6 +175,15 @@ export function AppSidebar() {
     refetchInterval: 30000,
   });
 
+  const { data: teams } = useQuery<{ id: number; name: string; members: { id: number }[] }[]>({
+    queryKey: ["/api/teams"],
+    enabled: !!user,
+  });
+
+  const isVcTeamMember = teams?.some(
+    (t) => t.name.toLowerCase() === "vc team" && t.members.some((m) => m.id === user?.id)
+  ) ?? false;
+
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
   const unreadMsgCount = unreadMsgData?.count || 0;
   const unreadAnnouncementCount = unreadAnnouncementData?.count || 0;
@@ -192,7 +201,10 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.filter((item) => item.roles.includes(user?.role || "") || ((item as any).allowedUserNames?.includes(user?.fullName)) || ((item as any).ceoBoxOnly && (user as any)?.ceoBoxAccess)).map((item) => (
+              {navItems.filter((item) => {
+                if ((item as any).vcTeamOnly && !isVcTeamMember) return false;
+                return item.roles.includes(user?.role || "") || ((item as any).allowedUserNames?.includes(user?.fullName)) || ((item as any).ceoBoxOnly && (user as any)?.ceoBoxAccess);
+              }).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     data-testid={`nav-${item.title.toLowerCase().replace(/\s/g, "-")}`}

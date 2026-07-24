@@ -3,6 +3,7 @@ import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { Redirect } from "wouter";
 import {
   CALL_STATUS_OPTIONS, CALL_OUTCOME_OPTIONS, CALL_DEPARTMENTS, CALL_FOLLOWUP_OUTCOMES,
 } from "@shared/schema";
@@ -1249,6 +1250,11 @@ export default function CallCalendarPage() {
 
   const isManager = currentUser && ["admin", "manager", "account_manager", "case_manager"].includes(currentUser.role);
 
+  const { data: teams = [] } = useQuery<{ id: number; name: string; members: { id: number }[] }[]>({ queryKey: ["/api/teams"] });
+  const isVcTeamMember = teams.some(
+    (t) => t.name.toLowerCase() === "vc team" && t.members.some((m) => m.id === currentUser?.id)
+  );
+
   const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: tasks = [] } = useQuery<any[]>({ queryKey: ["/api/tasks"] });
 
@@ -1345,6 +1351,8 @@ export default function CallCalendarPage() {
   }, []);
 
   const hasFilters = !!(search || filterStatus !== "all" || filterDept !== "all" || filterPriority !== "all" || filterAssigned !== "all" || filterClinic !== "all" || filterInsurance !== "all" || filterDateFrom || filterDateTo || filterOverdueOnly);
+
+  if (teams.length > 0 && !isVcTeamMember) return <Redirect to="/" />;
 
   return (
     <div className="flex flex-col h-full">
