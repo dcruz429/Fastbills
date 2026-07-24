@@ -4042,5 +4042,64 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/teams", requireAuth, async (req, res) => {
+    try {
+      const result = await storage.getTeamsWithMembers();
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/teams", requireAuth, async (req, res) => {
+    const user = (req.session as any).user;
+    if (!user || user.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    const { name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ message: "Name required" });
+    try {
+      const team = await storage.createTeam({ name: name.trim() });
+      res.json(team);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/teams/:id", requireAuth, async (req, res) => {
+    const user = (req.session as any).user;
+    if (!user || user.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    const { name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ message: "Name required" });
+    try {
+      const team = await storage.updateTeam(Number(req.params.id), { name: name.trim() });
+      if (!team) return res.status(404).json({ message: "Not found" });
+      res.json(team);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/teams/:id", requireAuth, async (req, res) => {
+    const user = (req.session as any).user;
+    if (!user || user.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    try {
+      await storage.deleteTeam(Number(req.params.id));
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/teams/:id/members", requireAuth, async (req, res) => {
+    const user = (req.session as any).user;
+    if (!user || user.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: "userId required" });
+    try {
+      const membership = await storage.addUserToTeam(Number(req.params.id), Number(userId));
+      res.json(membership);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/teams/:id/members/:userId", requireAuth, async (req, res) => {
+    const user = (req.session as any).user;
+    if (!user || user.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    try {
+      await storage.removeUserFromTeam(Number(req.params.id), Number(req.params.userId));
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   return httpServer;
 }

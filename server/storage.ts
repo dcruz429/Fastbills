@@ -15,6 +15,12 @@ import {
   scheduledCalls,
   callAttempts,
   callActivity,
+  teams,
+  userTeams,
+  type Team,
+  type InsertTeam,
+  type UserTeam,
+  type TeamWithMembers,
   type User,
   type InsertUser,
   type Task,
@@ -96,6 +102,15 @@ export interface IStorage {
   updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
   deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
+
+  getAllTeams(): Promise<Team[]>;
+  getTeamsWithMembers(): Promise<TeamWithMembers[]>;
+  createTeam(data: InsertTeam): Promise<Team>;
+  updateTeam(id: number, data: Partial<InsertTeam>): Promise<Team | undefined>;
+  deleteTeam(id: number): Promise<void>;
+  addUserToTeam(teamId: number, userId: number): Promise<UserTeam>;
+  removeUserFromTeam(teamId: number, userId: number): Promise<void>;
+  getUserTeams(userId: number): Promise<Team[]>;
 
   getAllClinics(): Promise<Clinic[]>;
   createClinic(data: InsertClinic): Promise<Clinic>;
@@ -1151,6 +1166,58 @@ export class DatabaseStorage implements IStorage {
   async createCallActivity(data: any): Promise<any> {
     const [row] = await db.insert(callActivity).values(data).returning();
     return row;
+  }
+
+  async getAllTeams(): Promise<Team[]> {
+    return db.select().from(teams).orderBy(asc(teams.name));
+  }
+
+  async getTeamsWithMembers(): Promise<TeamWithMembers[]> {
+    const allTeams = await db.select().from(teams).orderBy(asc(teams.name));
+    const allMembers = await db
+      .select({ teamId: userTeams.teamId, id: users.id, fullName: users.fullName, role: users.role })
+      .from(userTeams)
+      .innerJoin(users, eq(userTeams.userId, users.id));
+    return allTeams.map((t) => ({
+      ...t,
+      members: allMembers.filter((m) => m.teamId === t.id).map(({ id, fullName, role }) => ({ id, fullName, role })),
+    }));
+  }
+
+  async createTeam(data: InsertTeam): Promise<Team> {
+    const [row] = await db.insert(teams).values(data).returning();
+    return row;
+  }
+
+  async updateTeam(id: number, data: Partial<InsertTeam>): Promise<Team | undefined> {
+    const [row] = await db.update(teams).set(data).where(eq(teams.id, id)).returning();
+    return row;
+  }
+
+  async deleteTeam(id: number): Promise<void> {
+    await db.delete(userTeams).where(eq(userTeams.teamId, id));
+    await db.delete(teams).where(eq(teams.id, id));
+  }
+
+  async addUserToTeam(teamId: number, userId: number): Promise<UserTeam> {
+    const existing = await db.select().from(userTeams).where(and(eq(userTeams.teamId, teamId), eq(userTeams.userId, userId)));
+    if (existing.length > 0) return existing[0];
+    const [row] = await db.insert(userTeams).values({ teamId, userId }).returning();
+    return row;
+  }
+
+  async removeUserFromTeam(teamId: number, userId: number): Promise<void> {
+    await db.delete(userTeams).where(and(eq(userTeams.teamId, teamId), eq(userTeams.userId, userId)));
+  }
+
+  async getUserTeams(userId: number): Promise<Team[]> {
+    const rows = await db
+      .select({ id: teams.id, name: teams.name })
+      .from(userTeams)
+      .innerJoin(teams, eq(userTeams.teamId, teams.id))
+      .where(eq(userTeams.userId, userId))
+      .orderBy(asc(teams.name));
+    return rows;
   }
 }
 

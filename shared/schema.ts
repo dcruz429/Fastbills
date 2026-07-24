@@ -846,6 +846,26 @@ export type InsertCallAttempt = z.infer<typeof insertCallAttemptSchema>;
 export type CallActivityRecord = typeof callActivity.$inferSelect;
 export type InsertCallActivity = z.infer<typeof insertCallActivitySchema>;
 
+export const teams = pgTable("teams", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull().unique(),
+});
+
+export const userTeams = pgTable("user_teams", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  teamId: integer("team_id").notNull().references(() => teams.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+});
+
+export const insertTeamSchema = createInsertSchema(teams).omit({ id: true });
+export const insertUserTeamSchema = createInsertSchema(userTeams).omit({ id: true });
+
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+export type UserTeam = typeof userTeams.$inferSelect;
+export type InsertUserTeam = z.infer<typeof insertUserTeamSchema>;
+export type TeamWithMembers = Team & { members: Pick<User, "id" | "fullName" | "role">[] };
+
 export const DROPDOWN_CATEGORIES = [
   { key: "denial_type", label: "Type of Denial" },
   { key: "filed_to", label: "Filed To" },

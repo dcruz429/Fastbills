@@ -18,8 +18,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List, Briefcase, Wrench, RotateCcw } from "lucide-react";
-import type { Clinic, Insurance, User, DropdownOption } from "@shared/schema";
+import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List, Briefcase, Wrench, RotateCcw, UsersRound } from "lucide-react";
+import type { Clinic, Insurance, User, DropdownOption, TeamWithMembers } from "@shared/schema";
 import { DROPDOWN_CATEGORIES } from "@shared/schema";
 
 function ClinicSettings() {
@@ -728,6 +728,228 @@ function DropdownSettings() {
   );
 }
 
+function TeamsSettings() {
+  const { toast } = useToast();
+  const [newTeamName, setNewTeamName] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [expandedTeamId, setExpandedTeamId] = useState<number | null>(null);
+
+  const { data: teams, isLoading } = useQuery<TeamWithMembers[]>({ queryKey: ["/api/teams"] });
+  const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
+
+  const createMutation = useMutation({
+    mutationFn: async (name: string) => {
+      await apiRequest("POST", "/api/teams", { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      setNewTeamName("");
+      toast({ title: "Team created" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      await apiRequest("PATCH", `/api/teams/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      setEditingId(null);
+      toast({ title: "Team renamed" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/teams/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      toast({ title: "Team deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: async ({ teamId, userId }: { teamId: number; userId: number }) => {
+      await apiRequest("POST", `/api/teams/${teamId}/members`, { userId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async ({ teamId, userId }: { teamId: number; userId: number }) => {
+      await apiRequest("DELETE", `/api/teams/${teamId}/members/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const roleLabel = (role: string) => {
+    const map: Record<string, string> = {
+      assigner: "Case Coordinator", payment_specialist: "Payment Specialist",
+      account_manager: "Account Manager", case_manager: "Case Manager",
+    };
+    return map[role] ?? role.charAt(0).toUpperCase() + role.slice(1);
+  };
+
+  if (isLoading) return <Skeleton className="h-32" />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input
+          placeholder="New team name (e.g. VC Team)"
+          value={newTeamName}
+          onChange={(e) => setNewTeamName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && newTeamName.trim() && createMutation.mutate(newTeamName.trim())}
+          data-testid="input-new-team"
+        />
+        <Button
+          onClick={() => newTeamName.trim() && createMutation.mutate(newTeamName.trim())}
+          disabled={!newTeamName.trim() || createMutation.isPending}
+          data-testid="button-add-team"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Add Team
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {teams?.length === 0 && (
+          <p className="text-sm text-muted-foreground py-4 text-center">No teams yet. Create one above.</p>
+        )}
+        {teams?.map((team) => {
+          const isExpanded = expandedTeamId === team.id;
+          const memberIds = new Set(team.members.map((m) => m.id));
+          const nonMembers = (allUsers ?? []).filter((u) => u.active && !memberIds.has(u.id));
+
+          return (
+            <div key={team.id} className="border rounded-md overflow-hidden" data-testid={`team-item-${team.id}`}>
+              <div className="flex items-center justify-between px-3 py-2.5 bg-muted/30">
+                {editingId === team.id ? (
+                  <div className="flex items-center gap-2 flex-1 mr-2">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="h-7 text-sm"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && editName.trim()) renameMutation.mutate({ id: team.id, name: editName.trim() });
+                        if (e.key === "Escape") setEditingId(null);
+                      }}
+                      data-testid={`input-edit-team-${team.id}`}
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7"
+                      onClick={() => editName.trim() && renameMutation.mutate({ id: team.id, name: editName.trim() })}
+                      disabled={!editName.trim() || renameMutation.isPending}
+                      data-testid={`button-save-team-${team.id}`}
+                    >
+                      <Check className="h-3.5 w-3.5 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(null)}
+                      data-testid={`button-cancel-team-${team.id}`}
+                    >
+                      <X className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    className="flex items-center gap-2 flex-1 text-left"
+                    onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
+                    data-testid={`button-expand-team-${team.id}`}
+                  >
+                    <UsersRound className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{team.name}</span>
+                    <Badge variant="secondary" className="no-default-active-elevate text-xs ml-1">
+                      {team.members.length} {team.members.length === 1 ? "member" : "members"}
+                    </Badge>
+                  </button>
+                )}
+                {editingId !== team.id && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button size="icon" variant="ghost"
+                      onClick={() => { setEditingId(team.id); setEditName(team.name); }}
+                      data-testid={`button-edit-team-${team.id}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                    <Button size="icon" variant="ghost"
+                      onClick={() => deleteMutation.mutate(team.id)}
+                      disabled={deleteMutation.isPending}
+                      data-testid={`button-delete-team-${team.id}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {isExpanded && (
+                <div className="px-3 py-3 space-y-3 border-t">
+                  {team.members.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Current Members</p>
+                      {team.members.slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map((m) => (
+                        <div key={m.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/20" data-testid={`team-member-${team.id}-${m.id}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{m.fullName}</span>
+                            <Badge variant="secondary" className="no-default-active-elevate text-xs capitalize">{roleLabel(m.role)}</Badge>
+                          </div>
+                          <Button size="icon" variant="ghost" className="h-6 w-6"
+                            onClick={() => removeMemberMutation.mutate({ teamId: team.id, userId: m.id })}
+                            disabled={removeMemberMutation.isPending}
+                            data-testid={`button-remove-member-${team.id}-${m.id}`}
+                          >
+                            <X className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {nonMembers.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Add Member</p>
+                      <Select
+                        onValueChange={(val) => addMemberMutation.mutate({ teamId: team.id, userId: Number(val) })}
+                        value=""
+                      >
+                        <SelectTrigger className="h-8 text-sm" data-testid={`select-add-member-${team.id}`}>
+                          <SelectValue placeholder="Select a user to add..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {nonMembers.slice().sort((a, b) => a.fullName.localeCompare(b.fullName)).map((u) => (
+                            <SelectItem key={u.id} value={String(u.id)}>
+                              {u.fullName} — {roleLabel(u.role)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {team.members.length === 0 && nonMembers.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No active users available.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MaintenanceSettings() {
   const { toast } = useToast();
   const [recoverResult, setRecoverResult] = useState<{ recovered: number; details: string[] } | null>(null);
@@ -989,6 +1211,12 @@ export default function SettingsPage() {
             </TabsTrigger>
           )}
           {isAdmin && (
+            <TabsTrigger value="teams" data-testid="tab-teams">
+              <UsersRound className="h-4 w-4 mr-1" />
+              Teams
+            </TabsTrigger>
+          )}
+          {isAdmin && (
             <TabsTrigger value="maintenance" data-testid="tab-maintenance">
               <Wrench className="h-4 w-4 mr-1" />
               Maintenance
@@ -1039,6 +1267,19 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <UserSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="teams" className="mt-4">
+            <Card>
+              <CardHeader className="pb-3 px-4 pt-4">
+                <h3 className="text-sm font-semibold">Manage Teams</h3>
+                <p className="text-xs text-muted-foreground">Create teams and assign users to them. A user can belong to multiple teams.</p>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <TeamsSettings />
               </CardContent>
             </Card>
           </TabsContent>
