@@ -1227,7 +1227,7 @@ export class DatabaseStorage implements IStorage {
     const dow = target.getDay();
     if (dow === 0 || dow === 6) return [];
 
-    const START = new Date(2026, 6, 28);
+    const START = new Date(2026, 6, 27);
     if (target < START) return [];
 
     // Count working days from START (inclusive=0) up to (but not including) target
