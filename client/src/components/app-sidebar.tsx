@@ -180,8 +180,9 @@ export function AppSidebar() {
     enabled: !!user,
   });
 
+  const CALL_CALENDAR_TEAMS = ["vc team", "manager team"];
   const isVcTeamMember = teams?.some(
-    (t) => t.name.toLowerCase() === "vc team" && t.members.some((m) => m.id === user?.id)
+    (t) => CALL_CALENDAR_TEAMS.includes(t.name.toLowerCase()) && t.members.some((m) => m.id === user?.id)
   ) ?? false;
 
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;

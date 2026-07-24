@@ -1251,8 +1251,9 @@ export default function CallCalendarPage() {
   const isManager = currentUser && ["admin", "manager", "account_manager", "case_manager"].includes(currentUser.role);
 
   const { data: teams = [] } = useQuery<{ id: number; name: string; members: { id: number }[] }[]>({ queryKey: ["/api/teams"] });
+  const CALL_CALENDAR_TEAMS = ["vc team", "manager team"];
   const isVcTeamMember = teams.some(
-    (t) => t.name.toLowerCase() === "vc team" && t.members.some((m) => m.id === currentUser?.id)
+    (t) => CALL_CALENDAR_TEAMS.includes(t.name.toLowerCase()) && t.members.some((m) => m.id === currentUser?.id)
   );
 
   const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
