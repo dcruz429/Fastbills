@@ -3933,6 +3933,23 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/calls/daily-schedule", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const isManager = ADMIN_ROLES.includes(user.role);
+      let targetUserId = user.id;
+      let targetUserFullName = user.fullName;
+      if (isManager && req.query.userId) {
+        const tu = await storage.getUser(Number(req.query.userId));
+        if (tu) { targetUserId = tu.id; targetUserFullName = tu.fullName; }
+      }
+      const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+      const patients = await storage.getPatientDailySchedule(targetUserId, targetUserFullName, dateStr);
+      res.json(patients);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.get("/api/calls/:id", requireAuth, async (req, res) => {
     try {
       const call = await storage.getScheduledCall(Number(req.params.id));

@@ -934,7 +934,7 @@ function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: bo
 }
 
 // ── Daily List View ────────────────────────────────────────────────────────────
-function DailyListView({ date, calls, onCallClick, users }: { date: Date; calls: any[]; onCallClick: (c: any) => void; users: User[] }) {
+function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date: Date; calls: any[]; onCallClick: (c: any) => void; users: User[]; autoPatients?: any[] }) {
   const { toast } = useToast();
   const todayKey = getDateKey(date);
 
@@ -1035,7 +1035,9 @@ function DailyListView({ date, calls, onCallClick, users }: { date: Date; calls:
     setPendingCallId(null);
   };
 
-  if (dayCalls.length === 0) {
+  const hasAutoPatients = autoPatients && autoPatients.length > 0;
+
+  if (dayCalls.length === 0 && !hasAutoPatients) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
         <PhoneOff className="h-10 w-10 mb-3 opacity-30" />
@@ -1047,6 +1049,49 @@ function DailyListView({ date, calls, onCallClick, users }: { date: Date; calls:
 
   return (
     <>
+      {hasAutoPatients && (
+        <div className="rounded-md border overflow-hidden mb-4">
+          <div className="px-4 py-2.5 border-b bg-blue-50 dark:bg-blue-950/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-blue-900 dark:text-blue-200">📋 Today's Patient Call List</span>
+              <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Auto-Scheduled</span>
+            </div>
+            <span className="text-xs text-blue-700 dark:text-blue-400">{autoPatients!.length} patient{autoPatients!.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b bg-muted/10">
+                  {["#", "Patient Name", "Clinic", "Insurance", "Department"].map(h => (
+                    <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {autoPatients!.map((p, i) => (
+                  <tr key={`${p.department}-${p.sourceId}`} className="border-b hover:bg-muted/10 transition-colors" data-testid={`auto-patient-row-${i}`}>
+                    <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
+                    <td className="px-3 py-2 font-medium whitespace-nowrap">{p.patientName}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.clinic || "—"}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.insurance || "—"}</td>
+                    <td className="px-3 py-2">
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
+                        p.department === "Verification" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" :
+                        p.department === "Collections" ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" :
+                        p.department === "Denials" ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" :
+                        p.department === "Arbitration" ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" :
+                        p.department === "Posting" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" :
+                        "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                      )}>{p.department}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {dayCalls.length > 0 && (
       <div className="rounded-md border overflow-hidden">
         <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center justify-between">
           <h2 className="text-sm font-semibold">
@@ -1156,6 +1201,7 @@ function DailyListView({ date, calls, onCallClick, users }: { date: Date; calls:
           </table>
         </div>
       </div>
+      )}
 
       <MoveToAnotherDayDialog
         open={moveOpen}
@@ -1298,6 +1344,13 @@ export default function CallCalendarPage() {
   });
 
   const { data: stats } = useQuery<any>({ queryKey: ["/api/calls/stats"] });
+
+  const scheduleDate = getDateKey(currentDate);
+  const { data: autoPatients = [] } = useQuery<any[]>({
+    queryKey: ["/api/calls/daily-schedule", scheduleDate],
+    queryFn: () => fetch(`/api/calls/daily-schedule?date=${scheduleDate}`, { credentials: "include" }).then(r => r.json()),
+    enabled: view === "list" && isVcTeamMember,
+  });
 
   // Unique clinic/insurance values from loaded calls for filter dropdowns
   const uniqueClinics = useMemo(() => {
@@ -1497,7 +1550,7 @@ export default function CallCalendarPage() {
             <div className="text-muted-foreground">Loading calls…</div>
           </div>
         ) : view === "list" ? (
-          <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} />
+          <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} autoPatients={isVcTeamMember ? autoPatients : undefined} />
         ) : view === "month" ? (
           <MonthView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : view === "week" ? (

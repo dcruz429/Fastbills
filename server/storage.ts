@@ -230,6 +230,7 @@ export interface IStorage {
   createCallAttempt(data: any): Promise<any>;
   getCallActivityLog(callId: number): Promise<any[]>;
   createCallActivity(data: any): Promise<any>;
+  getPatientDailySchedule(userId: number, userFullName: string, dateStr: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1218,6 +1219,78 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userTeams.userId, userId))
       .orderBy(asc(teams.name));
     return rows;
+  }
+
+  async getPatientDailySchedule(userId: number, userFullName: string, dateStr: string): Promise<any[]> {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const target = new Date(y, m - 1, d);
+    const dow = target.getDay();
+    if (dow === 0 || dow === 6) return [];
+
+    const START = new Date(2026, 6, 28);
+    if (target < START) return [];
+
+    // Count working days from START (inclusive=0) up to (but not including) target
+    let dayIndex = 0;
+    const cur = new Date(START);
+    while (cur < target) {
+      cur.setDate(cur.getDate() + 1);
+      if (cur.getDay() !== 0 && cur.getDay() !== 6) dayIndex++;
+    }
+
+    const DAILY = 40;
+
+    const [taskRows, collRows, denRows, arbRows, postRows, chkRows] = await Promise.all([
+      db.select({
+        sourceId: tasks.id, patientName: tasks.patientName,
+        clinic: clinics.name, insurance: insurances.name,
+        department: sql<string>`'Verification'`, createdAt: tasks.createdAt, status: tasks.status,
+      }).from(tasks)
+        .leftJoin(clinics, eq(tasks.clinicId, clinics.id))
+        .leftJoin(insurances, eq(tasks.insuranceId, insurances.id))
+        .where(and(eq(tasks.assignedUserId, userId), sql`${tasks.status} NOT IN ('done','dropped')`)),
+
+      db.select({
+        sourceId: collections.id, patientName: collections.patientName,
+        clinic: collections.clinic, insurance: collections.insurance,
+        department: sql<string>`'Collections'`, createdAt: collections.createdAt, status: collections.status,
+      }).from(collections)
+        .where(and(eq(collections.assignedTo, userFullName), sql`(${collections.status} IS NULL OR ${collections.status} != 'Done')`)),
+
+      db.select({
+        sourceId: denials.id, patientName: denials.patientName,
+        clinic: denials.clinic, insurance: denials.insurance,
+        department: sql<string>`'Denials'`, createdAt: denials.createdAt, status: denials.status,
+      }).from(denials)
+        .where(and(eq(denials.assignedTo, userFullName), sql`(${denials.status} IS NULL OR ${denials.status} != 'Done')`)),
+
+      db.select({
+        sourceId: arbitrations.id, patientName: arbitrations.patientName,
+        clinic: arbitrations.clinic, insurance: arbitrations.insurance,
+        department: sql<string>`'Arbitration'`, createdAt: arbitrations.createdAt, status: arbitrations.status,
+      }).from(arbitrations)
+        .where(and(eq(arbitrations.assignedTo, userFullName), sql`(${arbitrations.status} IS NULL OR ${arbitrations.status} != 'Done')`)),
+
+      db.select({
+        sourceId: postings.id, patientName: postings.patientName,
+        clinic: postings.clinic, insurance: postings.insurance,
+        department: sql<string>`'Posting'`, createdAt: postings.createdAt, status: postings.status,
+      }).from(postings)
+        .where(and(eq(postings.assignedTo, userFullName), sql`(${postings.status} IS NULL OR ${postings.status} != 'Done')`)),
+
+      db.select({
+        sourceId: checks.id, patientName: checks.patientName,
+        clinic: checks.clinic, insurance: checks.insurance,
+        department: sql<string>`'Checks'`, createdAt: checks.createdAt, status: checks.status,
+      }).from(checks)
+        .where(and(eq(checks.assignedTo, userFullName), sql`(${checks.status} IS NULL OR ${checks.status} != 'Done')`)),
+    ]);
+
+    const all = [...taskRows, ...collRows, ...denRows, ...arbRows, ...postRows, ...chkRows]
+      .filter(r => r.patientName)
+      .sort((a, b) => new Date(a.createdAt as any).getTime() - new Date(b.createdAt as any).getTime());
+
+    return all.slice(dayIndex * DAILY, (dayIndex + 1) * DAILY);
   }
 }
 
