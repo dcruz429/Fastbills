@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type CalendarView = "list" | "month" | "week" | "day" | "agenda";
+type CalendarView = "list" | "month" | "week" | "day" | "agenda" | "manager";
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -1255,6 +1255,9 @@ export default function CallCalendarPage() {
   const isVcTeamMember = teams.some(
     (t) => CALL_CALENDAR_TEAMS.includes(t.name.toLowerCase()) && t.members.some((m) => m.id === currentUser?.id)
   );
+  const isManagerTeamMember = teams.some(
+    (t) => t.name.toLowerCase() === "manager team" && t.members.some((m) => m.id === currentUser?.id)
+  );
 
   const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: tasks = [] } = useQuery<any[]>({ queryKey: ["/api/tasks"] });
@@ -1390,6 +1393,12 @@ export default function CallCalendarPage() {
               {v === "list" ? "Daily" : v}
             </button>
           ))}
+          {isManagerTeamMember && (
+            <button onClick={() => setView("manager")} data-testid="tab-view-manager"
+              className={cn("px-3 py-1.5 text-xs font-medium transition-colors", view === "manager" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+              Manager Dash
+            </button>
+          )}
         </div>
         {view !== "agenda" && (
           <div className="flex items-center gap-1">
@@ -1488,16 +1497,15 @@ export default function CallCalendarPage() {
             <div className="text-muted-foreground">Loading calls…</div>
           </div>
         ) : view === "list" ? (
-          <>
-            <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} />
-            {isManager && <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} />}
-          </>
+          <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} />
         ) : view === "month" ? (
           <MonthView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : view === "week" ? (
           <WeekView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : view === "day" ? (
           <DayView date={currentDate} calls={calls} onCallClick={openCall} />
+        ) : view === "manager" ? (
+          <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} />
         ) : (
           <AgendaView calls={calls} onCallClick={openCall} />
         )}
