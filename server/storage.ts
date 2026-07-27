@@ -1346,69 +1346,82 @@ export class DatabaseStorage implements IStorage {
     }
 
     // ── Step 3: Roll over incomplete patients from all prior materialized days ─
+    // Logic: find every (sourceId, department) that has ANY entry for a past date
+    // but NO entry for today. If still active in tracker → append to today.
     if (target > START) {
-      // All past materialized dates for this user
-      const pastDates = await db.selectDistinct({ scheduledDate: patientCallSchedule.scheduledDate })
+      // All past entries for this user (any scheduled date before today)
+      const allPastEntries = await db.select({
+        sourceId: patientCallSchedule.sourceId,
+        department: patientCallSchedule.department,
+        patientName: patientCallSchedule.patientName,
+        clinic: patientCallSchedule.clinic,
+        insurance: patientCallSchedule.insurance,
+        scheduledDate: patientCallSchedule.scheduledDate,
+        originalDate: patientCallSchedule.originalDate,
+      })
         .from(patientCallSchedule)
         .where(and(
           eq(patientCallSchedule.userId, userId),
           sql`${patientCallSchedule.scheduledDate} < ${dateStr}`,
-          isNull(patientCallSchedule.originalDate),
         ));
 
-      for (const { scheduledDate: pastDate } of pastDates) {
-        // Entries originally scheduled on this past day
-        const pastEntries = await db.select()
-          .from(patientCallSchedule)
-          .where(and(
-            eq(patientCallSchedule.userId, userId),
-            eq(patientCallSchedule.scheduledDate, pastDate),
-            isNull(patientCallSchedule.originalDate),
-          ));
-
-        // For each past entry, check if it has already been rolled forward to any later date
-        for (const entry of pastEntries) {
-          const alreadyRolled = await db.select({ id: patientCallSchedule.id })
-            .from(patientCallSchedule)
-            .where(and(
-              eq(patientCallSchedule.userId, userId),
-              eq(patientCallSchedule.sourceId, entry.sourceId),
-              eq(patientCallSchedule.department, entry.department),
-              not(isNull(patientCallSchedule.originalDate)),
-            ))
-            .limit(1);
-
-          if (alreadyRolled.length > 0) continue; // already handled in a previous rollover
-
-          // Check if patient is still active in their source tracker
-          const isActive = await this._isPatientStillActive(
-            entry.sourceId, entry.department!, userId, userFullName
-          );
-          if (!isActive) continue;
-
-          // Roll over: insert a new entry for today with originalDate set
-          await db.insert(patientCallSchedule).values({
-            userId,
-            sourceId: entry.sourceId,
-            department: entry.department!,
-            patientName: entry.patientName,
-            clinic: entry.clinic,
-            insurance: entry.insurance,
-            scheduledDate: dateStr,
-            originalDate: pastDate,
-          });
-
-          // Write audit record
-          await db.insert(patientCallAudit).values({
-            userId,
-            sourceId: entry.sourceId,
-            department: entry.department!,
-            patientName: entry.patientName,
-            action: 'auto_rollover',
-            fromDate: pastDate,
-            toDate: dateStr,
-          });
+      // Group by (sourceId, department) → keep the most-recent past entry per patient
+      const latestByPatient = new Map<string, typeof allPastEntries[0]>();
+      for (const row of allPastEntries) {
+        const key = `${row.department}:${row.sourceId}`;
+        const existing = latestByPatient.get(key);
+        if (!existing || row.scheduledDate > existing.scheduledDate) {
+          latestByPatient.set(key, row);
         }
+      }
+
+      // Find which patients already have an entry for TODAY (don't double-add)
+      const todayEntries = await db.select({
+        sourceId: patientCallSchedule.sourceId,
+        department: patientCallSchedule.department,
+      })
+        .from(patientCallSchedule)
+        .where(and(
+          eq(patientCallSchedule.userId, userId),
+          eq(patientCallSchedule.scheduledDate, dateStr),
+        ));
+      const todayKeys = new Set(todayEntries.map(e => `${e.department}:${e.sourceId}`));
+
+      for (const [key, entry] of latestByPatient) {
+        // Skip if already on today's list
+        if (todayKeys.has(key)) continue;
+
+        // Check if patient is still active in their source tracker
+        const isActive = await this._isPatientStillActive(
+          entry.sourceId, entry.department!, userId, userFullName
+        );
+        if (!isActive) continue;
+
+        // The "from" date is their most recent scheduled date
+        const fromDate = entry.scheduledDate;
+
+        // Roll over: insert entry for today
+        await db.insert(patientCallSchedule).values({
+          userId,
+          sourceId: entry.sourceId,
+          department: entry.department!,
+          patientName: entry.patientName,
+          clinic: entry.clinic,
+          insurance: entry.insurance,
+          scheduledDate: dateStr,
+          originalDate: fromDate,
+        });
+
+        // Write audit record (one per hop: fromDate → today)
+        await db.insert(patientCallAudit).values({
+          userId,
+          sourceId: entry.sourceId,
+          department: entry.department!,
+          patientName: entry.patientName,
+          action: 'auto_rollover',
+          fromDate,
+          toDate: dateStr,
+        });
       }
     }
 
