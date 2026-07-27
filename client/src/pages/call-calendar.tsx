@@ -1336,8 +1336,8 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
 
   return (
     <div className="space-y-4" data-testid="manager-dashboard">
-      {/* Sub-view toggle */}
-      <div className="flex items-center gap-2">
+      {/* Sub-view toggle + week controls */}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center border rounded-md overflow-hidden text-xs">
           {(["day", "week"] as const).map(sv => (
             <button
@@ -1350,10 +1350,10 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
           ))}
         </div>
         {managerSubView === "week" && vcMembers.length > 0 && (
-          <div className="flex items-center gap-2 ml-2">
+          <>
             <span className="text-xs text-muted-foreground">Viewing as:</span>
             <Select value={weekUserId ?? ""} onValueChange={v => setSelectedUserId(v)}>
-              <SelectTrigger className="h-7 w-44 text-xs" data-testid="select-week-agent">
+              <SelectTrigger className="h-8 w-44 text-xs" data-testid="select-week-agent">
                 <SelectValue placeholder="Pick an agent" />
               </SelectTrigger>
               <SelectContent>
@@ -1363,7 +1363,7 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
               </SelectContent>
             </Select>
             <Select value={filterDept} onValueChange={setFilterDept}>
-              <SelectTrigger className="h-7 w-36 text-xs">
+              <SelectTrigger className="h-8 w-40 text-xs">
                 <SelectValue placeholder="All Departments" />
               </SelectTrigger>
               <SelectContent>
@@ -1374,34 +1374,45 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
-                className="pl-7 h-7 w-36 text-xs rounded-md border bg-background px-2"
+                className="pl-7 h-8 w-40 text-xs rounded-md border bg-background px-2"
                 placeholder="Search patients…"
                 value={patientSearch}
                 onChange={e => setPatientSearch(e.target.value)}
               />
             </div>
-          </div>
+          </>
         )}
       </div>
 
       {/* ── Week View ── */}
       {managerSubView === "week" && (
         <div className="rounded-md border overflow-hidden">
-          <div className="px-4 py-2.5 border-b bg-blue-50 dark:bg-blue-950/30 flex items-center gap-2">
+          <div className="px-4 py-3 border-b bg-blue-50 dark:bg-blue-950/30 flex items-center gap-3">
             <span className="text-sm font-semibold text-blue-900 dark:text-blue-200">📅 Weekly Patient Schedule</span>
-            <span className="text-xs text-blue-600 dark:text-blue-400 ml-1">
-              — {vcMembers.find(m => String(m.id) === weekUserId)?.fullName ?? "Select an agent"}
-            </span>
-            {weekFetching && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Loading…</span>}
+            {weekUserId && (
+              <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                — {vcMembers.find(m => String(m.id) === weekUserId)?.fullName}
+              </span>
+            )}
+            {weekFetching && (
+              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground animate-pulse">
+                <RefreshCw className="h-3 w-3 animate-spin" />Loading…
+              </span>
+            )}
           </div>
           {vcMembers.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">No VC Team found. Create a team named "VC Team" in Settings → Teams and add members.</div>
+            <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+              No VC Team found. Create a team named "VC Team" in Settings → Teams and add members.
+            </div>
           ) : !weekUserId ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Select an agent above to view their week.</div>
+            <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+              Select an agent above to view their week.
+            </div>
           ) : (
             <div className="overflow-x-auto">
-              <div className="flex min-w-[900px]">
+              <div className="flex" style={{ minWidth: "max(100%, 700px)" }}>
                 {weekDays.map(({ key, label }) => {
+                  const [weekday, ...rest] = label.split(", ");
                   const dayPts: any[] = (weekData[key] ?? []).filter((p: any) => {
                     if (filterDept !== "all" && p.department !== filterDept) return false;
                     if (patientSearch && !p.patientName?.toLowerCase().includes(patientSearch.toLowerCase())) return false;
@@ -1409,26 +1420,68 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                   });
                   const isToday = key === getDateKey(new Date());
                   return (
-                    <div key={key} className={cn("flex-1 border-r last:border-r-0 min-w-0", isToday && "bg-blue-50/40 dark:bg-blue-950/10")}>
+                    <div
+                      key={key}
+                      className={cn("flex-1 border-r last:border-r-0 flex flex-col", isToday && "bg-blue-50/40 dark:bg-blue-950/10")}
+                      style={{ minWidth: "140px" }}
+                    >
                       {/* Day header */}
-                      <div className={cn("px-2 py-2 border-b text-center sticky top-0 z-10 bg-muted/20 backdrop-blur-sm", isToday && "bg-blue-100/60 dark:bg-blue-900/20")}>
-                        <div className={cn("text-xs font-semibold", isToday && "text-blue-700 dark:text-blue-300")}>{label}</div>
-                        <div className="text-xs text-muted-foreground">{dayPts.length} patient{dayPts.length !== 1 ? "s" : ""}</div>
+                      <div className={cn(
+                        "px-3 py-3 border-b text-center sticky top-0 z-10 backdrop-blur-sm",
+                        isToday
+                          ? "bg-blue-100/80 dark:bg-blue-900/40"
+                          : "bg-muted/30 dark:bg-muted/20"
+                      )}>
+                        <div className={cn(
+                          "text-sm font-bold leading-tight tracking-wide",
+                          isToday ? "text-blue-700 dark:text-blue-300" : "text-foreground"
+                        )}>
+                          {weekday}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5 leading-tight">
+                          {rest.join(", ")}
+                        </div>
+                        <div className={cn(
+                          "mt-1.5 inline-flex items-center justify-center text-xs font-medium px-2 py-0.5 rounded-full",
+                          isToday
+                            ? "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200"
+                            : "bg-muted text-muted-foreground"
+                        )}>
+                          {dayPts.length} pt{dayPts.length !== 1 ? "s" : ""}
+                        </div>
                       </div>
                       {/* Patient rows */}
-                      <div className="divide-y max-h-[520px] overflow-y-auto">
+                      <div className="divide-y overflow-y-auto" style={{ maxHeight: "560px" }}>
                         {weekFetching ? (
-                          <div className="px-2 py-6 text-center text-xs text-muted-foreground animate-pulse">Loading…</div>
+                          <div className="px-3 py-8 text-center text-xs text-muted-foreground animate-pulse">
+                            Loading…
+                          </div>
                         ) : dayPts.length === 0 ? (
-                          <div className="px-2 py-6 text-center text-xs text-muted-foreground">—</div>
+                          <div className="px-3 py-8 text-center text-xs text-muted-foreground">
+                            No patients
+                          </div>
                         ) : dayPts.map((p: any, i: number) => (
-                          <div key={`${p.department}-${p.sourceId}-${i}`} className="px-2 py-1.5 hover:bg-muted/10 transition-colors">
-                            <div className="flex items-start gap-1.5">
-                              <span className="text-xs text-muted-foreground font-mono w-5 shrink-0 pt-px">{i + 1}</span>
-                              <div className="min-w-0">
-                                <div className="text-xs font-medium truncate leading-tight">{p.patientName}</div>
-                                {p.clinic && <div className="text-xs text-muted-foreground truncate leading-tight">{p.clinic}</div>}
-                                <span className={cn("inline-block mt-0.5 text-xs px-1.5 py-px rounded-full font-medium", DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800")}>
+                          <div
+                            key={`${p.department}-${p.sourceId}-${i}`}
+                            className="px-3 py-2 hover:bg-muted/10 transition-colors"
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs text-muted-foreground font-mono w-5 shrink-0 pt-px select-none">
+                                {i + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-semibold truncate leading-snug">
+                                  {p.patientName}
+                                </div>
+                                {p.clinic && (
+                                  <div className="text-xs text-muted-foreground truncate leading-snug">
+                                    {p.clinic}
+                                  </div>
+                                )}
+                                <span className={cn(
+                                  "inline-block mt-1 text-xs px-1.5 py-px rounded-full font-medium",
+                                  DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800"
+                                )}>
                                   {p.department}
                                 </span>
                               </div>
