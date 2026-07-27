@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, gte, lte, between } from "drizzle-orm";
+import { eq, and, desc, asc, sql, gte, lte, between, isNull, not, inArray } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -93,6 +93,9 @@ import {
   type CeoBox,
   type InsertCeoBox,
   DR_AL_NAME,
+  patientCallSchedule,
+  patientCallAudit,
+  type PatientCallAudit,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -231,6 +234,7 @@ export interface IStorage {
   getCallActivityLog(callId: number): Promise<any[]>;
   createCallActivity(data: any): Promise<any>;
   getPatientDailySchedule(userId: number, userFullName: string, dateStr: string): Promise<any[]>;
+  getPatientCallAudit(userId: number, limit?: number): Promise<PatientCallAudit[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1221,6 +1225,59 @@ export class DatabaseStorage implements IStorage {
     return rows;
   }
 
+  /** Fetch all active patients for a user across all trackers */
+  private async _fetchAllActivePatients(userId: number, userFullName: string) {
+    const [taskRows, collRows, denRows, arbRows, postRows, chkRows] = await Promise.all([
+      db.select({
+        sourceId: tasks.id, patientName: tasks.patientName,
+        clinic: clinics.name, insurance: insurances.name,
+        department: sql<string>`'Verification'`, createdAt: tasks.createdAt,
+      }).from(tasks)
+        .leftJoin(clinics, eq(tasks.clinicId, clinics.id))
+        .leftJoin(insurances, eq(tasks.insuranceId, insurances.id))
+        .where(and(eq(tasks.assignedUserId, userId), sql`${tasks.status} NOT IN ('done','dropped')`)),
+
+      db.select({
+        sourceId: collections.id, patientName: collections.patientName,
+        clinic: collections.clinic, insurance: collections.insurance,
+        department: sql<string>`'Collections'`, createdAt: collections.createdAt,
+      }).from(collections)
+        .where(and(eq(collections.assignedTo, userFullName), sql`(${collections.status} IS NULL OR ${collections.status} != 'Done')`)),
+
+      db.select({
+        sourceId: denials.id, patientName: denials.patientName,
+        clinic: denials.clinic, insurance: denials.insurance,
+        department: sql<string>`'Denials'`, createdAt: denials.createdAt,
+      }).from(denials)
+        .where(and(eq(denials.assignedTo, userFullName), sql`(${denials.status} IS NULL OR ${denials.status} != 'Done')`)),
+
+      db.select({
+        sourceId: arbitrations.id, patientName: arbitrations.patientName,
+        clinic: arbitrations.clinic, insurance: arbitrations.insurance,
+        department: sql<string>`'Arbitration'`, createdAt: arbitrations.createdAt,
+      }).from(arbitrations)
+        .where(and(eq(arbitrations.assignedTo, userFullName), sql`(${arbitrations.status} IS NULL OR ${arbitrations.status} != 'Done')`)),
+
+      db.select({
+        sourceId: postings.id, patientName: postings.patientName,
+        clinic: postings.clinic, insurance: postings.insurance,
+        department: sql<string>`'Posting'`, createdAt: postings.createdAt,
+      }).from(postings)
+        .where(and(eq(postings.assignedTo, userFullName), sql`(${postings.status} IS NULL OR ${postings.status} != 'Done')`)),
+
+      db.select({
+        sourceId: checks.id, patientName: checks.patientName,
+        clinic: checks.clinic, insurance: checks.insurance,
+        department: sql<string>`'Checks'`, createdAt: checks.createdAt,
+      }).from(checks)
+        .where(and(eq(checks.assignedTo, userFullName), sql`(${checks.status} IS NULL OR ${checks.status} != 'Done')`)),
+    ]);
+
+    return [...taskRows, ...collRows, ...denRows, ...arbRows, ...postRows, ...chkRows]
+      .filter(r => r.patientName)
+      .sort((a, b) => new Date(a.createdAt as any).getTime() - new Date(b.createdAt as any).getTime());
+  }
+
   async getPatientDailySchedule(userId: number, userFullName: string, dateStr: string): Promise<any[]> {
     const [y, m, d] = dateStr.split("-").map(Number);
     const target = new Date(y, m - 1, d);
@@ -1230,7 +1287,7 @@ export class DatabaseStorage implements IStorage {
     const START = new Date(2026, 6, 27);
     if (target < START) return [];
 
-    // Count working days from START (inclusive=0) up to (but not including) target
+    // ── Step 1: Count working-day index from START to target ──────────────────
     let dayIndex = 0;
     const cur = new Date(START);
     while (cur < target) {
@@ -1240,57 +1297,196 @@ export class DatabaseStorage implements IStorage {
 
     const DAILY = 40;
 
-    const [taskRows, collRows, denRows, arbRows, postRows, chkRows] = await Promise.all([
-      db.select({
-        sourceId: tasks.id, patientName: tasks.patientName,
-        clinic: clinics.name, insurance: insurances.name,
-        department: sql<string>`'Verification'`, createdAt: tasks.createdAt, status: tasks.status,
-      }).from(tasks)
-        .leftJoin(clinics, eq(tasks.clinicId, clinics.id))
-        .leftJoin(insurances, eq(tasks.insuranceId, insurances.id))
-        .where(and(eq(tasks.assignedUserId, userId), sql`${tasks.status} NOT IN ('done','dropped')`)),
+    // ── Step 2: Materialize today's base 40 if not already done ──────────────
+    const existingToday = await db.select({ id: patientCallSchedule.id })
+      .from(patientCallSchedule)
+      .where(and(
+        eq(patientCallSchedule.userId, userId),
+        eq(patientCallSchedule.scheduledDate, dateStr),
+        isNull(patientCallSchedule.originalDate),
+      ))
+      .limit(1);
 
-      db.select({
-        sourceId: collections.id, patientName: collections.patientName,
-        clinic: collections.clinic, insurance: collections.insurance,
-        department: sql<string>`'Collections'`, createdAt: collections.createdAt, status: collections.status,
-      }).from(collections)
-        .where(and(eq(collections.assignedTo, userFullName), sql`(${collections.status} IS NULL OR ${collections.status} != 'Done')`)),
+    if (existingToday.length === 0) {
+      // Fetch all active patients; find which ones are already scheduled on any previous day
+      const allActive = await this._fetchAllActivePatients(userId, userFullName);
 
-      db.select({
-        sourceId: denials.id, patientName: denials.patientName,
-        clinic: denials.clinic, insurance: denials.insurance,
-        department: sql<string>`'Denials'`, createdAt: denials.createdAt, status: denials.status,
-      }).from(denials)
-        .where(and(eq(denials.assignedTo, userFullName), sql`(${denials.status} IS NULL OR ${denials.status} != 'Done')`)),
+      // Get source IDs already assigned to a prior day (so we don't double-assign)
+      const priorScheduled = await db.select({
+        sourceId: patientCallSchedule.sourceId,
+        department: patientCallSchedule.department,
+      }).from(patientCallSchedule)
+        .where(and(
+          eq(patientCallSchedule.userId, userId),
+          sql`${patientCallSchedule.scheduledDate} < ${dateStr}`,
+          isNull(patientCallSchedule.originalDate),
+        ));
 
-      db.select({
-        sourceId: arbitrations.id, patientName: arbitrations.patientName,
-        clinic: arbitrations.clinic, insurance: arbitrations.insurance,
-        department: sql<string>`'Arbitration'`, createdAt: arbitrations.createdAt, status: arbitrations.status,
-      }).from(arbitrations)
-        .where(and(eq(arbitrations.assignedTo, userFullName), sql`(${arbitrations.status} IS NULL OR ${arbitrations.status} != 'Done')`)),
+      const priorKeys = new Set(priorScheduled.map(r => `${r.department}:${r.sourceId}`));
+      const fresh = allActive.filter(p => !priorKeys.has(`${p.department}:${p.sourceId}`));
+      const slice = fresh.slice(dayIndex * DAILY - priorKeys.size < 0 ? 0 : 0, DAILY);
 
-      db.select({
-        sourceId: postings.id, patientName: postings.patientName,
-        clinic: postings.clinic, insurance: postings.insurance,
-        department: sql<string>`'Posting'`, createdAt: postings.createdAt, status: postings.status,
-      }).from(postings)
-        .where(and(eq(postings.assignedTo, userFullName), sql`(${postings.status} IS NULL OR ${postings.status} != 'Done')`)),
+      // Use positional slice of fresh (unscheduled) patients
+      const toInsert = fresh.slice(0, DAILY);
 
-      db.select({
-        sourceId: checks.id, patientName: checks.patientName,
-        clinic: checks.clinic, insurance: checks.insurance,
-        department: sql<string>`'Checks'`, createdAt: checks.createdAt, status: checks.status,
-      }).from(checks)
-        .where(and(eq(checks.assignedTo, userFullName), sql`(${checks.status} IS NULL OR ${checks.status} != 'Done')`)),
-    ]);
+      if (toInsert.length > 0) {
+        await db.insert(patientCallSchedule).values(
+          toInsert.map(p => ({
+            userId,
+            sourceId: p.sourceId,
+            department: p.department as string,
+            patientName: p.patientName,
+            clinic: p.clinic ?? null,
+            insurance: p.insurance ?? null,
+            scheduledDate: dateStr,
+            originalDate: null,
+          }))
+        );
+      }
+    }
 
-    const all = [...taskRows, ...collRows, ...denRows, ...arbRows, ...postRows, ...chkRows]
-      .filter(r => r.patientName)
-      .sort((a, b) => new Date(a.createdAt as any).getTime() - new Date(b.createdAt as any).getTime());
+    // ── Step 3: Roll over incomplete patients from all prior materialized days ─
+    if (target > START) {
+      // All past materialized dates for this user
+      const pastDates = await db.selectDistinct({ scheduledDate: patientCallSchedule.scheduledDate })
+        .from(patientCallSchedule)
+        .where(and(
+          eq(patientCallSchedule.userId, userId),
+          sql`${patientCallSchedule.scheduledDate} < ${dateStr}`,
+          isNull(patientCallSchedule.originalDate),
+        ));
 
-    return all.slice(dayIndex * DAILY, (dayIndex + 1) * DAILY);
+      for (const { scheduledDate: pastDate } of pastDates) {
+        // Entries originally scheduled on this past day
+        const pastEntries = await db.select()
+          .from(patientCallSchedule)
+          .where(and(
+            eq(patientCallSchedule.userId, userId),
+            eq(patientCallSchedule.scheduledDate, pastDate),
+            isNull(patientCallSchedule.originalDate),
+          ));
+
+        // For each past entry, check if it has already been rolled forward to any later date
+        for (const entry of pastEntries) {
+          const alreadyRolled = await db.select({ id: patientCallSchedule.id })
+            .from(patientCallSchedule)
+            .where(and(
+              eq(patientCallSchedule.userId, userId),
+              eq(patientCallSchedule.sourceId, entry.sourceId),
+              eq(patientCallSchedule.department, entry.department),
+              not(isNull(patientCallSchedule.originalDate)),
+            ))
+            .limit(1);
+
+          if (alreadyRolled.length > 0) continue; // already handled in a previous rollover
+
+          // Check if patient is still active in their source tracker
+          const isActive = await this._isPatientStillActive(
+            entry.sourceId, entry.department!, userId, userFullName
+          );
+          if (!isActive) continue;
+
+          // Roll over: insert a new entry for today with originalDate set
+          await db.insert(patientCallSchedule).values({
+            userId,
+            sourceId: entry.sourceId,
+            department: entry.department!,
+            patientName: entry.patientName,
+            clinic: entry.clinic,
+            insurance: entry.insurance,
+            scheduledDate: dateStr,
+            originalDate: pastDate,
+          });
+
+          // Write audit record
+          await db.insert(patientCallAudit).values({
+            userId,
+            sourceId: entry.sourceId,
+            department: entry.department!,
+            patientName: entry.patientName,
+            action: 'auto_rollover',
+            fromDate: pastDate,
+            toDate: dateStr,
+          });
+        }
+      }
+    }
+
+    // ── Step 4: Return today's full list (base + rollovers at end) ─────────────
+    const schedule = await db.select()
+      .from(patientCallSchedule)
+      .where(and(
+        eq(patientCallSchedule.userId, userId),
+        eq(patientCallSchedule.scheduledDate, dateStr),
+      ))
+      .orderBy(asc(patientCallSchedule.originalDate), asc(patientCallSchedule.createdAt));
+
+    return schedule.map(e => ({
+      sourceId: e.sourceId,
+      department: e.department,
+      patientName: e.patientName,
+      clinic: e.clinic,
+      insurance: e.insurance,
+      scheduledDate: e.scheduledDate,
+      isRollover: !!e.originalDate,
+      originalDate: e.originalDate ?? null,
+    }));
+  }
+
+  /** Check if a tracker record is still active (not Done/dropped) */
+  private async _isPatientStillActive(
+    sourceId: number, department: string, userId: number, userFullName: string
+  ): Promise<boolean> {
+    switch (department) {
+      case 'Verification': {
+        const rows = await db.select({ id: tasks.id }).from(tasks)
+          .where(and(eq(tasks.id, sourceId), eq(tasks.assignedUserId, userId), sql`${tasks.status} NOT IN ('done','dropped')`))
+          .limit(1);
+        return rows.length > 0;
+      }
+      case 'Collections': {
+        const rows = await db.select({ id: collections.id }).from(collections)
+          .where(and(eq(collections.id, sourceId), eq(collections.assignedTo, userFullName), sql`(${collections.status} IS NULL OR ${collections.status} != 'Done')`))
+          .limit(1);
+        return rows.length > 0;
+      }
+      case 'Denials': {
+        const rows = await db.select({ id: denials.id }).from(denials)
+          .where(and(eq(denials.id, sourceId), eq(denials.assignedTo, userFullName), sql`(${denials.status} IS NULL OR ${denials.status} != 'Done')`))
+          .limit(1);
+        return rows.length > 0;
+      }
+      case 'Arbitration': {
+        const rows = await db.select({ id: arbitrations.id }).from(arbitrations)
+          .where(and(eq(arbitrations.id, sourceId), eq(arbitrations.assignedTo, userFullName), sql`(${arbitrations.status} IS NULL OR ${arbitrations.status} != 'Done')`))
+          .limit(1);
+        return rows.length > 0;
+      }
+      case 'Posting': {
+        const rows = await db.select({ id: postings.id }).from(postings)
+          .where(and(eq(postings.id, sourceId), eq(postings.assignedTo, userFullName), sql`(${postings.status} IS NULL OR ${postings.status} != 'Done')`))
+          .limit(1);
+        return rows.length > 0;
+      }
+      case 'Checks': {
+        const rows = await db.select({ id: checks.id }).from(checks)
+          .where(and(eq(checks.id, sourceId), eq(checks.assignedTo, userFullName), sql`(${checks.status} IS NULL OR ${checks.status} != 'Done')`))
+          .limit(1);
+        return rows.length > 0;
+      }
+      default:
+        return false;
+    }
+  }
+
+  async getPatientCallAudit(userId?: number, limit = 200): Promise<PatientCallAudit[]> {
+    const q = db.select().from(patientCallAudit);
+    if (userId) {
+      return q.where(eq(patientCallAudit.userId, userId))
+        .orderBy(desc(patientCallAudit.occurredAt))
+        .limit(limit);
+    }
+    return q.orderBy(desc(patientCallAudit.occurredAt)).limit(limit);
   }
 }
 

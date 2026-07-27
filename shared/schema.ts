@@ -835,6 +835,38 @@ export const callActivity = pgTable("call_activity", {
   index("call_activity_scheduled_call_id_idx").on(t.scheduledCallId),
 ]);
 
+// ── Patient Call Schedule (materialized daily snapshots + rollover tracking) ──
+export const patientCallSchedule = pgTable("patient_call_schedule", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  sourceId: integer("source_id").notNull(),
+  department: text("department").notNull(),
+  patientName: text("patient_name"),
+  clinic: text("clinic"),
+  insurance: text("insurance"),
+  scheduledDate: text("scheduled_date").notNull(), // 'YYYY-MM-DD'
+  originalDate: text("original_date"),             // null = originally scheduled here; set = rolled from this date
+  createdAt: timestamp("created_at").defaultNow(),
+}, (t) => [
+  index("pcs_user_date_idx").on(t.userId, t.scheduledDate),
+  index("pcs_user_source_dept_idx").on(t.userId, t.sourceId, t.department),
+]);
+
+export const patientCallAudit = pgTable("patient_call_audit", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  sourceId: integer("source_id").notNull(),
+  department: text("department").notNull(),
+  patientName: text("patient_name"),
+  action: text("action").notNull(), // 'auto_rollover'
+  fromDate: text("from_date").notNull(),
+  toDate: text("to_date").notNull(),
+  occurredAt: timestamp("occurred_at").defaultNow(),
+});
+
+export type PatientCallSchedule = typeof patientCallSchedule.$inferSelect;
+export type PatientCallAudit = typeof patientCallAudit.$inferSelect;
+
 export const insertScheduledCallSchema = createInsertSchema(scheduledCalls).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertCallAttemptSchema = createInsertSchema(callAttempts).omit({ id: true, createdAt: true });
 export const insertCallActivitySchema = createInsertSchema(callActivity).omit({ id: true, createdAt: true });

@@ -1062,14 +1062,16 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b bg-muted/10">
-                  {["#", "Patient Name", "Clinic", "Insurance", "Department"].map(h => (
+                  {["#", "Patient Name", "Clinic", "Insurance", "Department", "Status"].map(h => (
                     <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {autoPatients!.map((p, i) => (
-                  <tr key={`${p.department}-${p.sourceId}`} className="border-b hover:bg-muted/10 transition-colors" data-testid={`auto-patient-row-${i}`}>
+                  <tr key={`${p.department}-${p.sourceId}`}
+                    className={cn("border-b hover:bg-muted/10 transition-colors", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10")}
+                    data-testid={`auto-patient-row-${i}`}>
                     <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
                     <td className="px-3 py-2 font-medium whitespace-nowrap">{p.patientName}</td>
                     <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.clinic || "—"}</td>
@@ -1084,11 +1086,26 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
                         "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
                       )}>{p.department}</span>
                     </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {p.isRollover ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full"
+                          title={`Auto-rolled over from ${p.originalDate}`}>
+                          ↩ From {new Date(p.originalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Scheduled</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {autoPatients!.some(p => p.isRollover) && (
+            <div className="px-4 py-2 border-t bg-amber-50/60 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+              ↩ {autoPatients!.filter(p => p.isRollover).length} patient{autoPatients!.filter(p => p.isRollover).length !== 1 ? "s" : ""} auto-rolled over from a previous day
+            </div>
+          )}
         </div>
       )}
       {dayCalls.length > 0 && (
@@ -1228,6 +1245,11 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
   const [filterDept, setFilterDept] = useState<string>("all");
   const [patientSearch, setPatientSearch] = useState<string>("");
   const [managerSubView, setManagerSubView] = useState<"day" | "week">("day");
+
+  const { data: rolloverAudit = [] } = useQuery<any[]>({
+    queryKey: ["/api/calls/rollover-audit"],
+    queryFn: () => fetch("/api/calls/rollover-audit", { credentials: "include" }).then(r => r.json()),
+  });
 
   const { data: agentStats = [] } = useQuery<any[]>({
     queryKey: ["/api/calls/agent-stats", dateFrom, dateTo],
@@ -1591,16 +1613,18 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
             <table className="w-full text-sm" data-testid="vc-patient-list-table">
               <thead>
                 <tr className="border-b bg-muted/10">
-                  {["#", "Agent", "Patient Name", "Clinic", "Insurance", "Department"].map(h => (
+                  {["#", "Agent", "Patient Name", "Clinic", "Insurance", "Department", "Rollover"].map(h => (
                     <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredPatients.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No patients scheduled for this day</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">No patients scheduled for this day</td></tr>
                 ) : filteredPatients.map((p, i) => (
-                  <tr key={`${p.agentId}-${p.department}-${p.sourceId}`} className="border-b hover:bg-muted/10 transition-colors" data-testid={`mgr-patient-row-${i}`}>
+                  <tr key={`${p.agentId}-${p.department}-${p.sourceId}`}
+                    className={cn("border-b hover:bg-muted/10 transition-colors", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10")}
+                    data-testid={`mgr-patient-row-${i}`}>
                     <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
                     <td className="px-3 py-2 text-xs font-medium whitespace-nowrap">{p.agentName || "—"}</td>
                     <td className="px-3 py-2 font-medium whitespace-nowrap">{p.patientName}</td>
@@ -1611,6 +1635,16 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                         {p.department}
                       </span>
                     </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {p.isRollover ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full"
+                          title={`Auto-rolled over from ${p.originalDate}`}>
+                          ↩ From {new Date(p.originalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1618,12 +1652,68 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
           </div>
         )}
         {filteredPatients.length > 0 && (
-          <div className="px-4 py-2 border-t bg-muted/10 text-xs text-muted-foreground">
-            Showing {filteredPatients.length} patient{filteredPatients.length !== 1 ? "s" : ""}
-            {selectedUserId === "all" ? ` across ${vcMembers.length} VC agent${vcMembers.length !== 1 ? "s" : ""}` : ""}
+          <div className="px-4 py-2 border-t bg-muted/10 text-xs text-muted-foreground flex items-center gap-2">
+            <span>Showing {filteredPatients.length} patient{filteredPatients.length !== 1 ? "s" : ""}
+            {selectedUserId === "all" ? ` across ${vcMembers.length} VC agent${vcMembers.length !== 1 ? "s" : ""}` : ""}</span>
+            {filteredPatients.some((p: any) => p.isRollover) && (
+              <span className="ml-auto flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                ↩ {filteredPatients.filter((p: any) => p.isRollover).length} rolled over
+              </span>
+            )}
           </div>
         )}
       </div>
+
+      {/* ── Rollover Audit Log ── */}
+      {rolloverAudit.length > 0 && (
+        <div className="rounded-md border overflow-hidden">
+          <div className="px-4 py-2.5 border-b bg-amber-50 dark:bg-amber-950/30 flex items-center gap-2">
+            <span className="text-sm font-semibold text-amber-900 dark:text-amber-200">↩ Auto-Rollover Audit Log</span>
+            <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">— patients auto-moved from missed days</span>
+            <span className="ml-auto text-xs text-amber-700 dark:text-amber-300 font-medium">{rolloverAudit.length} event{rolloverAudit.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/10">
+                  {["Date/Time", "Agent", "Patient", "Department", "Moved From", "Moved To"].map(h => (
+                    <th key={h} className="px-3 py-2 text-xs font-medium text-muted-foreground text-left whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rolloverAudit.map((a: any) => {
+                  const agentUser = allUsers.find((u: User) => u.id === a.userId);
+                  return (
+                    <tr key={a.id} className="border-b hover:bg-muted/10 transition-colors">
+                      <td className="px-3 py-2 text-xs whitespace-nowrap text-muted-foreground">
+                        {new Date(a.occurredAt).toLocaleString("en-US", {
+                          month: "short", day: "numeric", year: "numeric",
+                          hour: "numeric", minute: "2-digit", hour12: true,
+                          timeZone: "America/New_York",
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-xs font-medium whitespace-nowrap">{agentUser?.fullName ?? `User #${a.userId}`}</td>
+                      <td className="px-3 py-2 text-xs font-medium whitespace-nowrap">{a.patientName}</td>
+                      <td className="px-3 py-2">
+                        <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", DEPT_COLORS[a.department] || "bg-gray-100 text-gray-800")}>
+                          {a.department}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap text-amber-700 dark:text-amber-400 font-medium">
+                        {new Date(a.fromDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                      </td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap text-green-700 dark:text-green-400 font-medium">
+                        {new Date(a.toDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       </>
       )}
     </div>

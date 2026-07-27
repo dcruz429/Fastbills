@@ -3950,6 +3950,20 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/calls/rollover-audit", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const isManager = ADMIN_ROLES.includes(user.role);
+      // Managers see all; agents see only their own
+      const targetUserId = (isManager && req.query.userId)
+        ? Number(req.query.userId)
+        : (isManager ? undefined : user.id);
+      const audit = await storage.getPatientCallAudit(targetUserId, 500);
+      res.json(audit);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.get("/api/calls/:id", requireAuth, async (req, res) => {
     try {
       const call = await storage.getScheduledCall(Number(req.params.id));
