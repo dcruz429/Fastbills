@@ -1227,6 +1227,7 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
   const [filterDept, setFilterDept] = useState<string>("all");
   const [patientSearch, setPatientSearch] = useState<string>("");
+  const [managerSubView, setManagerSubView] = useState<"day" | "week">("day");
 
   const { data: agentStats = [] } = useQuery<any[]>({
     queryKey: ["/api/calls/agent-stats", dateFrom, dateTo],
@@ -1284,6 +1285,39 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
         agentId: Number(selectedUserId),
       }));
 
+  // ── Week view: compute Mon–Fri of the current week ──────────────────────────
+  const weekDays: { date: Date; key: string; label: string }[] = useMemo(() => {
+    const base = new Date(dateFrom + "T12:00:00");
+    const dow = base.getDay(); // 0=Sun … 6=Sat
+    const monday = new Date(base);
+    monday.setDate(base.getDate() - (dow === 0 ? 6 : dow - 1));
+    return Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const key = getDateKey(d);
+      const label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      return { date: d, key, label };
+    });
+  }, [dateFrom]);
+
+  const weekUserId = selectedUserId !== "all" ? selectedUserId : vcMembers[0] ? String(vcMembers[0].id) : null;
+
+  const { data: weekData = {}, isFetching: weekFetching } = useQuery<Record<string, any[]>>({
+    queryKey: ["/api/calls/daily-schedule/week", weekDays.map(d => d.key).join(","), weekUserId],
+    queryFn: async () => {
+      if (!weekUserId) return {};
+      const results = await Promise.all(
+        weekDays.map(d =>
+          fetch(`/api/calls/daily-schedule?date=${d.key}&userId=${weekUserId}`, { credentials: "include" })
+            .then(r => r.json())
+            .then((pts: any[]) => [d.key, pts] as [string, any[]])
+        )
+      );
+      return Object.fromEntries(results);
+    },
+    enabled: managerSubView === "week" && !!weekUserId && vcMembers.length > 0,
+  });
+
   const DEPT_OPTIONS = ["Verification", "Collections", "Denials", "Arbitration", "Posting", "Checks"];
   const DEPT_COLORS: Record<string, string> = {
     Verification: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
@@ -1302,6 +1336,118 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
 
   return (
     <div className="space-y-4" data-testid="manager-dashboard">
+      {/* Sub-view toggle */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center border rounded-md overflow-hidden text-xs">
+          {(["day", "week"] as const).map(sv => (
+            <button
+              key={sv}
+              onClick={() => setManagerSubView(sv)}
+              className={cn("px-3 py-1.5 font-medium transition-colors", managerSubView === sv ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+            >
+              {sv === "day" ? "Day List" : "Week View"}
+            </button>
+          ))}
+        </div>
+        {managerSubView === "week" && vcMembers.length > 0 && (
+          <div className="flex items-center gap-2 ml-2">
+            <span className="text-xs text-muted-foreground">Viewing as:</span>
+            <Select value={weekUserId ?? ""} onValueChange={v => setSelectedUserId(v)}>
+              <SelectTrigger className="h-7 w-44 text-xs" data-testid="select-week-agent">
+                <SelectValue placeholder="Pick an agent" />
+              </SelectTrigger>
+              <SelectContent>
+                {vcMembers.map(m => (
+                  <SelectItem key={m.id} value={String(m.id)}>{m.fullName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterDept} onValueChange={setFilterDept}>
+              <SelectTrigger className="h-7 w-36 text-xs">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {DEPT_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                className="pl-7 h-7 w-36 text-xs rounded-md border bg-background px-2"
+                placeholder="Search patients…"
+                value={patientSearch}
+                onChange={e => setPatientSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Week View ── */}
+      {managerSubView === "week" && (
+        <div className="rounded-md border overflow-hidden">
+          <div className="px-4 py-2.5 border-b bg-blue-50 dark:bg-blue-950/30 flex items-center gap-2">
+            <span className="text-sm font-semibold text-blue-900 dark:text-blue-200">📅 Weekly Patient Schedule</span>
+            <span className="text-xs text-blue-600 dark:text-blue-400 ml-1">
+              — {vcMembers.find(m => String(m.id) === weekUserId)?.fullName ?? "Select an agent"}
+            </span>
+            {weekFetching && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Loading…</span>}
+          </div>
+          {vcMembers.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">No VC Team found. Create a team named "VC Team" in Settings → Teams and add members.</div>
+          ) : !weekUserId ? (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Select an agent above to view their week.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="flex min-w-[900px]">
+                {weekDays.map(({ key, label }) => {
+                  const dayPts: any[] = (weekData[key] ?? []).filter((p: any) => {
+                    if (filterDept !== "all" && p.department !== filterDept) return false;
+                    if (patientSearch && !p.patientName?.toLowerCase().includes(patientSearch.toLowerCase())) return false;
+                    return true;
+                  });
+                  const isToday = key === getDateKey(new Date());
+                  return (
+                    <div key={key} className={cn("flex-1 border-r last:border-r-0 min-w-0", isToday && "bg-blue-50/40 dark:bg-blue-950/10")}>
+                      {/* Day header */}
+                      <div className={cn("px-2 py-2 border-b text-center sticky top-0 z-10 bg-muted/20 backdrop-blur-sm", isToday && "bg-blue-100/60 dark:bg-blue-900/20")}>
+                        <div className={cn("text-xs font-semibold", isToday && "text-blue-700 dark:text-blue-300")}>{label}</div>
+                        <div className="text-xs text-muted-foreground">{dayPts.length} patient{dayPts.length !== 1 ? "s" : ""}</div>
+                      </div>
+                      {/* Patient rows */}
+                      <div className="divide-y max-h-[520px] overflow-y-auto">
+                        {weekFetching ? (
+                          <div className="px-2 py-6 text-center text-xs text-muted-foreground animate-pulse">Loading…</div>
+                        ) : dayPts.length === 0 ? (
+                          <div className="px-2 py-6 text-center text-xs text-muted-foreground">—</div>
+                        ) : dayPts.map((p: any, i: number) => (
+                          <div key={`${p.department}-${p.sourceId}-${i}`} className="px-2 py-1.5 hover:bg-muted/10 transition-colors">
+                            <div className="flex items-start gap-1.5">
+                              <span className="text-xs text-muted-foreground font-mono w-5 shrink-0 pt-px">{i + 1}</span>
+                              <div className="min-w-0">
+                                <div className="text-xs font-medium truncate leading-tight">{p.patientName}</div>
+                                {p.clinic && <div className="text-xs text-muted-foreground truncate leading-tight">{p.clinic}</div>}
+                                <span className={cn("inline-block mt-0.5 text-xs px-1.5 py-px rounded-full font-medium", DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800")}>
+                                  {p.department}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Day List (existing) ── */}
+      {managerSubView === "day" && (
+      <>
       {/* Agent Stats */}
       <div className="rounded-md border overflow-hidden">
         <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center gap-2">
@@ -1425,6 +1571,8 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
