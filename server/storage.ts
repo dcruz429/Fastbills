@@ -1471,59 +1471,8 @@ export class DatabaseStorage implements IStorage {
         asc(patientCallSchedule.createdAt),
       );
 
-    // ── Step 6: Batch-fetch current tracker status per department ────────────────
-    const deptGroups: Record<string, number[]> = {};
-    for (const e of schedule) {
-      if (!e.department) continue;
-      if (!deptGroups[e.department]) deptGroups[e.department] = [];
-      deptGroups[e.department].push(e.sourceId);
-    }
-
-    const statusMap = new Map<string, string | null>();
-
-    for (const [dept, ids] of Object.entries(deptGroups)) {
-      if (ids.length === 0) continue;
-      switch (dept) {
-        case 'Verification': {
-          const rows = await db.select({ id: tasks.id, status: tasks.status })
-            .from(tasks).where(inArray(tasks.id, ids));
-          rows.forEach(r => statusMap.set(`${dept}:${r.id}`, r.status));
-          break;
-        }
-        case 'Collections': {
-          const rows = await db.select({ id: collections.id, status: collections.status })
-            .from(collections).where(inArray(collections.id, ids));
-          rows.forEach(r => statusMap.set(`${dept}:${r.id}`, r.status));
-          break;
-        }
-        case 'Denials': {
-          const rows = await db.select({ id: denials.id, status: denials.status })
-            .from(denials).where(inArray(denials.id, ids));
-          rows.forEach(r => statusMap.set(`${dept}:${r.id}`, r.status));
-          break;
-        }
-        case 'Arbitration': {
-          const rows = await db.select({ id: arbitrations.id, status: arbitrations.status })
-            .from(arbitrations).where(inArray(arbitrations.id, ids));
-          rows.forEach(r => statusMap.set(`${dept}:${r.id}`, r.status));
-          break;
-        }
-        case 'Posting': {
-          const rows = await db.select({ id: postings.id, status: postings.status })
-            .from(postings).where(inArray(postings.id, ids));
-          rows.forEach(r => statusMap.set(`${dept}:${r.id}`, r.status));
-          break;
-        }
-        case 'Checks': {
-          const rows = await db.select({ id: checks.id, status: checks.status })
-            .from(checks).where(inArray(checks.id, ids));
-          rows.forEach(r => statusMap.set(`${dept}:${r.id}`, r.status));
-          break;
-        }
-      }
-    }
-
     return schedule.map(e => ({
+      id: e.id,
       sourceId: e.sourceId,
       department: e.department,
       patientName: e.patientName,
@@ -1533,8 +1482,21 @@ export class DatabaseStorage implements IStorage {
       isRollover: !!e.originalDate && e.originalDate !== 'new',
       isNew: e.originalDate === 'new',
       originalDate: (e.originalDate && e.originalDate !== 'new') ? e.originalDate : null,
-      currentStatus: statusMap.get(`${e.department}:${e.sourceId}`) ?? null,
+      dailyStatus: e.dailyStatus ?? null,
     }));
+  }
+
+  /** Fetch a single patient_call_schedule row by id */
+  async getPatientScheduleEntry(id: number) {
+    const [row] = await db.select().from(patientCallSchedule).where(eq(patientCallSchedule.id, id));
+    return row ?? null;
+  }
+
+  /** Update the dailyStatus on a patient_call_schedule row */
+  async updatePatientScheduleDailyStatus(id: number, dailyStatus: string | null) {
+    await db.update(patientCallSchedule)
+      .set({ dailyStatus })
+      .where(eq(patientCallSchedule.id, id));
   }
 
   /** Check if a tracker record is still active (not Done/dropped) */

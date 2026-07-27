@@ -62,21 +62,20 @@ const STATUS_DOT: Record<string, string> = {
   "Missed": "bg-red-500",
 };
 
-// Maps tracker record status values (mixed case/underscore) to Tailwind classes
-function trackerStatusBadge(status: string | null | undefined): { label: string; cls: string } {
-  if (!status) return { label: "Unknown", cls: "bg-gray-100 text-gray-500 dark:bg-gray-800/40 dark:text-gray-400" };
-  const s = status.toLowerCase().replace(/_/g, " ");
-  if (s === "done" || s === "verified" || s === "billed" || s === "resolved")
-    return { label: status, cls: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" };
-  if (s === "working on it")
-    return { label: status, cls: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" };
-  if (s === "assigned")
-    return { label: status, cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" };
-  if (s === "unassigned")
-    return { label: status, cls: "bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400" };
-  if (s === "dropped" || s === "cancelled")
-    return { label: status, cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" };
-  return { label: status, cls: "bg-slate-100 text-slate-700 dark:bg-slate-800/40 dark:text-slate-300" };
+// ── Daily call-action status (Done/Resolved/Voicemail/etc.) ───────────────────
+
+const CALL_DAILY_STATUSES = [
+  { label: "Done",      emoji: "✓",  cls: "bg-green-100 text-green-800 border-green-300 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300" },
+  { label: "Resolved",  emoji: "✓",  cls: "bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200 dark:bg-teal-900/30 dark:text-teal-300" },
+  { label: "Voicemail", emoji: "📞", cls: "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300" },
+  { label: "Wrong #",   emoji: "⊘",  cls: "bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-300" },
+  { label: "Call Back", emoji: "↩",  cls: "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300" },
+  { label: "Unable",    emoji: "✗",  cls: "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 dark:bg-gray-800/40 dark:text-gray-300" },
+] as const;
+
+function callDailyStatusBadge(status: string | null | undefined): { label: string; emoji: string; cls: string } {
+  const found = CALL_DAILY_STATUSES.find(s => s.label === status);
+  return found ?? { label: "—", emoji: "", cls: "text-muted-foreground" };
 }
 
 // Hoisted to module level so DailyListView and ManagerDashboard can both use it
@@ -987,6 +986,15 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
   const [pendingCallId, setPendingCallId] = useState<number | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [attemptCall, setAttemptCall] = useState<any>(null);
+
+  // ── Daily patient call status mutation ─────────────────────────────────────
+  const { mutate: setDailyStatus, isPending: statusPending } = useMutation({
+    mutationFn: ({ scheduleId, dailyStatus }: { scheduleId: number; dailyStatus: string | null }) =>
+      apiRequest("PATCH", `/api/calls/daily-schedule/${scheduleId}/status`, { dailyStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/calls/daily-schedule"] });
+    },
+  });
   const [attemptOutcome, setAttemptOutcome] = useState<string>("");
   const [attemptOpen, setAttemptOpen] = useState(false);
 
@@ -1110,10 +1118,38 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
                       )}>{p.department}</span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {/* Tracker record status */}
-                      {(() => { const b = trackerStatusBadge(p.currentStatus); return (
-                        <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", b.cls)}>{b.label}</span>
-                      ); })()}
+                      {/* Call-action status picker — agents set this per day */}
+                      {p.dailyStatus ? (
+                        <div className="flex items-center gap-1">
+                          {(() => { const b = callDailyStatusBadge(p.dailyStatus); return (
+                            <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium border", b.cls)}>
+                              {b.emoji} {b.label}
+                            </span>
+                          ); })()}
+                          <button
+                            className="text-muted-foreground hover:text-foreground text-xs ml-0.5 opacity-60 hover:opacity-100"
+                            title="Clear status"
+                            disabled={statusPending}
+                            onClick={() => setDailyStatus({ scheduleId: p.id, dailyStatus: null })}
+                          >✕</button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {CALL_DAILY_STATUSES.map(s => (
+                            <button
+                              key={s.label}
+                              disabled={statusPending}
+                              onClick={() => setDailyStatus({ scheduleId: p.id, dailyStatus: s.label })}
+                              className={cn(
+                                "text-xs px-1.5 py-0.5 rounded border font-medium transition-colors",
+                                s.cls
+                              )}
+                            >
+                              {s.emoji} {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {/* Schedule placement: rollover / new / normal */}
@@ -1553,8 +1589,10 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                                   )}>
                                     {p.department}
                                   </span>
-                                  {(() => { const b = trackerStatusBadge(p.currentStatus); return (
-                                    <span className={cn("text-xs px-1.5 py-px rounded-full font-medium", b.cls)}>{b.label}</span>
+                                  {p.dailyStatus && (() => { const b = callDailyStatusBadge(p.dailyStatus); return (
+                                    <span className={cn("text-xs px-1.5 py-px rounded-full font-medium border", b.cls)}>
+                                      {b.emoji} {b.label}
+                                    </span>
                                   ); })()}
                                   {p.isRollover && <span className="text-xs text-amber-600 dark:text-amber-400">↩</span>}
                                   {p.isNew && <span className="text-xs text-green-600 dark:text-green-400">✦</span>}
@@ -1690,9 +1728,14 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                       </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {(() => { const b = trackerStatusBadge(p.currentStatus); return (
-                        <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", b.cls)}>{b.label}</span>
-                      ); })()}
+                      {/* Read-only daily call status for manager */}
+                      {p.dailyStatus ? (() => { const b = callDailyStatusBadge(p.dailyStatus); return (
+                        <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium border", b.cls)}>
+                          {b.emoji} {b.label}
+                        </span>
+                      ); })() : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {p.isRollover ? (
