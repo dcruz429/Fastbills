@@ -1324,9 +1324,8 @@ export class DatabaseStorage implements IStorage {
 
       const priorKeys = new Set(priorScheduled.map(r => `${r.department}:${r.sourceId}`));
       const fresh = allActive.filter(p => !priorKeys.has(`${p.department}:${p.sourceId}`));
-      const slice = fresh.slice(dayIndex * DAILY - priorKeys.size < 0 ? 0 : 0, DAILY);
 
-      // Use positional slice of fresh (unscheduled) patients
+      // Slice the first DAILY fresh patients for today's base list
       const toInsert = fresh.slice(0, DAILY);
 
       if (toInsert.length > 0) {

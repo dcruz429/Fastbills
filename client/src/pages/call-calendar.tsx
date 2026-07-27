@@ -79,6 +79,16 @@ function trackerStatusBadge(status: string | null | undefined): { label: string;
   return { label: status, cls: "bg-slate-100 text-slate-700 dark:bg-slate-800/40 dark:text-slate-300" };
 }
 
+// Hoisted to module level so DailyListView and ManagerDashboard can both use it
+const DEPT_COLORS: Record<string, string> = {
+  Verification: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+  Collections: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+  Denials: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  Arbitration: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+  Posting: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  Checks: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+};
+
 const ROW_BORDER_COLOR: Record<string, string> = {
   "Scheduled": "border-l-blue-400",
   "In Progress": "border-l-purple-400",
@@ -1080,7 +1090,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b bg-muted/10">
-                  {["#", "Patient Name", "Clinic", "Insurance", "Department", "Status"].map(h => (
+                  {["#", "Patient Name", "Clinic", "Insurance", "Department", "Status", "Schedule"].map(h => (
                     <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
                   ))}
                 </tr>
@@ -1096,15 +1106,17 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
                     <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.insurance || "—"}</td>
                     <td className="px-3 py-2">
                       <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
-                        p.department === "Verification" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" :
-                        p.department === "Collections" ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" :
-                        p.department === "Denials" ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" :
-                        p.department === "Arbitration" ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" :
-                        p.department === "Posting" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" :
-                        "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                        DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800"
                       )}>{p.department}</span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
+                      {/* Tracker record status */}
+                      {(() => { const b = trackerStatusBadge(p.currentStatus); return (
+                        <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", b.cls)}>{b.label}</span>
+                      ); })()}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {/* Schedule placement: rollover / new / normal */}
                       {p.isRollover ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full"
                           title={`Auto-rolled over from ${p.originalDate}`}>
@@ -1115,7 +1127,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
                           ✦ New
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">Scheduled</span>
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </td>
                   </tr>
@@ -1306,12 +1318,14 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
 
   const { data: rawPatients = [], isFetching: patientsFetching } = useQuery<any[]>({
     queryKey: ["/api/calls/daily-schedule", dateFrom, selectedUserId],
-    queryFn: () => {
-      const params = new URLSearchParams({ date: dateFrom });
-      if (selectedUserId !== "all") params.set("userId", selectedUserId);
+    queryFn: ({ queryKey }) => {
+      const [, df, uid] = queryKey as string[];
+      const params = new URLSearchParams({ date: df });
+      params.set("userId", uid);
       return fetch(`/api/calls/daily-schedule?${params}`, { credentials: "include" }).then(r => r.json());
     },
-    enabled: selectedUserId !== "all" || vcMembers.length > 0,
+    // Only run when a specific agent is selected; "all" uses allMemberPatients instead
+    enabled: selectedUserId !== "all",
   });
 
   // If "all" is selected, fetch for each VC member and merge
@@ -1373,14 +1387,6 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
   });
 
   const DEPT_OPTIONS = ["Verification", "Collections", "Denials", "Arbitration", "Posting", "Checks"];
-  const DEPT_COLORS: Record<string, string> = {
-    Verification: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-    Collections: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-    Denials: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-    Arbitration: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-    Posting: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-    Checks: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  };
 
   const filteredPatients = patients.filter(p => {
     if (filterDept !== "all" && p.department !== filterDept) return false;
@@ -1521,7 +1527,11 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                               "px-3 py-2 hover:bg-muted/10 transition-colors cursor-pointer",
                               p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10",
                             )}
-                            onClick={() => setDetailPatient({ sourceId: p.sourceId, department: p.department, agentName: "" })}
+                            onClick={() => setDetailPatient({
+                              sourceId: p.sourceId,
+                              department: p.department,
+                              agentName: allUsers.find(u => u.id === Number(weekUserId))?.fullName ?? "",
+                            })}
                           >
                             <div className="flex items-start gap-2">
                               <span className="text-xs text-muted-foreground font-mono w-5 shrink-0 pt-px select-none">
