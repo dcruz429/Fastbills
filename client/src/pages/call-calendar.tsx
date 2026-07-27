@@ -1092,6 +1092,10 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
                           title={`Auto-rolled over from ${p.originalDate}`}>
                           ↩ From {new Date(p.originalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </span>
+                      ) : p.isNew ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                          ✦ New
+                        </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">Scheduled</span>
                       )}
@@ -1101,9 +1105,18 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
               </tbody>
             </table>
           </div>
-          {autoPatients!.some(p => p.isRollover) && (
-            <div className="px-4 py-2 border-t bg-amber-50/60 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-              ↩ {autoPatients!.filter(p => p.isRollover).length} patient{autoPatients!.filter(p => p.isRollover).length !== 1 ? "s" : ""} auto-rolled over from a previous day
+          {(autoPatients!.some(p => p.isRollover) || autoPatients!.some(p => p.isNew)) && (
+            <div className="px-4 py-2 border-t bg-muted/10 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+              {autoPatients!.some(p => p.isRollover) && (
+                <span className="text-amber-600 dark:text-amber-400">
+                  ↩ {autoPatients!.filter(p => p.isRollover).length} rolled over from a previous day
+                </span>
+              )}
+              {autoPatients!.some(p => p.isNew) && (
+                <span className="text-green-600 dark:text-green-400">
+                  ✦ {autoPatients!.filter(p => p.isNew).length} newly assigned
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -1640,6 +1653,10 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full"
                           title={`Auto-rolled over from ${p.originalDate}`}>
                           ↩ From {new Date(p.originalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      ) : p.isNew ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                          ✦ New
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>

@@ -1425,14 +1425,52 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // ── Step 4: Return today's full list (base + rollovers at end) ─────────────
+    // ── Step 4: Append newly assigned patients (never scheduled on any day) ─────
+    // These are patients added after a day was already materialized — they have
+    // no entry in patient_call_schedule at all, so they'd otherwise be skipped.
+    const allActive = await this._fetchAllActivePatients(userId, userFullName);
+
+    // All (sourceId, department) pairs already tracked in patient_call_schedule for this user
+    const allScheduled = await db.select({
+      sourceId: patientCallSchedule.sourceId,
+      department: patientCallSchedule.department,
+    }).from(patientCallSchedule)
+      .where(eq(patientCallSchedule.userId, userId));
+
+    const scheduledKeys = new Set(allScheduled.map(r => `${r.department}:${r.sourceId}`));
+    const neverScheduled = allActive.filter(p => !scheduledKeys.has(`${p.department}:${p.sourceId}`));
+
+    if (neverScheduled.length > 0) {
+      await db.insert(patientCallSchedule).values(
+        neverScheduled.map(p => ({
+          userId,
+          sourceId: p.sourceId,
+          department: p.department as string,
+          patientName: p.patientName,
+          clinic: p.clinic ?? null,
+          insurance: p.insurance ?? null,
+          scheduledDate: dateStr,
+          originalDate: 'new', // sentinel: marks as a late-added patient, not a rollover
+        }))
+      );
+    }
+
+    // ── Step 5: Return today's full list (base → rollovers → new additions) ────
     const schedule = await db.select()
       .from(patientCallSchedule)
       .where(and(
         eq(patientCallSchedule.userId, userId),
         eq(patientCallSchedule.scheduledDate, dateStr),
       ))
-      .orderBy(asc(patientCallSchedule.originalDate), asc(patientCallSchedule.createdAt));
+      .orderBy(
+        // 0 = originally scheduled, 1 = rolled over from past day, 2 = newly added
+        sql`CASE
+          WHEN ${patientCallSchedule.originalDate} IS NULL THEN 0
+          WHEN ${patientCallSchedule.originalDate} = 'new' THEN 2
+          ELSE 1
+        END ASC`,
+        asc(patientCallSchedule.createdAt),
+      );
 
     return schedule.map(e => ({
       sourceId: e.sourceId,
@@ -1441,8 +1479,9 @@ export class DatabaseStorage implements IStorage {
       clinic: e.clinic,
       insurance: e.insurance,
       scheduledDate: e.scheduledDate,
-      isRollover: !!e.originalDate,
-      originalDate: e.originalDate ?? null,
+      isRollover: !!e.originalDate && e.originalDate !== 'new',
+      isNew: e.originalDate === 'new',
+      originalDate: (e.originalDate && e.originalDate !== 'new') ? e.originalDate : null,
     }));
   }
 
