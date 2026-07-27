@@ -26,6 +26,7 @@ import {
   PhoneMissed, FileText, User as UserIcon, Filter, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PatientDetailPanel } from "@/components/patient-detail-panel";
 
 type CalendarView = "list" | "month" | "week" | "day" | "agenda" | "manager";
 
@@ -60,6 +61,23 @@ const STATUS_DOT: Record<string, string> = {
   "Cancelled": "bg-gray-400",
   "Missed": "bg-red-500",
 };
+
+// Maps tracker record status values (mixed case/underscore) to Tailwind classes
+function trackerStatusBadge(status: string | null | undefined): { label: string; cls: string } {
+  if (!status) return { label: "Unknown", cls: "bg-gray-100 text-gray-500 dark:bg-gray-800/40 dark:text-gray-400" };
+  const s = status.toLowerCase().replace(/_/g, " ");
+  if (s === "done" || s === "verified" || s === "billed" || s === "resolved")
+    return { label: status, cls: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" };
+  if (s === "working on it")
+    return { label: status, cls: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" };
+  if (s === "assigned")
+    return { label: status, cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" };
+  if (s === "unassigned")
+    return { label: status, cls: "bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400" };
+  if (s === "dropped" || s === "cancelled")
+    return { label: status, cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" };
+  return { label: status, cls: "bg-slate-100 text-slate-700 dark:bg-slate-800/40 dark:text-slate-300" };
+}
 
 const ROW_BORDER_COLOR: Record<string, string> = {
   "Scheduled": "border-l-blue-400",
@@ -1258,6 +1276,7 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
   const [filterDept, setFilterDept] = useState<string>("all");
   const [patientSearch, setPatientSearch] = useState<string>("");
   const [managerSubView, setManagerSubView] = useState<"day" | "week">("day");
+  const [detailPatient, setDetailPatient] = useState<{ sourceId: number; department: string; agentName: string } | null>(null);
 
   const { data: rolloverAudit = [] } = useQuery<any[]>({
     queryKey: ["/api/calls/rollover-audit"],
@@ -1498,7 +1517,11 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                         ) : dayPts.map((p: any, i: number) => (
                           <div
                             key={`${p.department}-${p.sourceId}-${i}`}
-                            className="px-3 py-2 hover:bg-muted/10 transition-colors"
+                            className={cn(
+                              "px-3 py-2 hover:bg-muted/10 transition-colors cursor-pointer",
+                              p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10",
+                            )}
+                            onClick={() => setDetailPatient({ sourceId: p.sourceId, department: p.department, agentName: "" })}
                           >
                             <div className="flex items-start gap-2">
                               <span className="text-xs text-muted-foreground font-mono w-5 shrink-0 pt-px select-none">
@@ -1513,12 +1536,19 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                                     {p.clinic}
                                   </div>
                                 )}
-                                <span className={cn(
-                                  "inline-block mt-1 text-xs px-1.5 py-px rounded-full font-medium",
-                                  DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800"
-                                )}>
-                                  {p.department}
-                                </span>
+                                <div className="flex flex-wrap items-center gap-1 mt-1">
+                                  <span className={cn(
+                                    "text-xs px-1.5 py-px rounded-full font-medium",
+                                    DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800"
+                                  )}>
+                                    {p.department}
+                                  </span>
+                                  {(() => { const b = trackerStatusBadge(p.currentStatus); return (
+                                    <span className={cn("text-xs px-1.5 py-px rounded-full font-medium", b.cls)}>{b.label}</span>
+                                  ); })()}
+                                  {p.isRollover && <span className="text-xs text-amber-600 dark:text-amber-400">↩</span>}
+                                  {p.isNew && <span className="text-xs text-green-600 dark:text-green-400">✦</span>}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1626,18 +1656,19 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
             <table className="w-full text-sm" data-testid="vc-patient-list-table">
               <thead>
                 <tr className="border-b bg-muted/10">
-                  {["#", "Agent", "Patient Name", "Clinic", "Insurance", "Department", "Rollover"].map(h => (
+                  {["#", "Agent", "Patient Name", "Clinic", "Insurance", "Department", "Status", "Rollover"].map(h => (
                     <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredPatients.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">No patients scheduled for this day</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">No patients scheduled for this day</td></tr>
                 ) : filteredPatients.map((p, i) => (
                   <tr key={`${p.agentId}-${p.department}-${p.sourceId}`}
-                    className={cn("border-b hover:bg-muted/10 transition-colors", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10")}
-                    data-testid={`mgr-patient-row-${i}`}>
+                    className={cn("border-b hover:bg-muted/10 transition-colors cursor-pointer", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10")}
+                    data-testid={`mgr-patient-row-${i}`}
+                    onClick={() => setDetailPatient({ sourceId: p.sourceId, department: p.department, agentName: p.agentName ?? "" })}>
                     <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
                     <td className="px-3 py-2 text-xs font-medium whitespace-nowrap">{p.agentName || "—"}</td>
                     <td className="px-3 py-2 font-medium whitespace-nowrap">{p.patientName}</td>
@@ -1647,6 +1678,11 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                       <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800")}>
                         {p.department}
                       </span>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {(() => { const b = trackerStatusBadge(p.currentStatus); return (
+                        <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", b.cls)}>{b.label}</span>
+                      ); })()}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {p.isRollover ? (
@@ -1733,6 +1769,15 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
       )}
       </>
       )}
+
+      {/* Patient detail panel — opens when manager clicks a row */}
+      <PatientDetailPanel
+        open={!!detailPatient}
+        onClose={() => setDetailPatient(null)}
+        sourceId={detailPatient?.sourceId ?? null}
+        department={detailPatient?.department ?? null}
+        agentName={detailPatient?.agentName}
+      />
     </div>
   );
 }

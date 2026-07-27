@@ -1062,6 +1062,12 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/tasks/:taskId", requireAuth, async (req, res) => {
+    const task = await storage.getTask(parseInt(req.params.taskId));
+    if (!task) return res.status(404).json({ message: "Task not found" });
+    res.json(task);
+  });
+
   app.get("/api/tasks/:taskId/activity", requireAuth, async (req, res) => {
     const taskId = parseInt(req.params.taskId);
     res.json(await storage.getTaskActivity(taskId));
@@ -1255,6 +1261,12 @@ export async function registerRoutes(
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
+  });
+
+  app.get("/api/denials/:id", requireAuth, async (req, res) => {
+    const record = await storage.getDenial(parseInt(req.params.id));
+    if (!record) return res.status(404).json({ message: "Denial not found" });
+    res.json(record);
   });
 
   app.get("/api/denials/:id/activity", requireAuth, async (req, res) => {
@@ -1504,6 +1516,12 @@ export async function registerRoutes(
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
+  });
+
+  app.get("/api/arbitrations/:id", requireAuth, async (req, res) => {
+    const record = await storage.getArbitration(parseInt(req.params.id));
+    if (!record) return res.status(404).json({ message: "Arbitration not found" });
+    res.json(record);
   });
 
   app.get("/api/arbitrations/:id/activity", requireAuth, async (req, res) => {
@@ -2058,6 +2076,12 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/collections/:id", requireAuth, async (req, res) => {
+    const record = await storage.getCollection(parseInt(req.params.id));
+    if (!record) return res.status(404).json({ message: "Collection not found" });
+    res.json(record);
+  });
+
   app.get("/api/collections/:id/activity", requireAuth, async (req, res) => {
     const collectionId = parseInt(req.params.id);
     res.json(await storage.getCollectionActivity(collectionId));
@@ -2333,6 +2357,12 @@ export async function registerRoutes(
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
+  });
+
+  app.get("/api/postings/:id", requireAuth, async (req, res) => {
+    const record = await storage.getPosting(parseInt(req.params.id));
+    if (!record) return res.status(404).json({ message: "Posting not found" });
+    res.json(record);
   });
 
   app.get("/api/postings/:id/activity", requireAuth, async (req, res) => {
@@ -3043,6 +3073,12 @@ export async function registerRoutes(
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
+  });
+
+  app.get("/api/checks/:id", requireAuth, async (req, res) => {
+    const record = await storage.getCheck(parseInt(req.params.id));
+    if (!record) return res.status(404).json({ message: "Check not found" });
+    res.json(record);
   });
 
   app.get("/api/checks/:id/activity", requireAuth, async (req, res) => {
