@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, pgEnum, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -859,6 +859,7 @@ export const patientCallSchedule = pgTable("patient_call_schedule", {
 }, (t) => [
   index("pcs_user_date_idx").on(t.userId, t.scheduledDate),
   index("pcs_user_source_dept_idx").on(t.userId, t.sourceId, t.department),
+  uniqueIndex("pcs_unique_user_patient_date").on(t.userId, t.sourceId, t.department, t.scheduledDate),
 ]);
 
 export const patientCallAudit = pgTable("patient_call_audit", {
