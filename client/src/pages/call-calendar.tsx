@@ -995,7 +995,8 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
     if (openingPatientId === p.id) return; // already loading
     setOpeningPatientId(p.id);
     try {
-      const call = await apiRequest("POST", `/api/calls/daily-schedule/${p.id}/ensure-call`, {});
+      const res = await apiRequest("POST", `/api/calls/daily-schedule/${p.id}/ensure-call`, {});
+      const call = await res.json();
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
       onCallClick(call);
     } catch (e: any) {
