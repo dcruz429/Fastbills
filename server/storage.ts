@@ -1476,6 +1476,7 @@ export class DatabaseStorage implements IStorage {
       isNew: e.originalDate === 'new',
       originalDate: (e.originalDate && e.originalDate !== 'new') ? e.originalDate : null,
       dailyStatus: e.dailyStatus ?? null,
+      notes: e.notes ?? null,
     }));
   }
 
@@ -1489,6 +1490,13 @@ export class DatabaseStorage implements IStorage {
   async updatePatientScheduleDailyStatus(id: number, dailyStatus: string | null) {
     await db.update(patientCallSchedule)
       .set({ dailyStatus })
+      .where(eq(patientCallSchedule.id, id));
+  }
+
+  /** Update the attempt notes on a patient_call_schedule row */
+  async updatePatientScheduleNotes(id: number, notes: string | null) {
+    await db.update(patientCallSchedule)
+      .set({ notes })
       .where(eq(patientCallSchedule.id, id));
   }
 

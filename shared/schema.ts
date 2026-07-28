@@ -847,6 +847,7 @@ export const patientCallSchedule = pgTable("patient_call_schedule", {
   scheduledDate: text("scheduled_date").notNull(), // 'YYYY-MM-DD'
   originalDate: text("original_date"),             // null = originally scheduled here; set = rolled from this date
   dailyStatus: text("daily_status"),               // call-day outcome: Done|Resolved|Voicemail|Wrong #|Call Back|Unable|null
+  notes: text("notes"),                            // agent attempt notes for this day
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => [
   index("pcs_user_date_idx").on(t.userId, t.scheduledDate),

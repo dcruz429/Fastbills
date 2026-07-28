@@ -4007,6 +4007,22 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.patch("/api/calls/daily-schedule/:scheduleId/notes", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const scheduleId = parseInt(req.params.scheduleId);
+      const { notes } = req.body;
+      const row = await storage.getPatientScheduleEntry(scheduleId);
+      if (!row) return res.status(404).json({ message: "Schedule entry not found" });
+      if (!ADMIN_ROLES.includes(user.role) && row.userId !== user.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      await storage.updatePatientScheduleNotes(scheduleId, notes ?? null);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.get("/api/calls/rollover-audit", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

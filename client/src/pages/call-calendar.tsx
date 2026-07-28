@@ -960,6 +960,157 @@ function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: bo
   );
 }
 
+// ── Patient Call Detail Panel (slide-out sheet) ───────────────────────────────
+function PatientCallPanel({ patient, open, onClose }: {
+  patient: any | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const [notes, setNotes] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  // Sync notes from patient when panel opens / patient changes
+  useEffect(() => {
+    if (patient) {
+      setNotes(patient.notes ?? "");
+      setDirty(false);
+    }
+  }, [patient?.id]);
+
+  const { mutate: setDailyStatus, isPending: statusPending } = useMutation({
+    mutationFn: ({ scheduleId, dailyStatus }: { scheduleId: number; dailyStatus: string | null }) =>
+      apiRequest("PATCH", `/api/calls/daily-schedule/${scheduleId}/status`, { dailyStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/calls/daily-schedule"] });
+      toast({ title: "Status updated" });
+    },
+  });
+
+  const { mutate: saveNotes, isPending: notesPending } = useMutation({
+    mutationFn: ({ scheduleId, notes }: { scheduleId: number; notes: string }) =>
+      apiRequest("PATCH", `/api/calls/daily-schedule/${scheduleId}/notes`, { notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/calls/daily-schedule"] });
+      setDirty(false);
+      toast({ title: "Notes saved" });
+    },
+  });
+
+  if (!patient) return null;
+
+  const badge = patient.dailyStatus ? callDailyStatusBadge(patient.dailyStatus) : null;
+
+  return (
+    <Sheet open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+        {/* Header */}
+        <SheetHeader className="px-5 py-4 border-b bg-muted/20 shrink-0">
+          <SheetTitle className="text-base font-semibold leading-tight">
+            {patient.patientName}
+          </SheetTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">Patient call detail</p>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {/* Patient info grid */}
+          <div className="rounded-md border bg-muted/10 p-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Clinic</p>
+              <p className="font-medium">{patient.clinic || <span className="text-muted-foreground italic">—</span>}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Insurance</p>
+              <p className="font-medium">{patient.insurance || <span className="text-muted-foreground italic">—</span>}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Department</p>
+              <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
+                DEPT_COLORS[patient.department] || "bg-gray-100 text-gray-800"
+              )}>{patient.department}</span>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Schedule</p>
+              {patient.isRollover ? (
+                <span className="text-xs text-amber-700 font-medium">
+                  ↩ From {new Date(patient.originalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              ) : patient.isNew ? (
+                <span className="text-xs text-green-700 font-medium">✦ New</span>
+              ) : (
+                <span className="text-xs text-muted-foreground">Today's list</span>
+              )}
+            </div>
+          </div>
+
+          {/* Current status */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Call Status</p>
+            {badge ? (
+              <div className="flex items-center gap-2 mb-2">
+                <span className={cn("text-sm px-2.5 py-1 rounded-full font-medium border", badge.cls)}>
+                  {badge.emoji} {badge.label}
+                </span>
+                <button
+                  className="text-xs text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
+                  title="Clear status"
+                  disabled={statusPending}
+                  onClick={() => setDailyStatus({ scheduleId: patient.id, dailyStatus: null })}
+                >✕ clear</button>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mb-2 italic">No status set — choose one below</p>
+            )}
+            <div className="flex flex-wrap gap-1.5">
+              {CALL_DAILY_STATUSES.map(s => (
+                <button
+                  key={s.label}
+                  disabled={statusPending}
+                  onClick={() => setDailyStatus({ scheduleId: patient.id, dailyStatus: s.label })}
+                  className={cn(
+                    "text-xs px-2 py-1 rounded border font-medium transition-colors",
+                    patient.dailyStatus === s.label
+                      ? cn(s.cls, "ring-2 ring-offset-1 ring-current")
+                      : s.cls
+                  )}
+                >
+                  {s.emoji} {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Attempt notes */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Attempt Notes</p>
+            <Textarea
+              value={notes}
+              onChange={e => { setNotes(e.target.value); setDirty(true); }}
+              placeholder="Record what happened on this call — e.g. patient requested callback, left voicemail, confirmed appointment…"
+              rows={5}
+              className="text-sm resize-none"
+            />
+            {dirty && (
+              <div className="flex justify-end mt-2">
+                <Button
+                  size="sm"
+                  disabled={notesPending}
+                  onClick={() => saveNotes({ scheduleId: patient.id, notes })}
+                >
+                  {notesPending ? "Saving…" : "Save Notes"}
+                </Button>
+              </div>
+            )}
+            {!dirty && patient.notes && (
+              <p className="text-xs text-muted-foreground mt-1.5 italic">Notes saved ✓</p>
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ── Daily List View ────────────────────────────────────────────────────────────
 function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date: Date; calls: any[]; onCallClick: (c: any) => void; users: User[]; autoPatients?: any[] }) {
   const { toast } = useToast();
@@ -986,6 +1137,21 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
   const [pendingCallId, setPendingCallId] = useState<number | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [attemptCall, setAttemptCall] = useState<any>(null);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  const openPatientPanel = (p: any) => {
+    setSelectedPatient(p);
+    setPanelOpen(true);
+  };
+
+  // Keep selected patient in sync when data refreshes (so notes/status stay current)
+  useEffect(() => {
+    if (selectedPatient && autoPatients) {
+      const updated = autoPatients.find(p => p.id === selectedPatient.id);
+      if (updated) setSelectedPatient(updated);
+    }
+  }, [autoPatients]);
 
   // ── Daily patient call status mutation ─────────────────────────────────────
   const { mutate: setDailyStatus, isPending: statusPending } = useMutation({
@@ -1106,10 +1272,11 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
               <tbody>
                 {autoPatients!.map((p, i) => (
                   <tr key={`${p.department}-${p.sourceId}`}
-                    className={cn("border-b hover:bg-muted/10 transition-colors", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10")}
+                    className={cn("border-b hover:bg-muted/10 transition-colors cursor-pointer", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10")}
+                    onClick={() => openPatientPanel(p)}
                     data-testid={`auto-patient-row-${i}`}>
                     <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
-                    <td className="px-3 py-2 font-medium whitespace-nowrap">{p.patientName}</td>
+                    <td className="px-3 py-2 font-medium whitespace-nowrap text-blue-700 dark:text-blue-400 hover:underline">{p.patientName}</td>
                     <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.clinic || "—"}</td>
                     <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.insurance || "—"}</td>
                     <td className="px-3 py-2">
@@ -1314,6 +1481,11 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
           defaultOutcome={attemptOutcome}
         />
       )}
+      <PatientCallPanel
+        patient={selectedPatient}
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+      />
     </>
   );
 }
