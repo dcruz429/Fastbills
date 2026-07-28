@@ -1001,6 +1001,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
       onCallClick(call);
     } catch (e: any) {
       console.error("ensure-call failed", e);
+      toast({ title: "Could not open patient", description: e.message || "Unexpected error", variant: "destructive" });
     } finally {
       setOpeningPatientId(null);
     }

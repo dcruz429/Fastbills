@@ -4039,7 +4039,10 @@ export async function registerRoutes(
       // Return with assignedUserName so CallDetailPanel can display it
       const assignedUser = call.assignedUserId ? await storage.getUser(call.assignedUserId) : null;
       res.json({ ...call, assignedUserName: assignedUser?.fullName ?? null });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      console.error("[ensure-call] error for scheduleId", req.params.scheduleId, e);
+      res.status(500).json({ message: e.message });
+    }
   });
 
   app.get("/api/calls/rollover-audit", requireAuth, async (req, res) => {
