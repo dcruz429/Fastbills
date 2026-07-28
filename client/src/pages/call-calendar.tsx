@@ -612,19 +612,9 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
             {/* Actions */}
             {isActive && (
               <div className="flex flex-wrap gap-2">
-                {displayCall.callStatus !== "In Progress" && (
-                  <Button size="sm" onClick={() => startMutation.mutate()} disabled={startMutation.isPending} data-testid="button-start-call">
-                    <PhoneCall className="h-3 w-3 mr-1" />Start Call
-                  </Button>
-                )}
                 <Button size="sm" variant="outline" onClick={() => setAttemptOpen(true)} data-testid="button-record-attempt">
                   <FileText className="h-3 w-3 mr-1" />Record Attempt
                 </Button>
-                {isManager && (
-                  <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setCancelOpen(true)} data-testid="button-cancel-call">
-                    <X className="h-3 w-3 mr-1" />Cancel Call
-                  </Button>
-                )}
               </div>
             )}
 
