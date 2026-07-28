@@ -48,6 +48,7 @@ export const tasks = pgTable("tasks", {
   resolutionDate: timestamp("resolution_date"),
   outcome: text("task_outcome"),
   activity: text("task_activity"),
+  callCalendarUrgency: text("call_calendar_urgency").default("none"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

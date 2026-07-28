@@ -1447,7 +1447,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // ── Return today's full list (rollovers → base → new) ────────────────────
+    // ── Return today's full list (urgent-pending first, then rollovers → base → new) ──
     const schedule = await db.select()
       .from(patientCallSchedule)
       .where(and(
@@ -1464,7 +1464,28 @@ export class DatabaseStorage implements IStorage {
         asc(patientCallSchedule.createdAt),
       );
 
-    return schedule.map(e => ({
+    // Look up callCalendarUrgency for Verification (tasks) entries
+    // Wrapped in try/catch so a missing column in production never crashes the whole endpoint.
+    const verificationIds = schedule
+      .filter(e => e.department === 'Verification')
+      .map(e => e.sourceId);
+
+    const urgencyMap = new Map<number, boolean>();
+    if (verificationIds.length > 0) {
+      try {
+        const urgencyRows = await db
+          .select({ id: tasks.id, callCalendarUrgency: tasks.callCalendarUrgency })
+          .from(tasks)
+          .where(inArray(tasks.id, verificationIds));
+        for (const r of urgencyRows) {
+          urgencyMap.set(r.id, r.callCalendarUrgency === 'urgent');
+        }
+      } catch {
+        // Column may not exist yet in production — silently skip urgency sorting
+      }
+    }
+
+    const mapped = schedule.map(e => ({
       id: e.id,
       sourceId: e.sourceId,
       department: e.department,
@@ -1478,7 +1499,17 @@ export class DatabaseStorage implements IStorage {
       dailyStatus: e.dailyStatus ?? null,
       notes: e.notes ?? null,
       callId: e.callId ?? null,
+      isUrgent: e.department === 'Verification' ? (urgencyMap.get(e.sourceId) ?? false) : false,
     }));
+
+    // Sort: urgent patients with no attempt yet float to the very top
+    mapped.sort((a, b) => {
+      const aPin = a.isUrgent && !a.dailyStatus ? 1 : 0;
+      const bPin = b.isUrgent && !b.dailyStatus ? 1 : 0;
+      return bPin - aPin; // pinned (1) sorts before non-pinned (0)
+    });
+
+    return mapped;
   }
 
   /** Fetch a single patient_call_schedule row by id */

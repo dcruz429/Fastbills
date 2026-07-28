@@ -1160,12 +1160,18 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
                           {["#", "Patient Name", "Clinic", "Insurance", "Department", "Status", "Schedule"].map(h => (
                             <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
                           ))}
+                          <th className="px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap text-left w-6"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {autoPatients!.map((p, i) => (
                           <tr key={`${p.department}-${p.sourceId}`}
-                            className={cn("border-b hover:bg-muted/10 transition-colors cursor-pointer", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10", openingPatientId === p.id && "opacity-60")}
+                            className={cn(
+                              "border-b hover:bg-muted/10 transition-colors cursor-pointer",
+                              p.isUrgent && !p.dailyStatus && "bg-red-50/70 dark:bg-red-950/20 border-l-2 border-l-red-500",
+                              !p.isUrgent && p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10",
+                              openingPatientId === p.id && "opacity-60",
+                            )}
                             onClick={() => openAutoPatient(p)}
                             data-testid={`auto-patient-row-${i}`}>
                             <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
@@ -1195,6 +1201,21 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
                                 <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">✦ New</span>
                               ) : (
                                 <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {p.isUrgent && (
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full",
+                                    p.dailyStatus
+                                      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 opacity-60"
+                                      : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 animate-pulse",
+                                  )}
+                                  title={p.dailyStatus ? "Urgent — attempt recorded" : "Urgent — pinned to top until attempt recorded"}
+                                >
+                                  🚨 Urgent
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -1812,6 +1833,10 @@ export default function CallCalendarPage() {
       // extend to at least displayTo+30 to capture child rescheduled calls
       const bufferTo = getDateKey(addDays(new Date(displayTo + "T12:00:00"), 30));
       return { apiDateFrom: displayFrom, apiDateTo: bufferTo };
+    } else {
+      // "manager" view — no call-list API query needed; return today as a safe fallback
+      const key = getDateKey(d);
+      return { apiDateFrom: key, apiDateTo: key };
     }
   }, [view, currentDate, filterDateFrom, filterDateTo]);
 

@@ -85,6 +85,7 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
         resolutionDate: task.resolutionDate ? formatEST(new Date(task.resolutionDate), "yyyy-MM-dd") : "",
         outcome: task.outcome || "",
         activity: task.activity || "",
+        callCalendarUrgency: (task as any).callCalendarUrgency || "none",
       });
     }
   }, [task]);
@@ -157,6 +158,9 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
     }
     if ((editData.outcome || "") !== (task?.outcome || "")) updates.outcome = editData.outcome || null;
     if ((editData.activity || "") !== (task?.activity || "")) updates.activity = editData.activity || null;
+    if ((editData.callCalendarUrgency || "none") !== ((task as any)?.callCalendarUrgency || "none")) {
+      updates.callCalendarUrgency = editData.callCalendarUrgency || "none";
+    }
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates);
@@ -254,6 +258,21 @@ export function TaskDetailDrawer({ task, open, onClose }: Props) {
                     <SelectItem value="medium">Medium (11-19 days)</SelectItem>
                     <SelectItem value="high">High (20-29 days)</SelectItem>
                     <SelectItem value="critical">Critical (30+ days)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Call Calendar Urgency</Label>
+                <Select
+                  value={editData.callCalendarUrgency || "none"}
+                  onValueChange={(v) => setEditData({ ...editData, callCalendarUrgency: v })}
+                >
+                  <SelectTrigger data-testid="select-call-calendar-urgency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="urgent">🚨 Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
