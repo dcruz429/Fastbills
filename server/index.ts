@@ -67,6 +67,32 @@ app.use((req, res, next) => {
   await backfillDoneActivities().catch((e) => console.error("Backfill error:", e));
   await backfillDueDates().catch((e) => console.error("Backfill due dates error:", e));
 
+  // ── Self-healing: remove corrupt schedule rows (race-condition duplicates) ──
+  // Any user+date with > 40 rows is a sign of the parallel-build race bug.
+  // Delete ALL rows for those user+date pairs so they rebuild cleanly on next visit.
+  try {
+    const { db } = await import("./db");
+    const { patientCallSchedule } = await import("../shared/schema");
+    const { sql } = await import("drizzle-orm");
+    const corrupt = await db.execute(sql`
+      SELECT user_id, scheduled_date
+      FROM patient_call_schedule
+      GROUP BY user_id, scheduled_date
+      HAVING COUNT(*) > 40
+    `);
+    if (corrupt.rows.length > 0) {
+      for (const row of corrupt.rows as any[]) {
+        await db.execute(sql`
+          DELETE FROM patient_call_schedule
+          WHERE user_id = ${row.user_id} AND scheduled_date = ${row.scheduled_date}
+        `);
+      }
+      log(`Cleaned up ${corrupt.rows.length} corrupt schedule day(s) (race-condition duplicates)`);
+    }
+  } catch (e) {
+    console.error("Schedule cleanup error:", e);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
