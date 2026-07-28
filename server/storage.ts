@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, gte, lte, between, isNull, not, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, sql, gte, lte, between, isNull, not, inArray, min } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -1424,9 +1424,22 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // ── Step 4: Append newly assigned patients (never scheduled on any day) ─────
-    // These are patients added after a day was already materialized — they have
-    // no entry in patient_call_schedule at all, so they'd otherwise be skipped.
+    // ── Step 4: Append patients newly assigned AFTER today was first materialized ─
+    // Purpose: catch patients assigned to this user mid-week, after today's base
+    // list was already built.  We must NOT add patients that simply weren't in the
+    // first-40 cut — those were deliberately excluded.
+    //
+    // Guard: only add a patient if their tracker record's createdAt is strictly
+    // after the earliest createdAt in today's schedule (i.e. after materialization).
+
+    const [{ scheduleBuiltAt }] = await db
+      .select({ scheduleBuiltAt: min(patientCallSchedule.createdAt) })
+      .from(patientCallSchedule)
+      .where(and(
+        eq(patientCallSchedule.userId, userId),
+        eq(patientCallSchedule.scheduledDate, dateStr),
+      ));
+
     const allActive = await this._fetchAllActivePatients(userId, userFullName);
 
     // All (sourceId, department) pairs already tracked in patient_call_schedule for this user
@@ -1437,7 +1450,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(patientCallSchedule.userId, userId));
 
     const scheduledKeys = new Set(allScheduled.map(r => `${r.department}:${r.sourceId}`));
-    const neverScheduled = allActive.filter(p => !scheduledKeys.has(`${p.department}:${p.sourceId}`));
+
+    const neverScheduled = allActive.filter(p => {
+      if (scheduledKeys.has(`${p.department}:${p.sourceId}`)) return false;
+      // Only include patients assigned AFTER this day's schedule was built
+      if (scheduleBuiltAt && new Date(p.createdAt as any) <= new Date(scheduleBuiltAt)) return false;
+      return true;
+    });
 
     if (neverScheduled.length > 0) {
       await db.insert(patientCallSchedule).values(
