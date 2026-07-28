@@ -1284,7 +1284,7 @@ export class DatabaseStorage implements IStorage {
     const dow = target.getDay();
     if (dow === 0 || dow === 6) return [];
 
-    const START = new Date(2026, 6, 27);
+    const START = new Date(2026, 6, 29);
     if (target < START) return [];
 
     const DAILY = 40;
