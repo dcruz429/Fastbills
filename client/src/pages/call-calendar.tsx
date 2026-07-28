@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PatientDetailPanel } from "@/components/patient-detail-panel";
 
-type CalendarView = "list" | "month" | "week" | "day" | "agenda" | "manager";
+type CalendarView = "list" | "month" | "week" | "day" | "manager";
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -817,96 +817,6 @@ function DayView({ date, calls, onCallClick }: { date: Date; calls: any[]; onCal
 }
 
 // ── Agenda View ───────────────────────────────────────────────────────────────
-function AgendaView({ calls, onCallClick }: { calls: any[]; onCallClick: (c: any) => void }) {
-  const grouped = useMemo(() => {
-    const map: Record<string, any[]> = {};
-    for (const c of [...calls].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())) {
-      const key = getDateKey(c.scheduledAt);
-      if (!map[key]) map[key] = [];
-      map[key].push(c);
-    }
-    return map;
-  }, [calls]);
-
-  if (calls.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <PhoneMissed className="h-10 w-10 mb-3 opacity-30" />
-        <p className="text-lg font-medium">No calls found</p>
-        <p className="text-sm">Try adjusting filters or schedule a new call</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {Object.entries(grouped).map(([dateKey, dayCalls]) => {
-        const d = new Date(dateKey + "T12:00:00");
-        const isToday = dateKey === getDateKey(new Date());
-        return (
-          <div key={dateKey}>
-            <div className={cn("flex items-center gap-2 px-1 mb-2", isToday && "text-primary")}>
-              <div className={cn("text-sm font-semibold", isToday && "text-primary")}>
-                {isToday ? "Today — " : ""}{d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-              </div>
-              <div className="flex-1 border-b" />
-              <span className="text-xs text-muted-foreground">{dayCalls.length} call{dayCalls.length !== 1 ? "s" : ""}</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    {["Time", "Patient", "Phone", "Department", "Reason", "Priority", "Status", "Attempts", "Assigned To", ""].map(h => (
-                      <th key={h} className="text-left px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {dayCalls.map(c => {
-                    const overdue = isOverdue(c);
-                    return (
-                      <tr key={c.id} data-testid={`agenda-row-${c.id}`} className={cn("border-b hover:bg-muted/20 transition-colors", overdue && "bg-red-50 dark:bg-red-900/10")}>
-                        <td className="px-3 py-2 whitespace-nowrap font-medium">{formatTime(c.scheduledAt)}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <div className="flex items-center gap-1">
-                            {overdue && <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />}
-                            {c.patientName}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          {c.phoneNumber ? (
-                            <a href={`tel:${c.phoneNumber}`} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
-                              <Phone className="h-3 w-3" />{c.phoneNumber}
-                            </a>
-                          ) : <span className="text-muted-foreground">—</span>}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{c.department || "—"}</td>
-                        <td className="px-3 py-2 max-w-[180px] truncate">{c.callReason}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <Badge className={cn("text-xs capitalize", PRIORITY_COLORS[c.priority] || "")}>{c.priority}</Badge>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <Badge className={cn("text-xs", STATUS_COLORS[c.callStatus] || "")}>{c.callStatus}</Badge>
-                        </td>
-                        <td className="px-3 py-2 text-center text-muted-foreground">—</td>
-                        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{c.assignedUserName || <span className="italic">Unassigned</span>}</td>
-                        <td className="px-3 py-2">
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onCallClick(c)} data-testid={`button-view-call-${c.id}`}>
-                            View
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // ── Move to Another Day Dialog ─────────────────────────────────────────────────
 function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: boolean; onClose: () => void; onSave: (iso: string) => void; isPending: boolean }) {
@@ -950,16 +860,31 @@ function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: bo
   );
 }
 
-// ── Daily List View ────────────────────────────────────────────────────────────
-function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date: Date; calls: any[]; onCallClick: (c: any) => void; users: User[]; autoPatients?: any[] }) {
+// ── List View (merged Daily + Agenda) ─────────────────────────────────────────
+function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDateFrom, filterDateTo }: {
+  date: Date; calls: any[]; onCallClick: (c: any) => void; users: User[];
+  autoPatients?: any[]; filterDateFrom?: string; filterDateTo?: string;
+}) {
   const { toast } = useToast();
-  const todayKey = getDateKey(date);
+  const todayKey = getDateKey(new Date());
+  const displayFrom = filterDateFrom || getDateKey(date);
+  const displayTo   = filterDateTo   || getDateKey(date);
 
-  const dayCalls = useMemo(() =>
-    calls.filter(c => getDateKey(c.scheduledAt) === todayKey)
-         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
-  [calls, todayKey]);
+  // All calls for the display range, grouped by day
+  const grouped = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const c of [...calls]
+      .filter(c => { const k = getDateKey(c.scheduledAt); return k >= displayFrom && k <= displayTo; })
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+    ) {
+      const k = getDateKey(c.scheduledAt);
+      if (!map[k]) map[k] = [];
+      map[k].push(c);
+    }
+    return map;
+  }, [calls, displayFrom, displayTo]);
 
+  // nextCallMap uses ALL loaded calls so "Next Call" column stays correct
   const nextCallMap = useMemo(() => {
     const map: Record<number, string> = {};
     for (const c of calls) {
@@ -1055,7 +980,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
     if (action === "move") {
       setMoveOpen(true);
     } else if (ATTEMPT_ACTION_OUTCOMES[action]) {
-      const call = dayCalls.find(c => c.id === callId);
+      const call = Object.values(grouped).flat().find(c => c.id === callId);
       setAttemptCall(call);
       setAttemptOutcome(ATTEMPT_ACTION_OUTCOMES[action]);
       setAttemptOpen(true);
@@ -1071,213 +996,231 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients }: { date
   };
 
   const hasAutoPatients = autoPatients && autoPatients.length > 0;
+  const totalDisplayCalls = Object.values(grouped).flat().length;
 
-  if (dayCalls.length === 0 && !hasAutoPatients) {
+  if (totalDisplayCalls === 0 && !hasAutoPatients) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
         <PhoneOff className="h-10 w-10 mb-3 opacity-30" />
-        <p className="text-lg font-medium">No calls for this day</p>
-        <p className="text-sm">Schedule a new call or navigate to another date</p>
+        <p className="text-lg font-medium">No calls found</p>
+        <p className="text-sm">Schedule a new call, adjust the date filters, or navigate to another date</p>
       </div>
     );
   }
 
+  // Helper to render the calls table for a single day group
+  const renderCallsTable = (dayCalls: any[]) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b bg-muted/10">
+            {["Status", "Patient", "Phone", "Clinic", "Insurance", "Assigned To", "Call Reason", "Notes", "Next Call", "Actions"].map(h => (
+              <th key={h} className="text-left px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {dayCalls.map(c => {
+            const overdue = isOverdue(c);
+            const borderCls = overdue ? "border-l-red-500" : (ROW_BORDER_COLOR[c.callStatus] || "border-l-gray-300");
+            const dotCls = overdue ? "bg-red-500" : (STATUS_DOT[c.callStatus] || "bg-gray-400");
+            const nextCallDate = nextCallMap[c.id];
+            const isActive = !["Resolved", "Completed", "Cancelled"].includes(c.callStatus);
+            const isMutating = quickMutation.isPending && pendingCallId === c.id;
+            return (
+              <tr key={c.id} data-testid={`daily-row-${c.id}`}
+                className={cn("border-b border-l-4 hover:bg-muted/10 transition-colors", borderCls, !isActive && "opacity-70")}>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", dotCls, overdue && "animate-pulse")} />
+                    <span className="text-xs font-medium">{overdue ? "Overdue" : c.callStatus}</span>
+                  </div>
+                </td>
+                <td className="px-3 py-2.5">
+                  <button onClick={() => onCallClick(c)} className="font-medium hover:underline text-left whitespace-nowrap" data-testid={`button-view-daily-${c.id}`}>
+                    {c.patientName}
+                  </button>
+                </td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  {c.phoneNumber ? (
+                    <a href={`tel:${c.phoneNumber}`} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 text-xs">
+                      <Phone className="h-3 w-3" />{c.phoneNumber}
+                    </a>
+                  ) : <span className="text-muted-foreground text-xs">—</span>}
+                </td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-xs">{c.clinic || <span className="text-muted-foreground">—</span>}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-xs">{c.insurance || <span className="text-muted-foreground">—</span>}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-xs">
+                  {c.assignedUserName ? c.assignedUserName : <span className="text-muted-foreground italic">Unassigned</span>}
+                </td>
+                <td className="px-3 py-2.5 max-w-[150px] truncate text-xs">{c.callReason}</td>
+                <td className="px-3 py-2.5 max-w-[120px] text-xs">
+                  {c.notes ? (
+                    <span className="text-muted-foreground truncate block max-w-[120px]" title={c.notes}>
+                      {c.notes.length > 35 ? c.notes.slice(0, 35) + "…" : c.notes}
+                    </span>
+                  ) : <span className="text-muted-foreground">—</span>}
+                </td>
+                <td className="px-3 py-2.5 whitespace-nowrap text-xs">
+                  {nextCallDate ? (
+                    <span className="text-orange-600 dark:text-orange-400 font-medium">
+                      {new Date(nextCallDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}
+                    </span>
+                  ) : <span className="text-muted-foreground">—</span>}
+                </td>
+                <td className="px-3 py-2.5">
+                  {isActive ? (
+                    <div className="flex flex-wrap gap-1 min-w-[340px]">
+                      <button onClick={() => handleAction(c.id, "done")} disabled={isMutating} data-testid={`btn-done-${c.id}`}
+                        className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700 disabled:opacity-50 whitespace-nowrap">
+                        ✅ Done
+                      </button>
+                      <button onClick={() => handleAction(c.id, "resolved")} disabled={isMutating} data-testid={`btn-resolved-${c.id}`}
+                        className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700 disabled:opacity-50 whitespace-nowrap">
+                        ✓ Resolved
+                      </button>
+                      <button onClick={() => handleAction(c.id, "move")} disabled={isMutating} data-testid={`btn-move-${c.id}`}
+                        className="text-xs px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-700 disabled:opacity-50 whitespace-nowrap">
+                        📅 Move
+                      </button>
+                      <button onClick={() => handleAction(c.id, "voicemail")} disabled={isMutating} data-testid={`btn-voicemail-${c.id}`}
+                        className="text-xs px-1.5 py-0.5 rounded border border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-700 disabled:opacity-50 whitespace-nowrap">
+                        📞 Voicemail
+                      </button>
+                      <button onClick={() => handleAction(c.id, "wrong")} disabled={isMutating} data-testid={`btn-wrong-${c.id}`}
+                        className="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700 disabled:opacity-50 whitespace-nowrap">
+                        🚫 Wrong #
+                      </button>
+                      <button onClick={() => handleAction(c.id, "callback")} disabled={isMutating} data-testid={`btn-callback-${c.id}`}
+                        className="text-xs px-1.5 py-0.5 rounded border border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700 disabled:opacity-50 whitespace-nowrap">
+                        ⏱ Call Back
+                      </button>
+                      <button onClick={() => handleAction(c.id, "unable")} disabled={isMutating} data-testid={`btn-unable-${c.id}`}
+                        className="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700 disabled:opacity-50 whitespace-nowrap">
+                        ✗ Unable
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">{c.callStatus}</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // Collect all date keys that appear across display calls + today (if auto-patients present)
+  const allDateKeys = Array.from(new Set([
+    ...(hasAutoPatients ? [todayKey] : []),
+    ...Object.keys(grouped),
+  ])).sort();
+
   return (
     <>
-      {hasAutoPatients && (
-        <div className="rounded-md border overflow-hidden mb-4">
-          <div className="px-4 py-2.5 border-b bg-blue-50 dark:bg-blue-950/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-blue-900 dark:text-blue-200">📋 Today's Patient Call List</span>
-              <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Auto-Scheduled</span>
-            </div>
-            <span className="text-xs text-blue-700 dark:text-blue-400">{autoPatients!.length} patient{autoPatients!.length !== 1 ? "s" : ""}</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b bg-muted/10">
-                  {["#", "Patient Name", "Clinic", "Insurance", "Department", "Status", "Schedule"].map(h => (
-                    <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {autoPatients!.map((p, i) => (
-                  <tr key={`${p.department}-${p.sourceId}`}
-                    className={cn("border-b hover:bg-muted/10 transition-colors cursor-pointer", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10", openingPatientId === p.id && "opacity-60")}
-                    onClick={() => openAutoPatient(p)}
-                    data-testid={`auto-patient-row-${i}`}>
-                    <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
-                    <td className="px-3 py-2 font-medium whitespace-nowrap text-blue-700 dark:text-blue-400 hover:underline">
-                      {openingPatientId === p.id ? <span className="opacity-60">Opening…</span> : p.patientName}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.clinic || "—"}</td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.insurance || "—"}</td>
-                    <td className="px-3 py-2">
-                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
-                        DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800"
-                      )}>{p.department}</span>
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {p.dailyStatus ? (() => {
-                        const b = callDailyStatusBadge(p.dailyStatus);
-                        return (
-                          <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium border", b.cls)}>
-                            {b.emoji} {b.label}
-                          </span>
-                        );
-                      })() : (
-                        <span className="text-xs text-muted-foreground italic">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {/* Schedule placement: rollover / new / normal */}
-                      {p.isRollover ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full"
-                          title={`Auto-rolled over from ${p.originalDate}`}>
-                          ↩ From {new Date(p.originalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </span>
-                      ) : p.isNew ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                          ✦ New
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {(autoPatients!.some(p => p.isRollover) || autoPatients!.some(p => p.isNew)) && (
-            <div className="px-4 py-2 border-t bg-muted/10 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
-              {autoPatients!.some(p => p.isRollover) && (
-                <span className="text-amber-600 dark:text-amber-400">
-                  ↩ {autoPatients!.filter(p => p.isRollover).length} rolled over from a previous day
-                </span>
-              )}
-              {autoPatients!.some(p => p.isNew) && (
-                <span className="text-green-600 dark:text-green-400">
-                  ✦ {autoPatients!.filter(p => p.isNew).length} newly assigned
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-      {dayCalls.length > 0 && (
-      <div className="rounded-md border overflow-hidden">
-        <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">
-            Daily Patient List — {date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-          </h2>
-          <span className="text-xs text-muted-foreground">{dayCalls.length} call{dayCalls.length !== 1 ? "s" : ""}</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b bg-muted/10">
-                {["Status", "Patient", "Phone", "Clinic", "Insurance", "Assigned To", "Call Reason", "Notes", "Next Call", "Actions"].map(h => (
-                  <th key={h} className="text-left px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {dayCalls.map(c => {
-                const overdue = isOverdue(c);
-                const borderCls = overdue ? "border-l-red-500" : (ROW_BORDER_COLOR[c.callStatus] || "border-l-gray-300");
-                const dotCls = overdue ? "bg-red-500" : (STATUS_DOT[c.callStatus] || "bg-gray-400");
-                const nextCallDate = nextCallMap[c.id];
-                const isActive = !["Resolved", "Completed", "Cancelled"].includes(c.callStatus);
-                const isMutating = quickMutation.isPending && pendingCallId === c.id;
+      <div className="space-y-4">
+        {allDateKeys.map(dateKey => {
+          const d = new Date(dateKey + "T12:00:00");
+          const isToday = dateKey === todayKey;
+          const dayCalls = grouped[dateKey] || [];
+          const showAutoPatients = isToday && hasAutoPatients;
 
-                return (
-                  <tr key={c.id} data-testid={`daily-row-${c.id}`}
-                    className={cn("border-b border-l-4 hover:bg-muted/10 transition-colors", borderCls, !isActive && "opacity-70")}>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", dotCls, overdue && "animate-pulse")} />
-                        <span className="text-xs font-medium">{overdue ? "Overdue" : c.callStatus}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <button onClick={() => onCallClick(c)} className="font-medium hover:underline text-left whitespace-nowrap" data-testid={`button-view-daily-${c.id}`}>
-                        {c.patientName}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      {c.phoneNumber ? (
-                        <a href={`tel:${c.phoneNumber}`} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 text-xs">
-                          <Phone className="h-3 w-3" />{c.phoneNumber}
-                        </a>
-                      ) : <span className="text-muted-foreground text-xs">—</span>}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-xs">{c.clinic || <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-xs">{c.insurance || <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-xs">
-                      {c.assignedUserName ? c.assignedUserName : <span className="text-muted-foreground italic">Unassigned</span>}
-                    </td>
-                    <td className="px-3 py-2.5 max-w-[150px] truncate text-xs">{c.callReason}</td>
-                    <td className="px-3 py-2.5 max-w-[120px] text-xs">
-                      {c.notes ? (
-                        <span className="text-muted-foreground truncate block max-w-[120px]" title={c.notes}>
-                          {c.notes.length > 35 ? c.notes.slice(0, 35) + "…" : c.notes}
-                        </span>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-xs">
-                      {nextCallDate ? (
-                        <span className="text-orange-600 dark:text-orange-400 font-medium">
-                          {new Date(nextCallDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}
-                        </span>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {isActive ? (
-                        <div className="flex flex-wrap gap-1 min-w-[340px]">
-                          <button onClick={() => handleAction(c.id, "done")} disabled={isMutating} data-testid={`btn-done-${c.id}`}
-                            className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700 disabled:opacity-50 whitespace-nowrap">
-                            ✅ Done
-                          </button>
-                          <button onClick={() => handleAction(c.id, "resolved")} disabled={isMutating} data-testid={`btn-resolved-${c.id}`}
-                            className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700 disabled:opacity-50 whitespace-nowrap">
-                            ✓ Resolved
-                          </button>
-                          <button onClick={() => handleAction(c.id, "move")} disabled={isMutating} data-testid={`btn-move-${c.id}`}
-                            className="text-xs px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-700 disabled:opacity-50 whitespace-nowrap">
-                            📅 Move
-                          </button>
-                          <button onClick={() => handleAction(c.id, "voicemail")} disabled={isMutating} data-testid={`btn-voicemail-${c.id}`}
-                            className="text-xs px-1.5 py-0.5 rounded border border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-700 disabled:opacity-50 whitespace-nowrap">
-                            📞 Voicemail
-                          </button>
-                          <button onClick={() => handleAction(c.id, "wrong")} disabled={isMutating} data-testid={`btn-wrong-${c.id}`}
-                            className="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700 disabled:opacity-50 whitespace-nowrap">
-                            🚫 Wrong #
-                          </button>
-                          <button onClick={() => handleAction(c.id, "callback")} disabled={isMutating} data-testid={`btn-callback-${c.id}`}
-                            className="text-xs px-1.5 py-0.5 rounded border border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700 disabled:opacity-50 whitespace-nowrap">
-                            ⏱ Call Back
-                          </button>
-                          <button onClick={() => handleAction(c.id, "unable")} disabled={isMutating} data-testid={`btn-unable-${c.id}`}
-                            className="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700 disabled:opacity-50 whitespace-nowrap">
-                            ✗ Unable
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">{c.callStatus}</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+          if (!showAutoPatients && dayCalls.length === 0) return null;
+
+          return (
+            <div key={dateKey}>
+              {/* Day header */}
+              <div className={cn("flex items-center gap-2 px-1 mb-2", isToday && "text-primary")}>
+                <div className={cn("text-sm font-semibold", isToday && "text-primary")}>
+                  {isToday ? "Today — " : ""}{d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                </div>
+                <div className="flex-1 border-b" />
+                <span className="text-xs text-muted-foreground">
+                  {dayCalls.length} call{dayCalls.length !== 1 ? "s" : ""}
+                  {showAutoPatients ? ` · ${autoPatients!.length} auto-scheduled` : ""}
+                </span>
+              </div>
+
+              {/* Auto-patient list (today only) */}
+              {showAutoPatients && (
+                <div className="rounded-md border overflow-hidden mb-3">
+                  <div className="px-4 py-2.5 border-b bg-blue-50 dark:bg-blue-950/30 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-blue-900 dark:text-blue-200">📋 Today's Patient Call List</span>
+                      <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Auto-Scheduled</span>
+                    </div>
+                    <span className="text-xs text-blue-700 dark:text-blue-400">{autoPatients!.length} patient{autoPatients!.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b bg-muted/10">
+                          {["#", "Patient Name", "Clinic", "Insurance", "Department", "Status", "Schedule"].map(h => (
+                            <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {autoPatients!.map((p, i) => (
+                          <tr key={`${p.department}-${p.sourceId}`}
+                            className={cn("border-b hover:bg-muted/10 transition-colors cursor-pointer", p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10", openingPatientId === p.id && "opacity-60")}
+                            onClick={() => openAutoPatient(p)}
+                            data-testid={`auto-patient-row-${i}`}>
+                            <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
+                            <td className="px-3 py-2 font-medium whitespace-nowrap text-blue-700 dark:text-blue-400 hover:underline">
+                              {openingPatientId === p.id ? <span className="opacity-60">Opening…</span> : p.patientName}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.clinic || "—"}</td>
+                            <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.insurance || "—"}</td>
+                            <td className="px-3 py-2">
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
+                                DEPT_COLORS[p.department] || "bg-gray-100 text-gray-800"
+                              )}>{p.department}</span>
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {p.dailyStatus ? (() => {
+                                const b = callDailyStatusBadge(p.dailyStatus);
+                                return <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium border", b.cls)}>{b.emoji} {b.label}</span>;
+                              })() : <span className="text-xs text-muted-foreground italic">—</span>}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {p.isRollover ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full"
+                                  title={`Auto-rolled over from ${p.originalDate}`}>
+                                  ↩ From {new Date(p.originalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </span>
+                              ) : p.isNew ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">✦ New</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {(autoPatients!.some(p => p.isRollover) || autoPatients!.some(p => p.isNew)) && (
+                    <div className="px-4 py-2 border-t bg-muted/10 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                      {autoPatients!.some(p => p.isRollover) && <span className="text-amber-600 dark:text-amber-400">↩ {autoPatients!.filter(p => p.isRollover).length} rolled over</span>}
+                      {autoPatients!.some(p => p.isNew) && <span className="text-green-600 dark:text-green-400">✦ {autoPatients!.filter(p => p.isNew).length} newly assigned</span>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Scheduled calls table */}
+              {dayCalls.length > 0 && (
+                <div className="rounded-md border overflow-hidden">
+                  {renderCallsTable(dayCalls)}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      )}
 
       <MoveToAnotherDayDialog
         open={moveOpen}
@@ -1863,14 +1806,13 @@ export default function CallCalendarPage() {
       const key = getDateKey(d);
       return { apiDateFrom: key, apiDateTo: key };
     } else if (view === "list") {
-      // Load selected day + 30 more days so child calls (Next Call dates) are included
-      return { apiDateFrom: getDateKey(d), apiDateTo: getDateKey(addDays(d, 30)) };
+      // Display range honours date filters; always load +30 days ahead for Next Call column
+      const displayFrom = filterDateFrom || getDateKey(d);
+      const displayTo   = filterDateTo   || getDateKey(d);
+      // extend to at least displayTo+30 to capture child rescheduled calls
+      const bufferTo = getDateKey(addDays(new Date(displayTo + "T12:00:00"), 30));
+      return { apiDateFrom: displayFrom, apiDateTo: bufferTo };
     }
-    // Agenda: use filter range or default 30 days
-    return {
-      apiDateFrom: filterDateFrom || getDateKey(new Date()),
-      apiDateTo: filterDateTo || getDateKey(addDays(new Date(), 30)),
-    };
   }, [view, currentDate, filterDateFrom, filterDateTo]);
 
   const { data: rawCalls = [], isLoading, isFetching, refetch } = useQuery<any[]>({
@@ -1983,10 +1925,10 @@ export default function CallCalendarPage() {
       {/* View Tabs + Nav */}
       <div className="flex items-center gap-2 px-4 py-2 border-b flex-wrap">
         <div className="flex items-center border rounded-md overflow-hidden">
-          {(["list", "month", "week", "day", "agenda"] as CalendarView[]).map(v => (
+          {(["list", "month", "week", "day"] as CalendarView[]).map(v => (
             <button key={v} onClick={() => setView(v)} data-testid={`tab-view-${v}`}
               className={cn("px-3 py-1.5 text-xs font-medium capitalize transition-colors", view === v ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
-              {v === "list" ? "Daily" : v}
+              {v === "list" ? "List" : v}
             </button>
           ))}
           {isManagerTeamMember && (
@@ -1996,13 +1938,11 @@ export default function CallCalendarPage() {
             </button>
           )}
         </div>
-        {view !== "agenda" && (
-          <div className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => navigate(-1)} data-testid="button-prev"><ChevronLeft className="h-4 w-4" /></Button>
-            <span className="text-sm font-medium min-w-[200px] text-center">{rangeLabel}</span>
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => navigate(1)} data-testid="button-next"><ChevronRight className="h-4 w-4" /></Button>
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => navigate(-1)} data-testid="button-prev"><ChevronLeft className="h-4 w-4" /></Button>
+          <span className="text-sm font-medium min-w-[200px] text-center">{rangeLabel}</span>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => navigate(1)} data-testid="button-next"><ChevronRight className="h-4 w-4" /></Button>
+        </div>
         <div className="ml-auto text-xs text-muted-foreground">
           {calls.length} call{calls.length !== 1 ? "s" : ""}
         </div>
@@ -2064,7 +2004,7 @@ export default function CallCalendarPage() {
             </SelectContent>
           </Select>
         )}
-        {(view === "agenda" || view === "list") && (
+        {view === "list" && (
           <>
             <Input type="date" className="h-8 w-36 text-xs" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} data-testid="input-filter-date-from" />
             <Input type="date" className="h-8 w-36 text-xs" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} data-testid="input-filter-date-to" />
@@ -2093,17 +2033,15 @@ export default function CallCalendarPage() {
             <div className="text-muted-foreground">Loading calls…</div>
           </div>
         ) : view === "list" ? (
-          <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} autoPatients={isVcTeamMember ? autoPatients : undefined} />
+          <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} autoPatients={isVcTeamMember ? autoPatients : undefined} filterDateFrom={filterDateFrom} filterDateTo={filterDateTo} />
         ) : view === "month" ? (
           <MonthView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : view === "week" ? (
           <WeekView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : view === "day" ? (
           <DayView date={currentDate} calls={calls} onCallClick={openCall} />
-        ) : view === "manager" ? (
-          <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} />
         ) : (
-          <AgendaView calls={calls} onCallClick={openCall} />
+          <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} />
         )}
       </div>
 
