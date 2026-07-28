@@ -104,6 +104,7 @@ export const denials = pgTable("denials", {
   outcome: text("outcome"),
   assignedTo: text("assigned_to"),
   status: text("denial_status"),
+  callCalendarUrgency: text("call_calendar_urgency").default("none"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -254,6 +255,7 @@ export const arbitrations = pgTable("arbitrations", {
   status: text("arbitration_status"),
   outcome: text("arbitration_outcome"),
   activity: text("arbitration_activity"),
+  callCalendarUrgency: text("call_calendar_urgency").default("none"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -291,6 +293,7 @@ export const collections = pgTable("collections", {
   assignedTo: text("assigned_to"),
   status: text("collection_status"),
   notes: text("notes"),
+  callCalendarUrgency: text("call_calendar_urgency").default("none"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -570,6 +573,7 @@ export const postings = pgTable("postings", {
   depositDate: timestamp("deposit_date"),
   depositedBy: text("deposited_by"),
   notes: text("posting_notes"),
+  callCalendarUrgency: text("call_calendar_urgency").default("none"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -616,6 +620,7 @@ export const checks = pgTable("checks", {
   outcome: text("check_outcome"),
   activity: text("check_activity"),
   patientName: text("check_patient_name"),
+  callCalendarUrgency: text("call_calendar_urgency").default("none"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

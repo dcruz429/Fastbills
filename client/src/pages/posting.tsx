@@ -61,6 +61,7 @@ const emptyForm = {
   activity: "",
   depositDate: "",
   depositedBy: "",
+  callCalendarUrgency: "none",
 };
 
 export default function PostingPage() {
@@ -283,6 +284,7 @@ export default function PostingPage() {
       activity: (d as any).activity || "",
       depositDate: toInputDate(d.depositDate),
       depositedBy: d.depositedBy || "",
+      callCalendarUrgency: (d as any).callCalendarUrgency || "none",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -820,6 +822,16 @@ export default function PostingPage() {
                     {OUTCOME_OPTIONS.map(o => (
                       <SelectItem key={o} value={o}>{o}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Call Calendar Urgency</Label>
+                <Select value={form.callCalendarUrgency || "none"} onValueChange={v => setForm(f => ({ ...f, callCalendarUrgency: v }))}>
+                  <SelectTrigger data-testid="select-posting-call-calendar-urgency"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="urgent">🚨 Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -1263,12 +1263,31 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
 }
 
 // ── Manager Dashboard ──────────────────────────────────────────────────────────
-function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: string }) {
+function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string; dateTo: string; onCallClick: (c: any) => void }) {
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
   const [filterDept, setFilterDept] = useState<string>("all");
   const [patientSearch, setPatientSearch] = useState<string>("");
   const [managerSubView, setManagerSubView] = useState<"day" | "week">("day");
   const [detailPatient, setDetailPatient] = useState<{ sourceId: number; department: string; agentName: string } | null>(null);
+  const [openingPatientId, setOpeningPatientId] = useState<number | null>(null);
+  const { toast } = useToast();
+
+  // Open a week-view patient via ensure-call → standard CallDetailPanel
+  const openWeekPatient = async (p: any) => {
+    if (openingPatientId === p.id) return;
+    setOpeningPatientId(p.id);
+    try {
+      const res = await apiRequest("POST", `/api/calls/daily-schedule/${p.id}/ensure-call`, {});
+      const call = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
+      onCallClick(call);
+    } catch (e: any) {
+      console.error("ensure-call failed", e);
+      toast({ title: "Could not open patient", description: e.message || "Unexpected error", variant: "destructive" });
+    } finally {
+      setOpeningPatientId(null);
+    }
+  };
 
   const { data: rolloverAudit = [] } = useQuery<any[]>({
     queryKey: ["/api/calls/rollover-audit"],
@@ -1506,12 +1525,9 @@ function ManagerDashboard({ dateFrom, dateTo }: { dateFrom: string; dateTo: stri
                             className={cn(
                               "px-3 py-2 hover:bg-muted/10 transition-colors cursor-pointer",
                               p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10",
+                              openingPatientId === p.id && "opacity-50 pointer-events-none",
                             )}
-                            onClick={() => setDetailPatient({
-                              sourceId: p.sourceId,
-                              department: p.department,
-                              agentName: allUsers.find(u => u.id === Number(weekUserId))?.fullName ?? "",
-                            })}
+                            onClick={() => openWeekPatient(p)}
                           >
                             <div className="flex items-start gap-2">
                               <span className="text-xs text-muted-foreground font-mono w-5 shrink-0 pt-px select-none">
@@ -2066,7 +2082,7 @@ export default function CallCalendarPage() {
         ) : view === "day" ? (
           <DayView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : (
-          <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} />
+          <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} onCallClick={openCall} />
         )}
       </div>
 

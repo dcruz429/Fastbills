@@ -74,6 +74,7 @@ const emptyForm = {
   status: "",
   outcome: "",
   activity: "",
+  callCalendarUrgency: "none",
 };
 
 export default function ArbitrationPage() {
@@ -307,6 +308,7 @@ export default function ArbitrationPage() {
       status: (arb as any).status || "",
       outcome: (arb as any).outcome || "",
       activity: (arb as any).activity || "",
+      callCalendarUrgency: (arb as any).callCalendarUrgency || "none",
     });
     setHistoryOpen(false);
     setDrawerOpen(true);
@@ -962,6 +964,16 @@ export default function ArbitrationPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Call Calendar Urgency</Label>
+                <Select value={form.callCalendarUrgency || "none"} onValueChange={v => setForm(f => ({ ...f, callCalendarUrgency: v }))}>
+                  <SelectTrigger data-testid="select-arb-call-calendar-urgency"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="urgent">🚨 Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

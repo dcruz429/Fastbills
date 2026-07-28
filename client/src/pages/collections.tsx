@@ -63,6 +63,7 @@ const emptyForm = {
   priority: "",
   assignedTo: "",
   status: "",
+  callCalendarUrgency: "none",
 };
 
 
@@ -471,6 +472,7 @@ export default function CollectionsPage() {
       priority: c.priority || "",
       assignedTo: (() => { const raw = (c.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       status: c.status || "",
+      callCalendarUrgency: (c as any).callCalendarUrgency || "none",
     });
     setHistoryOpen(false);
     setNewNote("");
@@ -1125,6 +1127,16 @@ export default function CollectionsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Call Calendar Urgency</Label>
+                <Select value={form.callCalendarUrgency || "none"} onValueChange={v => setForm(f => ({ ...f, callCalendarUrgency: v }))}>
+                  <SelectTrigger data-testid="select-collection-call-calendar-urgency"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="urgent">🚨 Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">

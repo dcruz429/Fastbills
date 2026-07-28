@@ -63,6 +63,7 @@ const emptyForm = {
   depositedBy: "",
   outcome: "",
   activity: "",
+  callCalendarUrgency: "none",
 };
 
 export default function ChecksPage() {
@@ -308,6 +309,7 @@ export default function ChecksPage() {
       depositedBy: d.depositedBy || "",
       outcome: d.outcome || "",
       activity: (d as any).activity || "",
+      callCalendarUrgency: (d as any).callCalendarUrgency || "none",
     });
     setDrawerOpen(true);
     setHistoryOpen(false);
@@ -839,6 +841,16 @@ export default function ChecksPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Call Calendar Urgency</Label>
+              <Select value={form.callCalendarUrgency || "none"} onValueChange={v => setForm(f => ({ ...f, callCalendarUrgency: v }))}>
+                <SelectTrigger data-testid="select-check-call-calendar-urgency"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="urgent">🚨 Urgent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">File Name</Label>

@@ -68,6 +68,7 @@ const emptyForm = {
   outcome: "",
   assignedTo: "",
   status: "",
+  callCalendarUrgency: "none",
 };
 
 export default function DenialsPage() {
@@ -306,6 +307,7 @@ export default function DenialsPage() {
       outcome: denial.outcome || "",
       assignedTo: (() => { const raw = (denial.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       status: (denial as any).status || "",
+      callCalendarUrgency: (denial as any).callCalendarUrgency || "none",
     });
     setDrawerOpen(true);
   }
@@ -989,6 +991,16 @@ export default function DenialsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Call Calendar Urgency</Label>
+                <Select value={form.callCalendarUrgency || "none"} onValueChange={v => setForm(f => ({ ...f, callCalendarUrgency: v }))}>
+                  <SelectTrigger data-testid="select-denial-call-calendar-urgency"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="urgent">🚨 Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
