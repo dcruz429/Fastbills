@@ -4023,6 +4023,25 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // Find-or-create the scheduled_call linked to a daily schedule entry.
+  // Returns the full scheduled_call object so the client can open CallDetailPanel.
+  app.post("/api/calls/daily-schedule/:scheduleId/ensure-call", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Not authenticated" });
+      const scheduleId = parseInt(req.params.scheduleId);
+      const row = await storage.getPatientScheduleEntry(scheduleId);
+      if (!row) return res.status(404).json({ message: "Schedule entry not found" });
+      if (!ADMIN_ROLES.includes(user.role) && row.userId !== user.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const call = await storage.ensurePatientScheduleCall(scheduleId, user.id);
+      // Return with assignedUserName so CallDetailPanel can display it
+      const assignedUser = call.assignedUserId ? await storage.getUser(call.assignedUserId) : null;
+      res.json({ ...call, assignedUserName: assignedUser?.fullName ?? null });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.get("/api/calls/rollover-audit", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
@@ -4128,6 +4147,29 @@ export async function registerRoutes(
       }
       await storage.updateScheduledCall(callId, { callStatus: newCallStatus, ...(newCallStatus === "Resolved" ? { completedAt: new Date() } : {}) });
       await storage.createCallActivity({ scheduledCallId: callId, callAttemptId: attempt.id, actorUserId: user.id, eventType: "Attempt Recorded", newValues: JSON.stringify({ outcome, callStatus: newCallStatus }) });
+
+      // If this call is linked to a patient_call_schedule entry, sync the dailyStatus
+      const scheduleEntry = await storage.getPatientScheduleEntryByCallId(callId);
+      if (scheduleEntry) {
+        const OUTCOME_TO_DAILY: Record<string, string> = {
+          "Spoke With Patient":           "Done",
+          "Spoke With Authorized Contact": "Done",
+          "Resolved":                     "Resolved",
+          "Documentation Received":       "Done",
+          "Left Voicemail":               "Voicemail",
+          "Wrong Number":                 "Wrong #",
+          "Disconnected Number":          "Wrong #",
+          "Patient Requested Callback":   "Call Back",
+          "No Answer":                    "Unable",
+          "Busy":                         "Unable",
+          "Unable to Verify Identity":    "Unable",
+          "Language Assistance Needed":   "Unable",
+        };
+        // Check base outcome (before any "Other: …" suffix)
+        const baseOutcome = outcome.split(":")[0].trim();
+        const dailyStatus = OUTCOME_TO_DAILY[baseOutcome] ?? "Unable";
+        await storage.updatePatientScheduleDailyStatus(scheduleEntry.id, dailyStatus);
+      }
       if (updateTaskStatus && newTaskStatus && existing.relatedTaskId) {
         const VALID_STATUSES = ["unassigned", "assigned", "working_on_it", "done"];
         if (VALID_STATUSES.includes(newTaskStatus)) {

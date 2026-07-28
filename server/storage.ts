@@ -1477,6 +1477,7 @@ export class DatabaseStorage implements IStorage {
       originalDate: (e.originalDate && e.originalDate !== 'new') ? e.originalDate : null,
       dailyStatus: e.dailyStatus ?? null,
       notes: e.notes ?? null,
+      callId: e.callId ?? null,
     }));
   }
 
@@ -1484,6 +1485,51 @@ export class DatabaseStorage implements IStorage {
   async getPatientScheduleEntry(id: number) {
     const [row] = await db.select().from(patientCallSchedule).where(eq(patientCallSchedule.id, id));
     return row ?? null;
+  }
+
+  /** Fetch the patient_call_schedule row linked to a given scheduled_call */
+  async getPatientScheduleEntryByCallId(callId: number) {
+    const [row] = await db.select().from(patientCallSchedule).where(eq(patientCallSchedule.callId, callId));
+    return row ?? null;
+  }
+
+  /**
+   * Find-or-create the scheduled_call linked to a patient_call_schedule entry.
+   * On first call: creates the scheduled_call, stores its id in the schedule row, returns the new call.
+   * On subsequent calls: just returns the existing linked call.
+   */
+  async ensurePatientScheduleCall(scheduleId: number, userId: number): Promise<typeof scheduledCalls.$inferSelect> {
+    const entry = await this.getPatientScheduleEntry(scheduleId);
+    if (!entry) throw new Error("Schedule entry not found");
+
+    // Already linked — return existing call
+    if (entry.callId) {
+      const [existing] = await db.select().from(scheduledCalls).where(eq(scheduledCalls.id, entry.callId));
+      if (existing) return existing;
+    }
+
+    // Create a new scheduled_call for this patient/day
+    const scheduledAt = new Date(entry.scheduledDate + "T09:00:00");
+    const [newCall] = await db.insert(scheduledCalls).values({
+      patientName:      entry.patientName!,
+      department:       entry.department,
+      clinic:           entry.clinic,
+      insurance:        entry.insurance,
+      assignedUserId:   userId,
+      createdByUserId:  userId,
+      scheduledAt,
+      timezone:         "America/New_York",
+      callReason:       `Patient follow-up — ${entry.department}`,
+      priority:         "medium",
+      callStatus:       "Scheduled",
+    }).returning();
+
+    // Link it back to the schedule entry
+    await db.update(patientCallSchedule)
+      .set({ callId: newCall.id })
+      .where(eq(patientCallSchedule.id, scheduleId));
+
+    return newCall;
   }
 
   /** Update the dailyStatus on a patient_call_schedule row */
