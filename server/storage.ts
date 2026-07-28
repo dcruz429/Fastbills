@@ -1314,12 +1314,17 @@ export class DatabaseStorage implements IStorage {
 
     if (anyExisting.length === 0) {
       const allActive = await this._fetchAllActivePatients(userId, userFullName);
+      // IMPORTANT: always spread from START, never from dateStr.
+      // If Wed and Thu fire in parallel both see anyExisting=0; each must compute
+      // the *same* distribution so the unique constraint makes the second write a no-op.
+      // Using dateStr here would give each request a different anchor → different patients
+      // on each day → no conflicts → doubles/triples on every date.
       let dayOffset = 0;
       let idx = 0;
       while (idx < allActive.length && dayOffset <= 90) {
         const slotDateStr = dayOffset === 0
-          ? dateStr
-          : nthBizDay(target, dayOffset);
+          ? START.toLocaleDateString("en-CA", { timeZone: "America/New_York" })
+          : nthBizDay(START, dayOffset);
         const chunk = allActive.slice(idx, idx + DAILY);
         await db.insert(patientCallSchedule).values(
           chunk.map(p => ({
