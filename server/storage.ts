@@ -1509,25 +1509,98 @@ export class DatabaseStorage implements IStorage {
         asc(patientCallSchedule.createdAt),
       );
 
-    // Look up callCalendarUrgency for Verification (tasks) entries
-    // Wrapped in try/catch so a missing column in production never crashes the whole endpoint.
-    const verificationIds = schedule
-      .filter(e => e.department === 'Verification')
-      .map(e => e.sourceId);
+    // Look up callCalendarUrgency across all departments.
+    // Each entry in the schedule carries a department+sourceId that maps to a
+    // specific table row.  We build a single urgencyMap keyed by "department:sourceId".
+    // Wrapped in try/catch so a missing column in production never crashes the endpoint.
+    const urgencyMap = new Map<string, boolean>();
 
-    const urgencyMap = new Map<number, boolean>();
-    if (verificationIds.length > 0) {
+    // Helper to key the map
+    const urgKey = (dept: string, id: number) => `${dept}:${id}`;
+
+    // Group sourceIds by department
+    const idsByDept: Record<string, number[]> = {};
+    for (const e of schedule) {
+      if (!e.department) continue;
+      (idsByDept[e.department] ??= []).push(e.sourceId);
+    }
+
+    // Verification → tasks table
+    if ((idsByDept['Verification'] ?? []).length > 0) {
       try {
-        const urgencyRows = await db
+        const rows = await db
           .select({ id: tasks.id, callCalendarUrgency: tasks.callCalendarUrgency })
           .from(tasks)
-          .where(inArray(tasks.id, verificationIds));
-        for (const r of urgencyRows) {
-          urgencyMap.set(r.id, r.callCalendarUrgency === 'urgent');
+          .where(inArray(tasks.id, idsByDept['Verification']));
+        for (const r of rows) {
+          urgencyMap.set(urgKey('Verification', r.id), r.callCalendarUrgency === 'urgent');
         }
-      } catch {
-        // Column may not exist yet in production — silently skip urgency sorting
-      }
+      } catch { /* column may not exist yet in production */ }
+    }
+
+    // Collections → collections table
+    if ((idsByDept['Collections'] ?? []).length > 0) {
+      try {
+        const rows = await db
+          .select({ id: collections.id, callCalendarUrgency: collections.callCalendarUrgency })
+          .from(collections)
+          .where(inArray(collections.id, idsByDept['Collections']));
+        for (const r of rows) {
+          urgencyMap.set(urgKey('Collections', r.id), r.callCalendarUrgency === 'urgent');
+        }
+      } catch { /* column may not exist yet in production */ }
+    }
+
+    // Denials → denials table
+    if ((idsByDept['Denials'] ?? []).length > 0) {
+      try {
+        const rows = await db
+          .select({ id: denials.id, callCalendarUrgency: denials.callCalendarUrgency })
+          .from(denials)
+          .where(inArray(denials.id, idsByDept['Denials']));
+        for (const r of rows) {
+          urgencyMap.set(urgKey('Denials', r.id), r.callCalendarUrgency === 'urgent');
+        }
+      } catch { /* column may not exist yet in production */ }
+    }
+
+    // Arbitration → arbitrations table
+    if ((idsByDept['Arbitration'] ?? []).length > 0) {
+      try {
+        const rows = await db
+          .select({ id: arbitrations.id, callCalendarUrgency: arbitrations.callCalendarUrgency })
+          .from(arbitrations)
+          .where(inArray(arbitrations.id, idsByDept['Arbitration']));
+        for (const r of rows) {
+          urgencyMap.set(urgKey('Arbitration', r.id), r.callCalendarUrgency === 'urgent');
+        }
+      } catch { /* column may not exist yet in production */ }
+    }
+
+    // Posting → postings table
+    if ((idsByDept['Posting'] ?? []).length > 0) {
+      try {
+        const rows = await db
+          .select({ id: postings.id, callCalendarUrgency: postings.callCalendarUrgency })
+          .from(postings)
+          .where(inArray(postings.id, idsByDept['Posting']));
+        for (const r of rows) {
+          urgencyMap.set(urgKey('Posting', r.id), r.callCalendarUrgency === 'urgent');
+        }
+      } catch { /* column may not exist yet in production */ }
+    }
+
+    // Checks → checks table
+    if ((idsByDept['Checks'] ?? []).length > 0) {
+      try {
+        const rows = await db
+          .select({ id: checks.id, callCalendarUrgency: checks.callCalendarUrgency })
+          .from(checks)
+          .where(inArray(checks.id, idsByDept['Checks']));
+        for (const r of rows) {
+          urgencyMap.set(urgKey('Checks', r.id), r.callCalendarUrgency === 'urgent');
+        }
+      } catch { /* column may not exist yet in production */ }
     }
 
     const mapped = schedule.map(e => ({
@@ -1544,7 +1617,7 @@ export class DatabaseStorage implements IStorage {
       dailyStatus: e.dailyStatus ?? null,
       notes: e.notes ?? null,
       callId: e.callId ?? null,
-      isUrgent: e.department === 'Verification' ? (urgencyMap.get(e.sourceId) ?? false) : false,
+      isUrgent: urgencyMap.get(urgKey(e.department ?? '', e.sourceId)) ?? false,
     }));
 
     // Sort: urgent patients with no attempt yet float to the very top
