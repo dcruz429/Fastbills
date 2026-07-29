@@ -43,3 +43,7 @@ waitForPort = 5000
 
 [userenv.shared]
 TZ = "America/New_York"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
