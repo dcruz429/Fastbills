@@ -1227,7 +1227,7 @@ export class DatabaseStorage implements IStorage {
 
   /** Fetch all active patients for a user across all trackers */
   private async _fetchAllActivePatients(userId: number, userFullName: string) {
-    const [taskRows, collRows, denRows, arbRows, postRows, chkRows] = await Promise.all([
+    const [taskRows, collRows] = await Promise.all([
       db.select({
         sourceId: tasks.id, patientName: tasks.patientName,
         clinic: clinics.name, insurance: insurances.name,
@@ -1243,37 +1243,9 @@ export class DatabaseStorage implements IStorage {
         department: sql<string>`'Collections'`, createdAt: collections.createdAt,
       }).from(collections)
         .where(and(eq(collections.assignedTo, userFullName), sql`(${collections.status} IS NULL OR ${collections.status} != 'Done')`)),
-
-      db.select({
-        sourceId: denials.id, patientName: denials.patientName,
-        clinic: denials.clinic, insurance: denials.insurance,
-        department: sql<string>`'Denials'`, createdAt: denials.createdAt,
-      }).from(denials)
-        .where(and(eq(denials.assignedTo, userFullName), sql`(${denials.status} IS NULL OR ${denials.status} != 'Done')`)),
-
-      db.select({
-        sourceId: arbitrations.id, patientName: arbitrations.patientName,
-        clinic: arbitrations.clinic, insurance: arbitrations.insurance,
-        department: sql<string>`'Arbitration'`, createdAt: arbitrations.createdAt,
-      }).from(arbitrations)
-        .where(and(eq(arbitrations.assignedTo, userFullName), sql`(${arbitrations.status} IS NULL OR ${arbitrations.status} != 'Done')`)),
-
-      db.select({
-        sourceId: postings.id, patientName: postings.patientName,
-        clinic: postings.clinic, insurance: postings.insurance,
-        department: sql<string>`'Posting'`, createdAt: postings.createdAt,
-      }).from(postings)
-        .where(and(eq(postings.assignedTo, userFullName), sql`(${postings.status} IS NULL OR ${postings.status} != 'Done')`)),
-
-      db.select({
-        sourceId: checks.id, patientName: checks.patientName,
-        clinic: checks.clinic, insurance: checks.insurance,
-        department: sql<string>`'Checks'`, createdAt: checks.createdAt,
-      }).from(checks)
-        .where(and(eq(checks.assignedTo, userFullName), sql`(${checks.status} IS NULL OR ${checks.status} != 'Done')`)),
     ]);
 
-    return [...taskRows, ...collRows, ...denRows, ...arbRows, ...postRows, ...chkRows]
+    return [...taskRows, ...collRows]
       .filter(r => r.patientName)
       .sort((a, b) => new Date(a.createdAt as any).getTime() - new Date(b.createdAt as any).getTime());
   }
