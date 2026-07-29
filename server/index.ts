@@ -67,13 +67,23 @@ app.use((req, res, next) => {
   await backfillDoneActivities().catch((e) => console.error("Backfill error:", e));
   await backfillDueDates().catch((e) => console.error("Backfill due dates error:", e));
 
-  // ── Self-healing: remove corrupt schedule rows (race-condition duplicates) ──
-  // Any user+date with > 40 rows is a sign of the parallel-build race bug.
-  // Delete ALL rows for those user+date pairs so they rebuild cleanly on next visit.
+  // ── Self-healing: remove stale/corrupt schedule rows ──
   try {
     const { db } = await import("./db");
-    const { patientCallSchedule } = await import("../shared/schema");
     const { sql } = await import("drizzle-orm");
+
+    // 1. Remove rows from departments that are no longer included in the call calendar
+    //    (only Verification and Collections are valid sources now)
+    const stale = await db.execute(sql`
+      DELETE FROM patient_call_schedule
+      WHERE department NOT IN ('Verification', 'Collections')
+      RETURNING id
+    `);
+    if (stale.rows.length > 0) {
+      log(`Removed ${stale.rows.length} stale schedule row(s) (non-Verification/Collections departments)`);
+    }
+
+    // 2. Remove days where a user has > 40 rows (race-condition duplicates) so they rebuild cleanly
     const corrupt = await db.execute(sql`
       SELECT user_id, scheduled_date
       FROM patient_call_schedule
