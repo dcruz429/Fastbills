@@ -1270,6 +1270,10 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
   const [managerSubView, setManagerSubView] = useState<"day" | "week">("day");
   const [detailPatient, setDetailPatient] = useState<{ sourceId: number; department: string; agentName: string } | null>(null);
   const [openingPatientId, setOpeningPatientId] = useState<number | null>(null);
+  // Date picker for Day List tab — defaults to today in NY time
+  const [dayListDate, setDayListDate] = useState<string>(() =>
+    new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" })
+  );
   const { toast } = useToast();
 
   // Open a week-view patient via ensure-call → standard CallDetailPanel
@@ -1289,13 +1293,8 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
     }
   };
 
-  const { data: rolloverAudit = [] } = useQuery<any[]>({
-    queryKey: ["/api/calls/rollover-audit"],
-    queryFn: () => fetch("/api/calls/rollover-audit", { credentials: "include" }).then(r => r.json()),
-  });
-
   const { data: agentStats = [] } = useQuery<any[]>({
-    queryKey: ["/api/calls/agent-stats", dateFrom, dateTo],
+    queryKey: ["/api/calls/agent-stats", dayListDate, dayListDate],
     queryFn: ({ queryKey }) => {
       const [, df, dt] = queryKey as string[];
       return fetch(`/api/calls/agent-stats?dateFrom=${df}&dateTo=${dt}`, { credentials: "include" }).then(r => r.json());
@@ -1316,7 +1315,7 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
     : [];
 
   const { data: rawPatients = [], isFetching: patientsFetching } = useQuery<any[]>({
-    queryKey: ["/api/calls/daily-schedule", dateFrom, selectedUserId],
+    queryKey: ["/api/calls/daily-schedule", dayListDate, selectedUserId],
     queryFn: ({ queryKey }) => {
       const [, df, uid] = queryKey as string[];
       const params = new URLSearchParams({ date: df });
@@ -1329,12 +1328,12 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
 
   // If "all" is selected, fetch for each VC member and merge
   const { data: allMemberPatients = [] } = useQuery<any[]>({
-    queryKey: ["/api/calls/daily-schedule/all-vc", dateFrom, vcMembers.map(m => m.id).join(",")],
+    queryKey: ["/api/calls/daily-schedule/all-vc", dayListDate, vcMembers.map(m => m.id).join(",")],
     queryFn: async () => {
       if (vcMembers.length === 0) return [];
       const results = await Promise.all(
         vcMembers.map(m =>
-          fetch(`/api/calls/daily-schedule?date=${dateFrom}&userId=${m.id}`, { credentials: "include" })
+          fetch(`/api/calls/daily-schedule?date=${dayListDate}&userId=${m.id}`, { credentials: "include" })
             .then(r => r.json())
             .then((pts: any[]) => pts.map((p: any) => ({ ...p, agentName: m.fullName, agentId: m.id })))
         )
@@ -1616,8 +1615,18 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
       <div className="rounded-md border overflow-hidden">
         <div className="px-4 py-2.5 border-b bg-blue-50 dark:bg-blue-950/30 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-blue-900 dark:text-blue-200">📋 VC Team Patient Lists</span>
-          <span className="text-xs text-blue-600 dark:text-blue-400 ml-1">— auto-scheduled for selected day</span>
           <div className="ml-auto flex items-center gap-2 flex-wrap">
+            {/* Date picker */}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="date"
+                className="h-7 text-xs rounded-md border bg-background px-2"
+                value={dayListDate}
+                onChange={e => e.target.value && setDayListDate(e.target.value)}
+                data-testid="input-mgr-day-date"
+              />
+            </div>
             {/* Patient search */}
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -1730,56 +1739,6 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
         )}
       </div>
 
-      {/* ── Rollover Audit Log ── */}
-      {rolloverAudit.length > 0 && (
-        <div className="rounded-md border overflow-hidden">
-          <div className="px-4 py-2.5 border-b bg-amber-50 dark:bg-amber-950/30 flex items-center gap-2">
-            <span className="text-sm font-semibold text-amber-900 dark:text-amber-200">↩ Auto-Rollover Audit Log</span>
-            <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">— patients auto-moved from missed days</span>
-            <span className="ml-auto text-xs text-amber-700 dark:text-amber-300 font-medium">{rolloverAudit.length} event{rolloverAudit.length !== 1 ? "s" : ""}</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/10">
-                  {["Date/Time", "Agent", "Patient", "Department", "Moved From", "Moved To"].map(h => (
-                    <th key={h} className="px-3 py-2 text-xs font-medium text-muted-foreground text-left whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rolloverAudit.map((a: any) => {
-                  const agentUser = allUsers.find((u: User) => u.id === a.userId);
-                  return (
-                    <tr key={a.id} className="border-b hover:bg-muted/10 transition-colors">
-                      <td className="px-3 py-2 text-xs whitespace-nowrap text-muted-foreground">
-                        {new Date(a.occurredAt).toLocaleString("en-US", {
-                          month: "short", day: "numeric", year: "numeric",
-                          hour: "numeric", minute: "2-digit", hour12: true,
-                          timeZone: "America/New_York",
-                        })}
-                      </td>
-                      <td className="px-3 py-2 text-xs font-medium whitespace-nowrap">{agentUser?.fullName ?? `User #${a.userId}`}</td>
-                      <td className="px-3 py-2 text-xs font-medium whitespace-nowrap">{a.patientName}</td>
-                      <td className="px-3 py-2">
-                        <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", DEPT_COLORS[a.department] || "bg-gray-100 text-gray-800")}>
-                          {a.department}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap text-amber-700 dark:text-amber-400 font-medium">
-                        {new Date(a.fromDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                      </td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap text-green-700 dark:text-green-400 font-medium">
-                        {new Date(a.toDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
       </>
       )}
 
