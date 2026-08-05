@@ -83,7 +83,19 @@ app.use((req, res, next) => {
       log(`Removed ${stale.rows.length} stale schedule row(s) (non-Verification/Collections departments)`);
     }
 
-    // 2. Remove days where a user has > 40 rows (race-condition duplicates) so they rebuild cleanly
+    // 2. Remove rows scheduled before today — the calendar start date is always "today",
+    //    so past-dated rows are orphaned and prevent the first-ever build from re-running
+    const todayNY = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+    const past = await db.execute(sql`
+      DELETE FROM patient_call_schedule
+      WHERE scheduled_date < ${todayNY}
+      RETURNING id
+    `);
+    if (past.rows.length > 0) {
+      log(`Removed ${past.rows.length} past schedule row(s) (before today ${todayNY})`);
+    }
+
+    // 3. Remove days where a user has > 40 rows (race-condition duplicates) so they rebuild cleanly
     const corrupt = await db.execute(sql`
       SELECT user_id, scheduled_date
       FROM patient_call_schedule

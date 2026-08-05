@@ -1256,7 +1256,16 @@ export class DatabaseStorage implements IStorage {
     const dow = target.getDay();
     if (dow === 0 || dow === 6) return [];
 
-    const START = new Date(2026, 6, 29);
+    // Dynamic START: today in America/New_York (advance to Monday if weekend)
+    const _todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+    const [_ty, _tm, _td] = _todayStr.split("-").map(Number);
+    const _startRaw = new Date(_ty, _tm - 1, _td);
+    const _startDow = _startRaw.getDay();
+    const START = _startDow === 6
+      ? new Date(_ty, _tm - 1, _td + 2)  // Sat → Mon
+      : _startDow === 0
+      ? new Date(_ty, _tm - 1, _td + 1)  // Sun → Mon
+      : _startRaw;
     if (target < START) return [];
 
     const DAILY = 40;
