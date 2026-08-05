@@ -1352,6 +1352,11 @@ export class DatabaseStorage implements IStorage {
 
       // ── Step A: Rollovers (incomplete patients from past days) ──────────────
       if (target > START) {
+        // Only roll over patients from dates that are genuinely in the past
+        // (before today).  Using < dateStr would treat pre-scheduled future
+        // entries (e.g. tomorrow's patients when building the day-after-tomorrow)
+        // as "overdue" and duplicate them onto the requested date.
+        const rolloverCutoff = dateStr < _todayStr ? dateStr : _todayStr;
         const allPastEntries = await db.select({
           sourceId:    patientCallSchedule.sourceId,
           department:  patientCallSchedule.department,
@@ -1362,7 +1367,7 @@ export class DatabaseStorage implements IStorage {
         }).from(patientCallSchedule)
           .where(and(
             eq(patientCallSchedule.userId, userId),
-            sql`${patientCallSchedule.scheduledDate} < ${dateStr}`,
+            sql`${patientCallSchedule.scheduledDate} < ${rolloverCutoff}`,
           ));
 
         const latestByPatient = new Map<string, typeof allPastEntries[0]>();

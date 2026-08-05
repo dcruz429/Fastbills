@@ -95,6 +95,21 @@ app.use((req, res, next) => {
       log(`Removed ${past.rows.length} past schedule row(s) (before today ${todayNY})`);
     }
 
+    // 3a. Remove future-date rollover entries created by a previous bug where
+    //     scheduledDate < dateStr (instead of < today) was used as the rollover
+    //     boundary, causing pre-scheduled patients from tomorrow to be duplicated
+    //     onto the day-after-tomorrow.  Legitimate rollovers have scheduledDate ≤ today.
+    const futureRollovers = await db.execute(sql`
+      DELETE FROM patient_call_schedule
+      WHERE original_date IS NOT NULL
+        AND original_date != 'new'
+        AND scheduled_date > ${todayNY}
+      RETURNING id
+    `);
+    if (futureRollovers.rows.length > 0) {
+      log(`Removed ${futureRollovers.rows.length} invalid future-date rollover row(s)`);
+    }
+
     // 3. Remove days where a user has > 40 rows (race-condition duplicates) so they rebuild cleanly
     const corrupt = await db.execute(sql`
       SELECT user_id, scheduled_date
