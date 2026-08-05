@@ -884,19 +884,6 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
     return map;
   }, [calls, displayFrom, displayTo]);
 
-  // nextCallMap uses ALL loaded calls so "Next Call" column stays correct
-  const nextCallMap = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const c of calls) {
-      if (c.parentCallId && c.callStatus !== "Cancelled") {
-        const existing = map[c.parentCallId];
-        if (!existing || new Date(c.scheduledAt) < new Date(existing)) {
-          map[c.parentCallId] = c.scheduledAt;
-        }
-      }
-    }
-    return map;
-  }, [calls]);
 
   const [pendingCallId, setPendingCallId] = useState<number | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -907,7 +894,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
 
   // Open auto-patient via ensure-call → standard CallDetailPanel
   const openAutoPatient = async (p: any) => {
-    if (openingPatientId === p.id) return; // already loading
+    if (openingPatientId === p.id) return;
     setOpeningPatientId(p.id);
     try {
       const res = await apiRequest("POST", `/api/calls/daily-schedule/${p.id}/ensure-call`, {});
@@ -919,6 +906,31 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
       toast({ title: "Could not open patient", description: e.message || "Unexpected error", variant: "destructive" });
     } finally {
       setOpeningPatientId(null);
+    }
+  };
+
+  // Quick Action: ensure-call exists then immediately fire the action
+  const ensureAndAction = async (p: any, action: string) => {
+    if (openingPatientId === p.id) return;
+    setOpeningPatientId(p.id);
+    try {
+      const res = await apiRequest("POST", `/api/calls/daily-schedule/${p.id}/ensure-call`, {});
+      const call = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
+      setOpeningPatientId(null);
+      setPendingCallId(call.id);
+      if (action === "move") {
+        setMoveOpen(true);
+      } else if (ATTEMPT_ACTION_OUTCOMES[action]) {
+        setAttemptCall(call);
+        setAttemptOutcome(ATTEMPT_ACTION_OUTCOMES[action]);
+        setAttemptOpen(true);
+      } else {
+        quickMutation.mutate({ callId: call.id, action });
+      }
+    } catch (e: any) {
+      setOpeningPatientId(null);
+      toast({ title: "Action failed", description: e.message || "Unexpected error", variant: "destructive" });
     }
   };
 
@@ -1008,109 +1020,6 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
     );
   }
 
-  // Helper to render the calls table for a single day group
-  const renderCallsTable = (dayCalls: any[]) => (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="border-b bg-muted/10">
-            {["Status", "Patient", "Phone", "Clinic", "Insurance", "Assigned To", "Call Reason", "Notes", "Next Call", "Actions"].map(h => (
-              <th key={h} className="text-left px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {dayCalls.map(c => {
-            const overdue = isOverdue(c);
-            const borderCls = overdue ? "border-l-red-500" : (ROW_BORDER_COLOR[c.callStatus] || "border-l-gray-300");
-            const dotCls = overdue ? "bg-red-500" : (STATUS_DOT[c.callStatus] || "bg-gray-400");
-            const nextCallDate = nextCallMap[c.id];
-            const isActive = !["Resolved", "Completed", "Cancelled"].includes(c.callStatus);
-            const isMutating = quickMutation.isPending && pendingCallId === c.id;
-            return (
-              <tr key={c.id} data-testid={`daily-row-${c.id}`}
-                className={cn("border-b border-l-4 hover:bg-muted/10 transition-colors", borderCls, !isActive && "opacity-70")}>
-                <td className="px-3 py-2.5 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5">
-                    <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", dotCls, overdue && "animate-pulse")} />
-                    <span className="text-xs font-medium">{overdue ? "Overdue" : c.callStatus}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5">
-                  <button onClick={() => onCallClick(c)} className="font-medium hover:underline text-left whitespace-nowrap" data-testid={`button-view-daily-${c.id}`}>
-                    {c.patientName}
-                  </button>
-                </td>
-                <td className="px-3 py-2.5 whitespace-nowrap">
-                  {c.phoneNumber ? (
-                    <a href={`tel:${c.phoneNumber}`} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 text-xs">
-                      <Phone className="h-3 w-3" />{c.phoneNumber}
-                    </a>
-                  ) : <span className="text-muted-foreground text-xs">—</span>}
-                </td>
-                <td className="px-3 py-2.5 whitespace-nowrap text-xs">{c.clinic || <span className="text-muted-foreground">—</span>}</td>
-                <td className="px-3 py-2.5 whitespace-nowrap text-xs">{c.insurance || <span className="text-muted-foreground">—</span>}</td>
-                <td className="px-3 py-2.5 whitespace-nowrap text-xs">
-                  {c.assignedUserName ? c.assignedUserName : <span className="text-muted-foreground italic">Unassigned</span>}
-                </td>
-                <td className="px-3 py-2.5 max-w-[150px] truncate text-xs">{c.callReason}</td>
-                <td className="px-3 py-2.5 max-w-[120px] text-xs">
-                  {c.notes ? (
-                    <span className="text-muted-foreground truncate block max-w-[120px]" title={c.notes}>
-                      {c.notes.length > 35 ? c.notes.slice(0, 35) + "…" : c.notes}
-                    </span>
-                  ) : <span className="text-muted-foreground">—</span>}
-                </td>
-                <td className="px-3 py-2.5 whitespace-nowrap text-xs">
-                  {nextCallDate ? (
-                    <span className="text-orange-600 dark:text-orange-400 font-medium">
-                      {new Date(nextCallDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}
-                    </span>
-                  ) : <span className="text-muted-foreground">—</span>}
-                </td>
-                <td className="px-3 py-2.5">
-                  {isActive ? (
-                    <div className="flex flex-wrap gap-1 min-w-[340px]">
-                      <button onClick={() => handleAction(c.id, "done")} disabled={isMutating} data-testid={`btn-done-${c.id}`}
-                        className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700 disabled:opacity-50 whitespace-nowrap">
-                        ✅ Done
-                      </button>
-                      <button onClick={() => handleAction(c.id, "resolved")} disabled={isMutating} data-testid={`btn-resolved-${c.id}`}
-                        className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700 disabled:opacity-50 whitespace-nowrap">
-                        ✓ Resolved
-                      </button>
-                      <button onClick={() => handleAction(c.id, "move")} disabled={isMutating} data-testid={`btn-move-${c.id}`}
-                        className="text-xs px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-700 disabled:opacity-50 whitespace-nowrap">
-                        📅 Move
-                      </button>
-                      <button onClick={() => handleAction(c.id, "voicemail")} disabled={isMutating} data-testid={`btn-voicemail-${c.id}`}
-                        className="text-xs px-1.5 py-0.5 rounded border border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-700 disabled:opacity-50 whitespace-nowrap">
-                        📞 Voicemail
-                      </button>
-                      <button onClick={() => handleAction(c.id, "wrong")} disabled={isMutating} data-testid={`btn-wrong-${c.id}`}
-                        className="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700 disabled:opacity-50 whitespace-nowrap">
-                        🚫 Wrong #
-                      </button>
-                      <button onClick={() => handleAction(c.id, "callback")} disabled={isMutating} data-testid={`btn-callback-${c.id}`}
-                        className="text-xs px-1.5 py-0.5 rounded border border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700 disabled:opacity-50 whitespace-nowrap">
-                        ⏱ Call Back
-                      </button>
-                      <button onClick={() => handleAction(c.id, "unable")} disabled={isMutating} data-testid={`btn-unable-${c.id}`}
-                        className="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700 disabled:opacity-50 whitespace-nowrap">
-                        ✗ Unable
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">{c.callStatus}</span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
 
   // Collect all date keys that appear across display calls + today (if auto-patients present)
   const allDateKeys = Array.from(new Set([
@@ -1157,26 +1066,29 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
                     <table className="w-full text-sm border-collapse">
                       <thead>
                         <tr className="border-b bg-muted/10">
-                          {["#", "Patient Name", "Clinic", "Insurance", "Department", "Status", "Schedule"].map(h => (
+                          {["#", "Patient Name", "Clinic", "Insurance", "Department", "Status", "Schedule", "Quick Actions"].map(h => (
                             <th key={h} className={cn("px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap", h === "#" ? "text-center w-10" : "text-left")}>{h}</th>
                           ))}
-                          <th className="px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap text-left w-6"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {autoPatients!.map((p, i) => (
                           <tr key={`${p.department}-${p.sourceId}`}
                             className={cn(
-                              "border-b hover:bg-muted/10 transition-colors cursor-pointer",
+                              "border-b hover:bg-muted/10 transition-colors",
                               p.isUrgent && !p.dailyStatus && "bg-red-50/70 dark:bg-red-950/20 border-l-2 border-l-red-500",
                               !p.isUrgent && p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10",
                               openingPatientId === p.id && "opacity-60",
                             )}
-                            onClick={() => openAutoPatient(p)}
                             data-testid={`auto-patient-row-${i}`}>
                             <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
-                            <td className="px-3 py-2 font-medium whitespace-nowrap text-blue-700 dark:text-blue-400 hover:underline">
-                              {openingPatientId === p.id ? <span className="opacity-60">Opening…</span> : p.patientName}
+                            <td className="px-3 py-2 font-medium whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <button onClick={() => openAutoPatient(p)} className="text-blue-700 dark:text-blue-400 hover:underline text-left">
+                                  {openingPatientId === p.id ? <span className="opacity-60">Opening…</span> : p.patientName}
+                                </button>
+                                {p.isUrgent && <span className="text-xs text-red-600 dark:text-red-400" title="Urgent — pinned to top">🚨</span>}
+                              </div>
                             </td>
                             <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.clinic || "—"}</td>
                             <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{p.insurance || "—"}</td>
@@ -1203,20 +1115,26 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
                                 <span className="text-xs text-muted-foreground">—</span>
                               )}
                             </td>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              {p.isUrgent && (
-                                <span
-                                  className={cn(
-                                    "inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full",
-                                    p.dailyStatus
-                                      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 opacity-60"
-                                      : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 animate-pulse",
-                                  )}
-                                  title={p.dailyStatus ? "Urgent — attempt recorded" : "Urgent — pinned to top until attempt recorded"}
-                                >
-                                  🚨 Urgent
-                                </span>
-                              )}
+                            <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
+                              <div className="flex flex-wrap gap-1 min-w-[300px]">
+                                {[
+                                  { key: "done",     label: "✅ Done",      cls: "border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700" },
+                                  { key: "resolved", label: "✓ Resolved",  cls: "border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700" },
+                                  { key: "move",     label: "📅 Move",      cls: "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-700" },
+                                  { key: "voicemail",label: "📞 Voicemail", cls: "border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-700" },
+                                  { key: "wrong",    label: "🚫 Wrong #",   cls: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700" },
+                                  { key: "callback", label: "⏱ Call Back",  cls: "border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700" },
+                                  { key: "unable",   label: "✗ Unable",    cls: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700" },
+                                ].map(btn => (
+                                  <button key={btn.key}
+                                    onClick={() => ensureAndAction(p, btn.key)}
+                                    disabled={openingPatientId === p.id}
+                                    data-testid={`btn-${btn.key}-${p.sourceId}`}
+                                    className={cn("text-xs px-1.5 py-0.5 rounded border disabled:opacity-50 whitespace-nowrap", btn.cls)}>
+                                    {btn.label}
+                                  </button>
+                                ))}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1232,12 +1150,6 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
                 </div>
               )}
 
-              {/* Scheduled calls table */}
-              {dayCalls.length > 0 && (
-                <div className="rounded-md border overflow-hidden">
-                  {renderCallsTable(dayCalls)}
-                </div>
-              )}
             </div>
           );
         })}
