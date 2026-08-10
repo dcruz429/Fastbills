@@ -866,7 +866,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
   autoPatients?: any[]; filterDateFrom?: string; filterDateTo?: string;
 }) {
   const { toast } = useToast();
-  const todayKey = getDateKey(new Date());
+  const todayKey = getDateKey(new Date()) < "2026-08-11" ? "2026-08-11" : getDateKey(new Date());
   const displayFrom = filterDateFrom || getDateKey(date);
   const displayTo   = filterDateTo   || getDateKey(date);
 
