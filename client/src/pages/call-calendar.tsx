@@ -1672,7 +1672,7 @@ export default function CallCalendarPage() {
   const { toast } = useToast();
 
   const [view, setView] = useState<CalendarView>("list");
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date("2026-08-11T12:00:00"));
   const [selectedCall, setSelectedCall] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [newCallOpen, setNewCallOpen] = useState(false);
