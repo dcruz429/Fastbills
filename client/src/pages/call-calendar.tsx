@@ -1746,7 +1746,7 @@ export default function CallCalendarPage() {
   const { data: autoPatients = [] } = useQuery<any[]>({
     queryKey: ["/api/calls/daily-schedule", scheduleDate],
     queryFn: () => fetch(`/api/calls/daily-schedule?date=${scheduleDate}`, { credentials: "include" }).then(r => r.json()),
-    enabled: view === "list" && isVcTeamMember,
+    enabled: view === "list" && isVcTeamMember && !isManager,
   });
 
   // Unique clinic/insurance values from loaded calls for filter dropdowns
