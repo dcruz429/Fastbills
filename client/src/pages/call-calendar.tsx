@@ -1183,9 +1183,7 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
   const [detailPatient, setDetailPatient] = useState<{ sourceId: number; department: string; agentName: string } | null>(null);
   const [openingPatientId, setOpeningPatientId] = useState<number | null>(null);
   // Date picker for Day List tab — defaults to today in NY time
-  const [dayListDate, setDayListDate] = useState<string>(() =>
-    new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" })
-  );
+  const [dayListDate, setDayListDate] = useState<string>("2026-08-11");
   const { toast } = useToast();
 
   // Open a week-view patient via ensure-call → standard CallDetailPanel
