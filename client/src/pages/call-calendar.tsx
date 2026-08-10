@@ -1184,6 +1184,8 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
   const [openingPatientId, setOpeningPatientId] = useState<number | null>(null);
   // Date picker for Day List tab — defaults to today in NY time
   const [dayListDate, setDayListDate] = useState<string>("2026-08-11");
+  // Treat Aug 11 as the earliest "today" so the week view doesn't highlight Aug 10
+  const effectiveToday = getDateKey(new Date()) < "2026-08-11" ? "2026-08-11" : getDateKey(new Date());
   const { toast } = useToast();
 
   // Open a week-view patient via ensure-call → standard CallDetailPanel
@@ -1386,7 +1388,7 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
                     if (patientSearch && !p.patientName?.toLowerCase().includes(patientSearch.toLowerCase())) return false;
                     return true;
                   });
-                  const isToday = key === getDateKey(new Date());
+                  const isToday = key === effectiveToday;
                   return (
                     <div
                       key={key}
