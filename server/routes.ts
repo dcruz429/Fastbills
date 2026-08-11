@@ -519,7 +519,9 @@ export async function registerRoutes(
       if (!requestingUser || !USER_MGMT_ROLES.includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const { username, password, fullName, role } = req.body;
+      const { username: rawUsername, password, fullName: rawFullName, role } = req.body;
+      const username = rawUsername?.trim();
+      const fullName = rawFullName?.trim();
       if (!username || !password || !fullName) {
         return res.status(400).json({ message: "Missing required fields" });
       }
@@ -544,6 +546,8 @@ export async function registerRoutes(
       }
       const id = parseInt(req.params.id);
       const updateData = { ...req.body };
+      if (updateData.username) updateData.username = updateData.username.trim();
+      if (updateData.fullName) updateData.fullName = updateData.fullName.trim();
       if (updateData.username) {
         const existing = await storage.getUserByUsername(updateData.username);
         if (existing && existing.id !== id) {

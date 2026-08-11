@@ -296,7 +296,11 @@ function UserSettings() {
   const addMutation = useMutation({
     mutationFn: async (data: any) => {
       const { firstName, lastName, ...rest } = data;
-      await apiRequest("POST", "/api/users", { ...rest, fullName: `${firstName} ${lastName}`.trim() });
+      await apiRequest("POST", "/api/users", {
+        ...rest,
+        username: rest.username.trim(),
+        fullName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -308,7 +312,7 @@ function UserSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const payload: any = { fullName: `${data.firstName} ${data.lastName}`.trim(), role: data.role, username: data.username };
+      const payload: any = { fullName: `${data.firstName.trim()} ${data.lastName.trim()}`.trim(), role: data.role, username: data.username.trim() };
       if (data.password) payload.password = data.password;
       await apiRequest("PATCH", `/api/users/${id}`, payload);
     },
