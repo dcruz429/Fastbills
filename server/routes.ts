@@ -808,7 +808,8 @@ export async function registerRoutes(
 
   app.get("/api/tasks", requireAuth, async (req, res) => {
     const user = await storage.getUser(req.session.userId!);
-    if (user && (user.role === "verifier" || user.role === "biller")) {
+    const isWorkload = req.query.workload === "true";
+    if (!isWorkload && user && (user.role === "verifier" || user.role === "biller")) {
       const allTasks = await storage.getAllTasks();
       res.json(allTasks.filter((t) => t.assignedUserId === user.id));
     } else {
@@ -1103,7 +1104,8 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllDenials();
-      if (ADMIN_ROLES.includes(user.role)) {
+      const isWorkload = req.query.workload === "true";
+      if (isWorkload || ADMIN_ROLES.includes(user.role)) {
         res.json(all);
       } else {
         res.json(all.filter(d => d.assignedTo === user.fullName));
@@ -1363,7 +1365,8 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllArbitrations();
-      if (ADMIN_ROLES.includes(user.role)) {
+      const isWorkload = req.query.workload === "true";
+      if (isWorkload || ADMIN_ROLES.includes(user.role)) {
         res.json(all);
       } else {
         res.json(all.filter(a => a.assignedTo === user.fullName));
@@ -1573,7 +1576,8 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllCollections();
-      if (ADMIN_ROLES.includes(user.role)) {
+      const isWorkload = req.query.workload === "true";
+      if (isWorkload || ADMIN_ROLES.includes(user.role)) {
         res.json(all);
       } else {
         res.json(all.filter(c => c.assignedTo === user.fullName));
@@ -2219,6 +2223,11 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllPostings();
+      const isWorkload = req.query.workload === "true";
+      if (isWorkload) {
+        res.json(all);
+        return;
+      }
       const canSeePaymentDocs = PAYMENT_DOC_ROLES.includes(user.role);
       const visibleByDocType = canSeePaymentDocs
         ? all
@@ -2926,7 +2935,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      if (!CHECKS_ROLES.includes(user.role)) {
+      const isWorkload = req.query.workload === "true";
+      if (!isWorkload && !CHECKS_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
       const all = await storage.getAllChecks();

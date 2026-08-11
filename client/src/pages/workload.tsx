@@ -83,22 +83,22 @@ export default function WorkloadPage() {
 
   const { data: users, isLoading: usersLoading } = useQuery<User[]>({ queryKey: ["/api/users"] });
   const { data: tasks, isLoading: tasksLoading } = useQuery<TaskWithRelations[]>({
-    queryKey: ["/api/tasks"],
+    queryKey: ["/api/tasks?workload=true"],
   });
   const { data: denials, isLoading: denialsLoading } = useQuery<any[]>({
-    queryKey: ["/api/denials"],
+    queryKey: ["/api/denials?workload=true"],
   });
   const { data: arbitrations, isLoading: arbsLoading } = useQuery<any[]>({
-    queryKey: ["/api/arbitrations"],
+    queryKey: ["/api/arbitrations?workload=true"],
   });
   const { data: collections, isLoading: collectionsLoading } = useQuery<any[]>({
-    queryKey: ["/api/collections"],
+    queryKey: ["/api/collections?workload=true"],
   });
   const { data: postings, isLoading: postingsLoading } = useQuery<any[]>({
-    queryKey: ["/api/postings"],
+    queryKey: ["/api/postings?workload=true"],
   });
   const { data: checks, isLoading: checksLoading } = useQuery<any[]>({
-    queryKey: ["/api/checks"],
+    queryKey: ["/api/checks?workload=true"],
   });
   const { data: closed, isLoading: closedLoading } = useQuery<any[]>({
     queryKey: ["/api/closed"],
