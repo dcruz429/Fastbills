@@ -1055,6 +1055,15 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
                 </span>
               </div>
 
+              {/* Scheduled call cards */}
+              {dayCalls.length > 0 && (
+                <div className="space-y-1.5 mb-3">
+                  {dayCalls.map(c => (
+                    <CallCard key={c.id} call={c} onClick={() => onCallClick(c)} />
+                  ))}
+                </div>
+              )}
+
               {/* Auto-patient list (today only) */}
               {showAutoPatients && (
                 <div className="rounded-md border overflow-hidden mb-3">
