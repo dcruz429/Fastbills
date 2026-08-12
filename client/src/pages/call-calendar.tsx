@@ -120,6 +120,10 @@ function getDateKey(date: Date | string): string {
   return d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 }
 
+function addDaysEasternKey(days: number): string {
+  return getDateKey(addDays(new Date(), days));
+}
+
 function startOfWeek(d: Date): Date {
   const r = new Date(d);
   r.setDate(r.getDate() - r.getDay());
@@ -327,7 +331,7 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
   const [contactPerson, setContactPerson] = useState("");
   const [notes, setNotes] = useState("");
   const [followUpRequired, setFollowUpRequired] = useState(defaultOutcome ? CALL_FOLLOWUP_OUTCOMES.includes(defaultOutcome) : false);
-  const [nextDate, setNextDate] = useState(defaultOutcome && defaultOutcome !== "Wrong Number" ? addDays(new Date(), 1).toISOString().split("T")[0] : "");
+  const [nextDate, setNextDate] = useState(defaultOutcome && defaultOutcome !== "Wrong Number" ? addDaysEasternKey(1) : "");
   const [nextTime, setNextTime] = useState("09:00");
   const [nextAssignedUserId, setNextAssignedUserId] = useState("");
   const [updateTaskStatus, setUpdateTaskStatus] = useState(false);
@@ -341,7 +345,7 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
       setContactPerson("");
       setNotes("");
       setFollowUpRequired(defaultOutcome ? CALL_FOLLOWUP_OUTCOMES.includes(defaultOutcome) : false);
-      setNextDate(defaultOutcome && defaultOutcome !== "Wrong Number" ? addDays(new Date(), 1).toISOString().split("T")[0] : "");
+      setNextDate(defaultOutcome && defaultOutcome !== "Wrong Number" ? addDaysEasternKey(1) : "");
       setNextTime("09:00");
       setNextAssignedUserId("");
       setUpdateTaskStatus(false);
@@ -432,8 +436,7 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
                   const days = q === "tomorrow" ? 1 : q === "3days" ? 3 : 7;
                   return (
                     <Button key={q} variant="outline" size="sm" className="text-xs" onClick={() => {
-                      const d = addDays(new Date(), days);
-                      setNextDate(d.toISOString().split("T")[0]);
+                      setNextDate(addDaysEasternKey(days));
                     }}>{label}</Button>
                   );
                 })}
@@ -822,7 +825,7 @@ function DayView({ date, calls, onCallClick }: { date: Date; calls: any[]; onCal
 function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: boolean; onClose: () => void; onSave: (iso: string) => void; isPending: boolean }) {
   const [option, setOption] = useState<"tomorrow" | "pick">("tomorrow");
   const [pickedDate, setPickedDate] = useState("");
-  const tomorrowKey = addDays(new Date(), 1).toISOString().split("T")[0];
+  const tomorrowKey = addDaysEasternKey(1);
   const tomorrowLabel = new Date(tomorrowKey + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" });
 
   const handleSave = () => {
