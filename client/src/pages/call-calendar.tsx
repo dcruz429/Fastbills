@@ -1183,7 +1183,7 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
   const [detailPatient, setDetailPatient] = useState<{ sourceId: number; department: string; agentName: string } | null>(null);
   const [openingPatientId, setOpeningPatientId] = useState<number | null>(null);
   // Date picker for Day List tab — defaults to today in NY time
-  const [dayListDate, setDayListDate] = useState<string>("2026-08-11");
+  const [dayListDate, setDayListDate] = useState<string>(getDateKey(new Date()));
   // Treat Aug 11 as the earliest "today" so the week view doesn't highlight Aug 10
   const effectiveToday = getDateKey(new Date()) < "2026-08-11" ? "2026-08-11" : getDateKey(new Date());
   const { toast } = useToast();
@@ -1672,7 +1672,7 @@ export default function CallCalendarPage() {
   const { toast } = useToast();
 
   const [view, setView] = useState<CalendarView>("list");
-  const [currentDate, setCurrentDate] = useState(new Date("2026-08-11T12:00:00"));
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedCall, setSelectedCall] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [newCallOpen, setNewCallOpen] = useState(false);
