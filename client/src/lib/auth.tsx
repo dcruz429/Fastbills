@@ -59,8 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/admin/impersonate/stop");
     },
     onSuccess: () => {
-      queryClient.clear();
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      window.location.href = "/";
     },
   });
 
