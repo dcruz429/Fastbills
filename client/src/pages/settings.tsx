@@ -531,7 +531,7 @@ function UserSettings() {
                 </div>
                 {!isManager && (
                   <div className="flex items-center gap-1">
-                    {isAdmin && u.id !== user?.id && (
+                    {isAdmin && u.id !== currentUser?.id && (
                       <Button
                         size="icon"
                         variant="ghost"
