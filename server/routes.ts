@@ -2216,7 +2216,7 @@ export async function registerRoutes(
   });
 
   // Postings
-  const PAYMENT_DOC_ROLES = ["admin", "payment_specialist", "account_manager"];
+  const PAYMENT_DOC_ROLES = ["admin", "payment_specialist", "account_manager", "case_manager", "manager"];
 
   app.get("/api/postings", requireAuth, async (req, res) => {
     try {
