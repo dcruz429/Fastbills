@@ -492,6 +492,23 @@ export async function registerRoutes(
     });
   });
 
+  app.post("/api/admin/impersonate/stop", requireAuth, async (req, res) => {
+    try {
+      if (!req.session.originalUserId) {
+        return res.status(400).json({ message: "Not currently impersonating" });
+      }
+      const adminId = req.session.originalUserId;
+      req.session.userId = adminId;
+      delete req.session.originalUserId;
+      const admin = await storage.getUser(adminId);
+      if (!admin) return res.status(404).json({ message: "Admin user not found" });
+      const { password: _, ...safeAdmin } = admin;
+      res.json({ ...safeAdmin, isImpersonating: false, originalUserId: null });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.post("/api/admin/impersonate/:userId", requireAuth, async (req, res) => {
     try {
       const admin = await storage.getUser(req.session.userId!);
@@ -507,23 +524,6 @@ export async function registerRoutes(
       req.session.userId = target.id;
       const { password: _, ...safeTarget } = target;
       res.json({ ...safeTarget, isImpersonating: true, originalUserId: admin.id });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.post("/api/admin/impersonate/stop", requireAuth, async (req, res) => {
-    try {
-      if (!req.session.originalUserId) {
-        return res.status(400).json({ message: "Not currently impersonating" });
-      }
-      const adminId = req.session.originalUserId;
-      req.session.userId = adminId;
-      delete req.session.originalUserId;
-      const admin = await storage.getUser(adminId);
-      if (!admin) return res.status(404).json({ message: "Admin user not found" });
-      const { password: _, ...safeAdmin } = admin;
-      res.json({ ...safeAdmin, isImpersonating: false, originalUserId: null });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
