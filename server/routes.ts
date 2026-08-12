@@ -404,6 +404,7 @@ async function comparePasswords(supplied: string, stored: string): Promise<boole
 declare module "express-session" {
   interface SessionData {
     userId: number;
+    originalUserId?: number;
   }
 }
 
@@ -484,7 +485,48 @@ export async function registerRoutes(
       return res.status(401).json({ message: "User not found" });
     }
     const { password: _, ...safeUser } = user;
-    res.json(safeUser);
+    res.json({
+      ...safeUser,
+      isImpersonating: !!req.session.originalUserId,
+      originalUserId: req.session.originalUserId ?? null,
+    });
+  });
+
+  app.post("/api/admin/impersonate/:userId", requireAuth, async (req, res) => {
+    try {
+      const admin = await storage.getUser(req.session.userId!);
+      if (!admin || admin.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can impersonate users" });
+      }
+      const targetId = parseInt(req.params.userId);
+      if (isNaN(targetId)) return res.status(400).json({ message: "Invalid user id" });
+      const target = await storage.getUser(targetId);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.id === admin.id) return res.status(400).json({ message: "Cannot impersonate yourself" });
+      req.session.originalUserId = admin.id;
+      req.session.userId = target.id;
+      const { password: _, ...safeTarget } = target;
+      res.json({ ...safeTarget, isImpersonating: true, originalUserId: admin.id });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/admin/impersonate/stop", requireAuth, async (req, res) => {
+    try {
+      if (!req.session.originalUserId) {
+        return res.status(400).json({ message: "Not currently impersonating" });
+      }
+      const adminId = req.session.originalUserId;
+      req.session.userId = adminId;
+      delete req.session.originalUserId;
+      const admin = await storage.getUser(adminId);
+      if (!admin) return res.status(404).json({ message: "Admin user not found" });
+      const { password: _, ...safeAdmin } = admin;
+      res.json({ ...safeAdmin, isImpersonating: false, originalUserId: null });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
   });
 
   app.post("/api/auth/change-password", requireAuth, async (req, res) => {

@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List, Briefcase, Wrench, RotateCcw, UsersRound } from "lucide-react";
+import { Plus, Trash2, Building2, ShieldCheck, Users, Pencil, Check, X, List, Briefcase, Wrench, RotateCcw, UsersRound, LogIn } from "lucide-react";
 import type { Clinic, Insurance, User, DropdownOption, TeamWithMembers } from "@shared/schema";
 import { DROPDOWN_CATEGORIES } from "@shared/schema";
 
@@ -286,7 +286,8 @@ function InsuranceSettings() {
 
 function UserSettings() {
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, impersonate } = useAuth();
+  const isAdmin = currentUser?.role === "admin";
   const isManager = currentUser?.role === "manager";
   const [newUser, setNewUser] = useState({ username: "", password: "", firstName: "", lastName: "", role: "verifier" });
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -530,6 +531,18 @@ function UserSettings() {
                 </div>
                 {!isManager && (
                   <div className="flex items-center gap-1">
+                    {isAdmin && u.id !== user?.id && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title={`Login as ${u.fullName}`}
+                        onClick={() => impersonate(u.id)}
+                        data-testid={`button-impersonate-${u.id}`}
+                        className="text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                      >
+                        <LogIn className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
