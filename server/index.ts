@@ -36,11 +36,13 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedErrorResponse: unknown;
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
+    // Successful list endpoints can return megabytes of data. Serializing and
+    // logging those bodies again adds substantial CPU, memory, and log I/O.
+    if (res.statusCode >= 400) capturedErrorResponse = bodyJson;
     return originalResJson.apply(res, [bodyJson, ...args]);
   };
 
@@ -48,8 +50,9 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      if (capturedErrorResponse !== undefined) {
+        const errorJson = JSON.stringify(capturedErrorResponse);
+        logLine += ` :: ${errorJson.length > 1000 ? `${errorJson.slice(0, 1000)}…` : errorJson}`;
       }
 
       log(logLine);
