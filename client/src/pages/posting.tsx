@@ -46,6 +46,26 @@ function toInputDate(d: string | Date | null | undefined) {
   return date.toISOString().split("T")[0];
 }
 
+function matchesPostingSearch(posting: Posting, query: string): boolean {
+  const search = query.trim().toLowerCase();
+  if (!search) return true;
+
+  if (Object.values(posting).some(value => value != null && String(value).toLowerCase().includes(search))) {
+    return true;
+  }
+
+  // Amounts are displayed with a dollar sign, commas and two decimal places,
+  // while stored values may contain none of those formatting characters.
+  if (/^\$?\s*-?\d[\d,]*(?:\.\d*)?$/.test(search) && posting.amount) {
+    const amount = Number(String(posting.amount).replace(/[$,\s]/g, ""));
+    if (Number.isFinite(amount)) {
+      const normalizedSearch = search.replace(/[$,\s]/g, "");
+      return amount.toFixed(2).includes(normalizedSearch);
+    }
+  }
+  return false;
+}
+
 
 const emptyForm = {
   fileNumber: "",
@@ -325,7 +345,7 @@ export default function PostingPage() {
 
   const filteredUnsorted = (postingList || []).filter(d => {
     if (!canSeePaymentDocs && (d.documentType || "").toLowerCase() === "payment") return false;
-    if (searchQuery && !Object.values(d).some(v => v && String(v).toLowerCase().includes(searchQuery.toLowerCase()))) return false;
+    if (!matchesPostingSearch(d, searchQuery)) return false;
     if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
     if (filterDocumentType && filterDocumentType !== "__all__" && d.documentType !== filterDocumentType) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
@@ -427,7 +447,7 @@ export default function PostingPage() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search postings..."
+            placeholder="Search postings or amount..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="pl-9"
