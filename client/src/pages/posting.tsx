@@ -397,6 +397,12 @@ export default function PostingPage() {
   }, [activeRecords.map(r => r.id).join(",")]);
   const doneRecords = filtered.filter(d => (d.status || "").toLowerCase() === "done");
 
+  useEffect(() => {
+    if (!searchQuery.trim() || !postingList) return;
+    setMainOpen(activeRecords.length > 0 || doneRecords.length === 0);
+    setDoneOpen(doneRecords.length > 0);
+  }, [searchQuery, postingList, activeRecords.length, doneRecords.length]);
+
   function toggleDoneSort(col: string) {
     if (doneSortCol === col) { if (doneSortDir === "asc") setDoneSortDir("desc"); else { setDoneSortCol(""); setDoneSortDir("asc"); } }
     else { setDoneSortCol(col); setDoneSortDir("asc"); }
@@ -449,7 +455,14 @@ export default function PostingPage() {
           <Input
             placeholder="Search postings or amount..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => {
+              const value = e.target.value;
+              setSearchQuery(value);
+              if (!value.trim()) {
+                setMainOpen(true);
+                setDoneOpen(false);
+              }
+            }}
             className="pl-9"
             data-testid="input-search-postings"
           />
