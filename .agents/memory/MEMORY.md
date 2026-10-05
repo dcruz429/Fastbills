@@ -1,2 +1,3 @@
 - [Replit server timezone bug](server-timezone-date-filter.md) — Replit runs in America/New_York; never use setHours() on UTC-midnight dates in date range filters.
 - [Production API logging](production-api-logging.md) — log request metadata and bounded errors, never successful tracker response bodies.
+- [Tracker amount meaning](tracker-amount-meaning.md) — Open/Done summaries describe tracked record amounts, not receivables or cash collected.
