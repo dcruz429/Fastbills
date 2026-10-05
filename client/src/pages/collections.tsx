@@ -773,7 +773,7 @@ export default function CollectionsPage() {
         )}
       </div>
 
-      <TrackerAmountSummary label="Collections" openRecords={activeRecords} doneRecords={doneRecords} />
+      <TrackerAmountSummary label="Collections" userRole={user.role} openRecords={activeRecords} doneRecords={doneRecords} />
 
       <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto pb-6">
       <Collapsible open={mainOpen} onOpenChange={setMainOpen}>

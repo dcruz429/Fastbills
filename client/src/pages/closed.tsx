@@ -773,7 +773,7 @@ export default function ClosedPage() {
         )}
       </div>
 
-      <TrackerAmountSummary label="RTP" openRecords={openRtpRecords} doneRecords={doneRtpRecords} />
+      <TrackerAmountSummary label="RTP" userRole={user.role} openRecords={openRtpRecords} doneRecords={doneRtpRecords} />
 
       <BulkEditPanel
         selectedCount={selectedIds.size}

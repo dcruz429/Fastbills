@@ -576,7 +576,7 @@ export default function DenialsPage() {
         )}
       </div>
 
-      <TrackerAmountSummary label="Denials" openRecords={activeRecords} doneRecords={doneRecords} />
+      <TrackerAmountSummary label="Denials" userRole={user?.role} openRecords={activeRecords} doneRecords={doneRecords} />
 
       <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto pb-6">
       <Collapsible open={mainOpen} onOpenChange={setMainOpen}>

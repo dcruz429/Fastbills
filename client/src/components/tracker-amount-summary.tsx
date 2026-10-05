@@ -11,19 +11,22 @@ export function sumTrackerAmounts(records: readonly AmountRecord[]): number {
 
 export function TrackerAmountSummary({
   label,
+  userRole,
   openRecords,
   doneRecords,
 }: {
   label: string;
+  userRole: string | undefined;
   openRecords: readonly AmountRecord[];
   doneRecords: readonly AmountRecord[];
 }) {
+  const isAdmin = userRole === "admin";
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       {[
-        { key: "open", title: `Open ${label}`, records: openRecords },
+        ...(isAdmin ? [{ key: "open", title: `Open ${label}`, records: openRecords }] : []),
         { key: "done", title: `Done ${label}`, records: doneRecords },
-        { key: "grand-total", title: "Grand Total", records: [...openRecords, ...doneRecords] },
+        ...(isAdmin ? [{ key: "grand-total", title: "Grand Total", records: [...openRecords, ...doneRecords] }] : []),
       ].map(({ key, title, records }) => (
         <div key={key} className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex flex-wrap items-center gap-2" data-testid={`sum-${key}-amount-box`}>
           <span className="text-sm font-medium text-muted-foreground">{title}:</span>

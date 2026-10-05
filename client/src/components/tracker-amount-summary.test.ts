@@ -26,7 +26,7 @@ for (const label of ["Collections", "Posting", "Denials", "Arbitration", "RTP", 
       { amount: "50", outcome: "Loss" },
       { amount: "25", outcome: "Send to RTP" },
     ];
-    const html = renderToStaticMarkup(createElement(TrackerAmountSummary, { label, openRecords, doneRecords }));
+    const html = renderToStaticMarkup(createElement(TrackerAmountSummary, { label, userRole: "admin", openRecords, doneRecords }));
     assert.ok(html.includes(`Open ${label}:`));
     assert.ok(html.includes(`Done ${label}:`));
     assert.ok(html.includes("$100.00"));
@@ -42,7 +42,7 @@ for (const label of ["Collections", "Posting", "Denials", "Arbitration", "RTP", 
 
 test("empty buckets remain visible with zero amounts and zero records", () => {
   const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
-    label: "Checks", openRecords: [], doneRecords: [],
+    label: "Checks", userRole: "admin", openRecords: [], doneRecords: [],
   }));
   assert.equal(html.match(/\$0\.00/g)?.length, 3);
   assert.equal(html.match(/\(0 records\)/g)?.length, 3);
@@ -50,9 +50,40 @@ test("empty buckets remain visible with zero amounts and zero records", () => {
 
 test("grand total updates with filtered groups and handles a single record", () => {
   const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
-    label: "Collections", openRecords: [], doneRecords: [{ amount: "-$12.50" }],
+    label: "Collections", userRole: "admin", openRecords: [], doneRecords: [{ amount: "-$12.50" }],
   }));
   const grandTotal = html.split('data-testid="sum-grand-total-amount-box"')[1];
   assert.ok(grandTotal.includes("$-12.50"));
   assert.ok(grandTotal.includes("(1 record)"));
+});
+
+for (const label of ["Collections", "Posting", "Denials", "Arbitration", "RTP", "Checks"]) {
+  for (const userRole of ["verifier", "biller", "assigner", "manager", "payment_specialist", "account_manager", "case_manager", undefined]) {
+    test(`${label} hides Open and Grand Total for ${userRole ?? "missing role"}, retaining Done`, () => {
+      const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
+        label,
+        userRole,
+        openRecords: [{ amount: "100" }],
+        doneRecords: [{ amount: "50" }, { amount: "25" }],
+      }));
+      assert.ok(!html.includes("sum-open-amount"));
+      assert.ok(!html.includes("sum-grand-total-amount"));
+      assert.ok(!html.includes(`Open ${label}:`));
+      assert.ok(!html.includes("Grand Total:"));
+      assert.ok(!html.includes("$100.00"));
+      assert.ok(!html.includes("$175.00"));
+      assert.ok(html.includes(`Done ${label}:`));
+      assert.ok(html.includes("$75.00"));
+      assert.ok(html.includes("(2 records)"));
+    });
+  }
+}
+
+test("non-admins still see an empty Done summary", () => {
+  const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
+    label: "Posting", userRole: "manager", openRecords: [], doneRecords: [],
+  }));
+  assert.equal(html.match(/\$0\.00/g)?.length, 1);
+  assert.equal(html.match(/\(0 records\)/g)?.length, 1);
+  assert.ok(html.includes("Done Posting:"));
 });
