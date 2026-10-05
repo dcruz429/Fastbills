@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollSync } from "@/components/scroll-sync";
+import { TrackerAmountSummary } from "@/components/tracker-amount-summary";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -772,20 +773,7 @@ export default function CollectionsPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        {[
-          { key: "open", label: "Open Collections", records: activeRecords },
-          { key: "done", label: "Done Collections", records: doneRecords },
-        ].map(({ key, label, records }) => (
-          <div key={key} className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex flex-wrap items-center gap-2" data-testid={`sum-${key}-amount-box`}>
-            <span className="text-sm font-medium text-muted-foreground">{label}:</span>
-            <span className="text-lg font-bold" data-testid={`sum-${key}-amount-value`}>
-              ${records.reduce((sum, d) => sum + (parseFloat((d.amount || "0").replace(/[^0-9.\-]/g, '')) || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-            <span className="text-xs text-muted-foreground">({records.length} record{records.length !== 1 ? "s" : ""})</span>
-          </div>
-        ))}
-      </div>
+      <TrackerAmountSummary label="Collections" openRecords={activeRecords} doneRecords={doneRecords} />
 
       <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-y-auto pb-6">
       <Collapsible open={mainOpen} onOpenChange={setMainOpen}>

@@ -18,7 +18,7 @@ test("totals currency-formatted, negative, missing, and invalid amounts", () => 
   assert.equal(sumTrackerAmounts([]), 0);
 });
 
-for (const label of ["Posting", "Denials", "Arbitration", "RTP", "Checks"]) {
+for (const label of ["Collections", "Posting", "Denials", "Arbitration", "RTP", "Checks"]) {
   test(`${label} renders separate amounts and counts, including completed outcomes`, () => {
     const openRecords = [{ amount: "100.00", outcome: "Follow-Up" }];
     const doneRecords = [
@@ -33,6 +33,9 @@ for (const label of ["Posting", "Denials", "Arbitration", "RTP", "Checks"]) {
     assert.ok(html.includes("$1,075.00"));
     assert.ok(html.includes("(1 record)"));
     assert.ok(html.includes("(3 records)"));
+    assert.ok(html.includes("Grand Total:"));
+    assert.ok(html.includes("$1,175.00"));
+    assert.ok(html.includes("(4 records)"));
     assert.ok(!html.includes("Total Amount:"));
   });
 }
@@ -41,6 +44,15 @@ test("empty buckets remain visible with zero amounts and zero records", () => {
   const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
     label: "Checks", openRecords: [], doneRecords: [],
   }));
-  assert.equal(html.match(/\$0\.00/g)?.length, 2);
-  assert.equal(html.match(/\(0 records\)/g)?.length, 2);
+  assert.equal(html.match(/\$0\.00/g)?.length, 3);
+  assert.equal(html.match(/\(0 records\)/g)?.length, 3);
+});
+
+test("grand total updates with filtered groups and handles a single record", () => {
+  const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
+    label: "Collections", openRecords: [], doneRecords: [{ amount: "-$12.50" }],
+  }));
+  const grandTotal = html.split('data-testid="sum-grand-total-amount-box"')[1];
+  assert.ok(grandTotal.includes("$-12.50"));
+  assert.ok(grandTotal.includes("(1 record)"));
 });
