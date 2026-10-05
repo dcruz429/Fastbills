@@ -81,6 +81,7 @@ async function handleOutcomeTransfer(
   // ── Task-specific fields ──────────────────────────────────────────────────
   const chartNumber    = record.chartNumber    || null;
   const ieDate         = record.ieDate         || null;
+  const dueDate        = record.dueDate        || null;
   const doa            = record.doa            || null;
   const resolutionDate = record.resolutionDate || null;
 
@@ -141,8 +142,8 @@ async function handleOutcomeTransfer(
   const allClinics    = await storage.getAllClinics();
   const allInsurances = await storage.getAllInsurances();
   const allUsers      = await storage.getAllUsers();
-  const clinicId    = clinic    ? (allClinics.find(c => c.name === clinic)?.id ?? null)        : null;
-  const insuranceId = insurance ? (allInsurances.find(i => i.name === insurance)?.id ?? null)  : null;
+  const clinicId    = record.clinicId ?? (clinic ? (allClinics.find(c => c.name === clinic)?.id ?? null) : null);
+  const insuranceId = record.insuranceId ?? (insurance ? (allInsurances.find(i => i.name === insurance)?.id ?? null) : null);
   const assignedUserId = assignedTo
     ? (allUsers.find(u => u.fullName.trim().toLowerCase() === assignedTo.trim().toLowerCase())?.id ?? null)
     : null;
@@ -184,6 +185,7 @@ async function handleOutcomeTransfer(
         priority: "low",
         status: "unassigned",
         bucket: "ready_for_billing",
+        dueDate,
         notes: combinedNotes,
         rtp: false,
       });
@@ -973,15 +975,17 @@ export async function registerRoutes(
         "Send to Denials", "Send to Arbitration", "Send to RTP", "Send to Closed",
       ];
       if (updates.outcome && OUTCOME_OPTIONS.includes(updates.outcome) && updates.outcome !== existing.outcome) {
-        const clinicName = existing.clinicId ? (await storage.getAllClinics()).find(c => c.id === existing.clinicId)?.name : null;
-        const insuranceName = existing.insuranceId ? (await storage.getAllInsurances()).find(i => i.id === existing.insuranceId)?.name : null;
+        // Transfer the effective task, including edits and recalculated dates from this save.
+        const transferRecord = { ...existing, ...updates };
+        const clinicName = transferRecord.clinicId ? (await storage.getAllClinics()).find(c => c.id === transferRecord.clinicId)?.name : null;
+        const insuranceName = transferRecord.insuranceId ? (await storage.getAllInsurances()).find(i => i.id === transferRecord.insuranceId)?.name : null;
         const taskActivityHistory = await storage.getTaskActivity(id);
         await handleOutcomeTransfer(updates.outcome, "Verification/Billing", {
-          ...existing,
+          ...transferRecord,
           clinic: clinicName || null,
           insurance: insuranceName || null,
           amount: null,
-          notes: existing.notes,
+          notes: transferRecord.notes,
           activityHistory: taskActivityHistory.map(a => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
         if (SEND_TO_OUTCOMES.includes(updates.outcome)) {
