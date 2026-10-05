@@ -9,8 +9,8 @@ Open/Done amount summaries represent the amounts attached to records in each sta
 
 **How to apply:** Keep these summaries bucket-based and responsive to existing filters and role visibility. If outstanding balances or actual receipts are needed, present them as separate financial metrics rather than silently changing these summaries.
 
-Only the exact admin role should see the Open and Grand Total summary cards. Done remains visible to other users who can access each tracker.
+Only the exact admin role should see the Done and Grand Total summary cards. Other users who can access each tracker see only Open.
 
-**Why:** The user explicitly requested that only admins see Open and Grand Total, not the broader manager or editing roles.
+**Why:** The user revised the visibility rule: admins keep all three summaries, while all other roles see only Open, not Done or Grand Total.
 
 **How to apply:** Do not reuse broad admin/manager permission groups for these cards. This is a summary-display rule; it does not change access to individual record amounts.

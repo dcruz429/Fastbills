@@ -59,31 +59,31 @@ test("grand total updates with filtered groups and handles a single record", () 
 
 for (const label of ["Collections", "Posting", "Denials", "Arbitration", "RTP", "Checks"]) {
   for (const userRole of ["verifier", "biller", "assigner", "manager", "payment_specialist", "account_manager", "case_manager", undefined]) {
-    test(`${label} hides Open and Grand Total for ${userRole ?? "missing role"}, retaining Done`, () => {
+    test(`${label} hides Done and Grand Total for ${userRole ?? "missing role"}, retaining Open`, () => {
       const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
         label,
         userRole,
         openRecords: [{ amount: "100" }],
         doneRecords: [{ amount: "50" }, { amount: "25" }],
       }));
-      assert.ok(!html.includes("sum-open-amount"));
+      assert.ok(!html.includes("sum-done-amount"));
       assert.ok(!html.includes("sum-grand-total-amount"));
-      assert.ok(!html.includes(`Open ${label}:`));
+      assert.ok(!html.includes(`Done ${label}:`));
       assert.ok(!html.includes("Grand Total:"));
-      assert.ok(!html.includes("$100.00"));
+      assert.ok(!html.includes("$75.00"));
       assert.ok(!html.includes("$175.00"));
-      assert.ok(html.includes(`Done ${label}:`));
-      assert.ok(html.includes("$75.00"));
-      assert.ok(html.includes("(2 records)"));
+      assert.ok(html.includes(`Open ${label}:`));
+      assert.ok(html.includes("$100.00"));
+      assert.ok(html.includes("(1 record)"));
     });
   }
 }
 
-test("non-admins still see an empty Done summary", () => {
+test("non-admins still see an empty Open summary", () => {
   const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
     label: "Posting", userRole: "manager", openRecords: [], doneRecords: [],
   }));
   assert.equal(html.match(/\$0\.00/g)?.length, 1);
   assert.equal(html.match(/\(0 records\)/g)?.length, 1);
-  assert.ok(html.includes("Done Posting:"));
+  assert.ok(html.includes("Open Posting:"));
 });

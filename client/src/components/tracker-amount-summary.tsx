@@ -24,8 +24,8 @@ export function TrackerAmountSummary({
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       {[
-        ...(isAdmin ? [{ key: "open", title: `Open ${label}`, records: openRecords }] : []),
-        { key: "done", title: `Done ${label}`, records: doneRecords },
+        { key: "open", title: `Open ${label}`, records: openRecords },
+        ...(isAdmin ? [{ key: "done", title: `Done ${label}`, records: doneRecords }] : []),
         ...(isAdmin ? [{ key: "grand-total", title: "Grand Total", records: [...openRecords, ...doneRecords] }] : []),
       ].map(({ key, title, records }) => (
         <div key={key} className="bg-muted/50 border rounded-lg px-4 py-2 inline-flex flex-wrap items-center gap-2" data-testid={`sum-${key}-amount-box`}>
