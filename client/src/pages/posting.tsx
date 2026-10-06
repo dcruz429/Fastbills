@@ -27,6 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { BulkEditPanel, type BulkField } from "@/components/bulk-edit-panel";
 import { parseCsvText } from "@/lib/csv-import";
 import { TrackerAmountSummary } from "@/components/tracker-amount-summary";
+import { PaidStatusBadge, PaidStatusCell } from "@/components/paid-status-cell";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -78,6 +79,7 @@ const emptyForm = {
   assignedTo: "",
   status: "",
   amount: "",
+  paid: false,
   outcome: "",
   activity: "",
   depositDate: "",
@@ -174,6 +176,7 @@ export default function PostingPage() {
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/postings", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
       setDrawerOpen(false);
       setEditingId(null);
       setForm({ ...emptyForm });
@@ -186,10 +189,24 @@ export default function PostingPage() {
     mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => apiRequest("PATCH", `/api/postings/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/postings", editingId, "activity"] });
       toast({ title: "Posting updated" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const paidMutation = useMutation({
+    mutationFn: ({ id, paid }: { id: number; paid: boolean }) => apiRequest("PATCH", `/api/postings/${id}`, { paid }),
+    onSuccess: (_result, variables) => {
+      queryClient.setQueryData<Posting[]>(["/api/postings"], current => current?.map(record => record.id === variables.id ? { ...record, paid: variables.paid } : record));
+      queryClient.invalidateQueries({ queryKey: ["/api/postings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/postings", variables.id, "activity"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
+      if (editingId === variables.id) setForm(current => ({ ...current, paid: variables.paid }));
+      toast({ title: "Paid status updated" });
+    },
+    onError: (e: any) => toast({ title: "Paid status not saved", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -301,6 +318,7 @@ export default function PostingPage() {
       assignedTo: (() => { const raw = (d.assignedTo || "").replace(/\s+/g, ' ').trim(); return activeUsers.find(u => u.fullName.replace(/\s+/g, ' ').trim().toLowerCase() === raw.toLowerCase())?.fullName ?? raw; })(),
       status: d.status || "",
       amount: d.amount || "",
+      paid: d.paid === true,
       outcome: d.outcome || "",
       activity: (d as any).activity || "",
       depositDate: toInputDate(d.depositDate),
@@ -580,6 +598,7 @@ export default function PostingPage() {
               <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("priority")} data-testid="sort-priority">Priority <SortIcon col="priority" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To <SortIcon col="assignedTo" /></TableHead>
               <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount <SortIcon col="amount" /></TableHead>
+              <TableHead className="min-w-[90px]">PAID</TableHead>
               <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
               <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("depositDate")} data-testid="sort-depositDate">Deposit Date <SortIcon col="depositDate" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("depositedBy")} data-testid="sort-depositedBy">Deposited By <SortIcon col="depositedBy" /></TableHead>
@@ -590,7 +609,7 @@ export default function PostingPage() {
           <TableBody>
             {activeRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={(canDelete ? 13 : 12) + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={(canDelete ? 14 : 13) + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                   No postings found
                 </TableCell>
               </TableRow>
@@ -615,7 +634,7 @@ export default function PostingPage() {
                       />
                     </TableCell>
                   )}
-                  <TableCell className="text-sm font-medium">{d.fileNumber || "-"}</TableCell>
+                  <TableCell className="text-sm font-medium">{d.fileNumber || "-"}<PaidStatusBadge paid={d.paid === true} /></TableCell>
                   <TableCell className="text-sm">{d.clinic || "-"}</TableCell>
                   <TableCell className="text-sm">{formatDate(d.scannedDate)}</TableCell>
                   <TableCell className="text-sm">{d.documentType || "-"}</TableCell>
@@ -623,6 +642,7 @@ export default function PostingPage() {
                   <TableCell className="text-sm">{d.priority ? <TrackerPriorityBadge priority={d.priority} /> : "-"}</TableCell>
                   <TableCell className="text-sm">{d.assignedTo || "-"}</TableCell>
                   <TableCell className="text-sm">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                  <TableCell className="text-sm"><PaidStatusCell paid={d.paid === true} canEdit={canEdit} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`posting-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                   <TableCell className="text-sm">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
                   <TableCell className="text-sm">{formatDate(d.depositDate)}</TableCell>
                   <TableCell className="text-sm">{d.depositedBy || "-"}</TableCell>
@@ -666,6 +686,7 @@ export default function PostingPage() {
                       <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
                     ))}
                     <TableHead className="min-w-[100px]">Action</TableHead>
+                    <TableHead className="min-w-[90px]">PAID</TableHead>
                     {canDelete && <TableHead className="min-w-[60px] text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -677,7 +698,7 @@ export default function PostingPage() {
                       onClick={() => canEdit && openEdit(d)}
                       data-testid={`row-posting-done-${d.id}`}
                     >
-                      <TableCell className="text-sm font-medium">{d.fileNumber || "-"}</TableCell>
+                      <TableCell className="text-sm font-medium">{d.fileNumber || "-"}<PaidStatusBadge paid={d.paid === true} /></TableCell>
                       <TableCell className="text-sm">{d.clinic || "-"}</TableCell>
                       <TableCell className="text-sm">{formatDate(d.scannedDate)}</TableCell>
                       <TableCell className="text-sm">{d.documentType || "-"}</TableCell>
@@ -689,6 +710,7 @@ export default function PostingPage() {
                       <TableCell className="text-sm">{formatDate(d.depositDate)}</TableCell>
                       <TableCell className="text-sm">{d.depositedBy || "-"}</TableCell>
                       <TableCell className="text-sm">{(d as any).activity || "-"}</TableCell>
+                      <TableCell className="text-sm"><PaidStatusCell paid={d.paid === true} canEdit={canEdit} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`posting-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       {canDelete && (
                         <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-posting-done-${d.id}`}>
@@ -792,6 +814,10 @@ export default function PostingPage() {
               <div className="space-y-1.5">
                 <Label>Amount</Label>
                 <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-posting-amount" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="posting-paid" checked={form.paid} onCheckedChange={checked => { if (typeof checked === "boolean") setForm(f => ({ ...f, paid: checked })); }} />
+                <Label htmlFor="posting-paid">PAID</Label>
               </div>
               <div className="space-y-1.5">
                 <Label>Deposit Date</Label>

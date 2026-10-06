@@ -36,6 +36,7 @@ const BROAD_ROLES = ["admin", "manager", "assigner", "account_manager", "case_ma
 const CHECKS_ROLES = ["admin", "payment_specialist", "account_manager"];
 const PAYMENT_DOC_ROLES = ["admin", "payment_specialist", "account_manager", "case_manager", "manager"];
 const DETAILS: [string, string][] = [
+  ["paid", "PAID"],
   ["chartNumber", "Chart #"], ["priority", "Priority"], ["bucket", "Source bucket"],
   ["ieDate", "IE Date"], ["dueDate", "Due Date"], ["doa", "DOA"],
   ["resolutionDate", "Resolution Date"], ["inputDate", "Input Date"],
@@ -64,7 +65,7 @@ function detailsFor(record: object) {
   return DETAILS.flatMap(([field, label]) => {
     const value = data[field];
     if (value === null || value === undefined || value === "") return [];
-    return [{ label, value: value instanceof Date ? dateValue(value)?.slice(0, 10) || "Invalid date" : String(value) }];
+    return [{ label, value: typeof value === "boolean" ? (value ? "Yes" : "No") : value instanceof Date ? dateValue(value)?.slice(0, 10) || "Invalid date" : String(value) }];
   });
 }
 

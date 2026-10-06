@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollSync } from "@/components/scroll-sync";
 import { TrackerAmountSummary } from "@/components/tracker-amount-summary";
+import { PaidStatusBadge, PaidStatusCell } from "@/components/paid-status-cell";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
@@ -63,6 +64,7 @@ const emptyForm = {
   dosTo: "",
   numberOfDays: "",
   amount: "",
+  paid: false,
   comments: "",
   comment: "",
   action: "",
@@ -199,6 +201,7 @@ export default function DenialsPage() {
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/denials", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
       setDrawerOpen(false);
       setForm({ ...emptyForm });
       toast({ title: "Denial created" });
@@ -210,6 +213,7 @@ export default function DenialsPage() {
     mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => apiRequest("PATCH", `/api/denials/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/denials", editingId, "activity"] });
       setDrawerOpen(false);
       setEditingId(null);
@@ -217,6 +221,19 @@ export default function DenialsPage() {
       toast({ title: "Denial updated" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const paidMutation = useMutation({
+    mutationFn: ({ id, paid }: { id: number; paid: boolean }) => apiRequest("PATCH", `/api/denials/${id}`, { paid }),
+    onSuccess: (_result, variables) => {
+      queryClient.setQueryData<Denial[]>(["/api/denials"], current => current?.map(record => record.id === variables.id ? { ...record, paid: variables.paid } : record));
+      queryClient.invalidateQueries({ queryKey: ["/api/denials"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/denials", variables.id, "activity"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
+      if (editingId === variables.id) setForm(current => ({ ...current, paid: variables.paid }));
+      toast({ title: "Paid status updated" });
+    },
+    onError: (e: any) => toast({ title: "Paid status not saved", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -302,6 +319,7 @@ export default function DenialsPage() {
       dosTo: toInputDate(denial.dosTo),
       numberOfDays: denial.numberOfDays != null ? String(denial.numberOfDays) : "",
       amount: denial.amount || "",
+      paid: denial.paid === true,
       comments: denial.comments || "",
       comment: denial.comment || "",
       action: denial.action || "",
@@ -653,13 +671,14 @@ export default function DenialsPage() {
                       </div>
                     </TableHead>
                   ))}
+                  <TableHead className="min-w-[90px]">PAID</TableHead>
                   {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activeRecords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={20 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={21 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                       No denials found
                     </TableCell>
                   </TableRow>
@@ -686,7 +705,7 @@ export default function DenialsPage() {
                         />
                       </TableCell>
                     )}
-                    <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                    <TableCell className="text-xs font-medium">{d.patientName}<PaidStatusBadge paid={d.paid === true} /></TableCell>
                     <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                     <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
@@ -709,6 +728,7 @@ export default function DenialsPage() {
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
+                    <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`denial-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600" onClick={() => setSendToArbId(d.id)} title="Send to Arbitration" data-testid={`button-send-arb-${d.id}`}>
@@ -772,6 +792,7 @@ export default function DenialsPage() {
                     ].map(col => (
                       <TableHead key={col.key} style={{ minWidth: col.minW }} className="cursor-pointer select-none whitespace-nowrap" onClick={() => toggleDoneSort(col.key)}>{col.label}<DoneSortIcon col={col.key} /></TableHead>
                     ))}
+                    <TableHead className="min-w-[90px]">PAID</TableHead>
                     {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -780,7 +801,7 @@ export default function DenialsPage() {
                     const isTransferred = (d.comments || "").startsWith("[Transferred from");
                     return (
                     <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-denial-done-${d.id}`}>
-                      <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                      <TableCell className="text-xs font-medium">{d.patientName}<PaidStatusBadge paid={d.paid === true} /></TableCell>
                       <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                       <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
@@ -799,6 +820,7 @@ export default function DenialsPage() {
                       <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                       <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
+                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`denial-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       <TableCell>
                         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                           {canDelete && (
@@ -916,6 +938,10 @@ export default function DenialsPage() {
                   <Label className="text-xs text-muted-foreground">Amount</Label>
                   <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-denial-amount" />
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="denial-paid" checked={form.paid} onCheckedChange={checked => { if (typeof checked === "boolean") setForm(f => ({ ...f, paid: checked })); }} />
+                <Label htmlFor="denial-paid">PAID</Label>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

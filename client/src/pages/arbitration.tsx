@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollSync } from "@/components/scroll-sync";
 import { TrackerAmountSummary } from "@/components/tracker-amount-summary";
+import { PaidStatusBadge, PaidStatusCell } from "@/components/paid-status-cell";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -63,6 +64,7 @@ const emptyForm = {
   dosTo: "",
   numberOfDays: "",
   amount: "",
+  paid: false,
   comments: "",
   filedTo: "",
   arbStatus: "",
@@ -204,6 +206,7 @@ export default function ArbitrationPage() {
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/arbitrations", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
       setDrawerOpen(false);
       setForm({ ...emptyForm });
       toast({ title: "Arbitration created" });
@@ -215,6 +218,7 @@ export default function ArbitrationPage() {
     mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => apiRequest("PATCH", `/api/arbitrations/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrations", editingId, "activity"] });
       setDrawerOpen(false);
       setEditingId(null);
@@ -222,6 +226,19 @@ export default function ArbitrationPage() {
       toast({ title: "Arbitration updated" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const paidMutation = useMutation({
+    mutationFn: ({ id, paid }: { id: number; paid: boolean }) => apiRequest("PATCH", `/api/arbitrations/${id}`, { paid }),
+    onSuccess: (_result, variables) => {
+      queryClient.setQueryData<Arbitration[]>(["/api/arbitrations"], current => current?.map(record => record.id === variables.id ? { ...record, paid: variables.paid } : record));
+      queryClient.invalidateQueries({ queryKey: ["/api/arbitrations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/arbitrations", variables.id, "activity"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
+      if (editingId === variables.id) setForm(current => ({ ...current, paid: variables.paid }));
+      toast({ title: "Paid status updated" });
+    },
+    onError: (e: any) => toast({ title: "Paid status not saved", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -297,6 +314,7 @@ export default function ArbitrationPage() {
       dosTo: toInputDate(arb.dosTo),
       numberOfDays: arb.numberOfDays != null ? String(arb.numberOfDays) : "",
       amount: arb.amount || "",
+      paid: arb.paid === true,
       comments: arb.comments || "",
       filedTo: arb.filedTo || "",
       arbStatus: arb.arbStatus || "",
@@ -627,6 +645,7 @@ export default function ArbitrationPage() {
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosTo")} data-testid="sort-dosTo">DOS To{renderSortIcon("dosTo")}</TableHead>
                   <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("numberOfDays")} data-testid="sort-numberOfDays"># of Visits{renderSortIcon("numberOfDays")}</TableHead>
                   <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount{renderSortIcon("amount")}</TableHead>
+                  <TableHead className="min-w-[90px]">PAID</TableHead>
                   <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To{renderSortIcon("assignedTo")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("activity")} data-testid="sort-activity">Action{renderSortIcon("activity")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status{renderSortIcon("status")}</TableHead>
@@ -651,7 +670,7 @@ export default function ArbitrationPage() {
               <TableBody>
                 {activeRecords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={26 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={27 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
@@ -673,13 +692,14 @@ export default function ArbitrationPage() {
                         />
                       </TableCell>
                     )}
-                    <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                    <TableCell className="text-xs font-medium">{d.patientName}<PaidStatusBadge paid={d.paid === true} /></TableCell>
                     <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                     <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
                     <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                     <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                    <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`arbitration-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                     <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
                     <TableCell className="text-xs">
@@ -748,6 +768,7 @@ export default function ArbitrationPage() {
                     {([["patientName","Patient Name","130px"],["clinic","Clinic","100px"],["insurance","Insurance","100px"],["dosFrom","DOS From","90px"],["dosTo","DOS To","90px"],["numberOfDays","# of Visits","70px"],["amount","Amount","80px"],["assignedTo","Assigned To","110px"],["action","Action","100px"],["status","Status","100px"],["outcome","Outcome","100px"],["denialFileName","File Name","120px"],["dateInput","Date Input","90px"],["intake","Intake","80px"],["doa","DOA","90px"],["dateOfLetter","Date of Letter","100px"],["typeOfDenial","Type of Denial","120px"],["effectiveDate","Effective Date","100px"],["filedTo","Filed To","80px"],["arbStatus","ARB Status","90px"],["trialDate","Trial Date","90px"],["arbPaymentStatus","ARB Payment","110px"],["amountReceived","Amt Received","90px"],["checkedBy","Checked By","90px"],["comment","Comment","120px"]] as [string,string,string][]).map(([col,label,minW]) => (
                       <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
                     ))}
+                    <TableHead className="min-w-[90px]">PAID</TableHead>
                     {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -756,7 +777,7 @@ export default function ArbitrationPage() {
                     const isTransferred = (d.comments || "").startsWith("[Transferred from");
                     return (
                     <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-done-${d.id}`}>
-                      <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                      <TableCell className="text-xs font-medium">{d.patientName}<PaidStatusBadge paid={d.paid === true} /></TableCell>
                       <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                       <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.dosFrom)}</TableCell>
@@ -781,6 +802,7 @@ export default function ArbitrationPage() {
                       <TableCell className="text-xs">{d.amountReceived ? (() => { const n = parseFloat(d.amountReceived.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amountReceived : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                       <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
                       <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
+                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`arbitration-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           {canDelete && (
@@ -889,6 +911,10 @@ export default function ArbitrationPage() {
                   <Label className="text-xs text-muted-foreground">Amount</Label>
                   <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-arb-amount" />
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="arbitration-paid" checked={form.paid} onCheckedChange={checked => { if (typeof checked === "boolean") setForm(f => ({ ...f, paid: checked })); }} />
+                <Label htmlFor="arbitration-paid">PAID</Label>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

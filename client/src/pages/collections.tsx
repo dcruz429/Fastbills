@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TrackerPriorityBadge, TrackerStatusBadge } from "@/components/status-badge";
 import { ScrollSync } from "@/components/scroll-sync";
 import { TrackerAmountSummary } from "@/components/tracker-amount-summary";
+import { PaidStatusBadge, PaidStatusCell } from "@/components/paid-status-cell";
 
 function formatDate(d: string | Date | null | undefined) {
   if (!d) return "";
@@ -57,6 +58,7 @@ const emptyForm = {
   dosTo: "",
   numberOfVisits: "",
   amount: "",
+  paid: false,
   issueType: "",
   typeOfDenial: "",
   action: "",
@@ -227,6 +229,7 @@ export default function CollectionsPage() {
     mutationFn: (data: typeof emptyForm) => apiRequest("POST", "/api/collections", formToPayload(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
       setDialogOpen(false);
       setForm({ ...emptyForm });
       toast({ title: "Collection created" });
@@ -238,12 +241,26 @@ export default function CollectionsPage() {
     mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => apiRequest("PATCH", `/api/collections/${id}`, formToPayload(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
       setDialogOpen(false);
       setEditingId(null);
       setForm({ ...emptyForm });
       toast({ title: "Collection updated" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const paidMutation = useMutation({
+    mutationFn: ({ id, paid }: { id: number; paid: boolean }) => apiRequest("PATCH", `/api/collections/${id}`, { paid }),
+    onSuccess: (_result, variables) => {
+      queryClient.setQueryData<Collection[]>(["/api/collections"], current => current?.map(record => record.id === variables.id ? { ...record, paid: variables.paid } : record));
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/collections", variables.id, "activity"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-overview"] });
+      if (editingId === variables.id) setForm(current => ({ ...current, paid: variables.paid }));
+      toast({ title: "Paid status updated" });
+    },
+    onError: (e: any) => toast({ title: "Paid status not saved", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -466,6 +483,7 @@ export default function CollectionsPage() {
       dosTo: toInputDate(c.dosTo),
       numberOfVisits: c.numberOfVisits?.toString() || "",
       amount: c.amount || "",
+      paid: c.paid === true,
       issueType: c.issueType || "",
       typeOfDenial: c.typeOfDenial || "",
       action: c.action || "",
@@ -824,6 +842,7 @@ export default function CollectionsPage() {
               <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("dosTo")} data-testid="sort-dosTo">DOS To <SortIcon col="dosTo" /></TableHead>
               <TableHead className="min-w-[70px] cursor-pointer select-none" onClick={() => handleSort("numberOfVisits")} data-testid="sort-numberOfVisits"># of Visits <SortIcon col="numberOfVisits" /></TableHead>
               <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("amount")} data-testid="sort-amount">Amount <SortIcon col="amount" /></TableHead>
+              <TableHead className="min-w-[90px]">PAID</TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("assignedTo")} data-testid="sort-assignedTo">Assigned To <SortIcon col="assignedTo" /></TableHead>
               <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("action")} data-testid="sort-action">Action <SortIcon col="action" /></TableHead>
               <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("status")} data-testid="sort-status">Status <SortIcon col="status" /></TableHead>
@@ -839,7 +858,7 @@ export default function CollectionsPage() {
           <TableBody>
             {activeRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={18 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={19 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                   No collections found
                 </TableCell>
               </TableRow>
@@ -861,7 +880,7 @@ export default function CollectionsPage() {
                       />
                     </TableCell>
                   )}
-                  <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                  <TableCell className="text-xs font-medium">{d.patientName}<PaidStatusBadge paid={d.paid === true} /></TableCell>
                   <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                   <TableCell className="text-xs">{d.division ? <Badge variant="outline" className="text-xs">{d.division}</Badge> : "-"}</TableCell>
                   <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
@@ -869,6 +888,7 @@ export default function CollectionsPage() {
                   <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                   <TableCell className="text-xs text-center">{d.numberOfVisits ?? "-"}</TableCell>
                   <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                  <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={canEdit} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`collection-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                   <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                   <TableCell className="text-xs">{d.action || "-"}</TableCell>
                   <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
@@ -921,6 +941,7 @@ export default function CollectionsPage() {
                     ))}
                     <TableHead className="min-w-[120px]">Priority</TableHead>
                     <TableHead className="min-w-[70px]">Ageing</TableHead>
+                    <TableHead className="min-w-[90px]">PAID</TableHead>
                     {canDelete && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -929,7 +950,7 @@ export default function CollectionsPage() {
                     const isTransferred = (d.notes || "").startsWith("[Transferred from");
                     return (
                     <TableRow key={d.id} data-testid={`row-collection-done-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
-                      <TableCell className="text-xs font-medium">{d.patientName}</TableCell>
+                      <TableCell className="text-xs font-medium">{d.patientName}<PaidStatusBadge paid={d.paid === true} /></TableCell>
                       <TableCell className="text-xs">{d.clinic || "-"}</TableCell>
                       <TableCell className="text-xs">{d.division ? <Badge variant="outline" className="text-xs">{d.division}</Badge> : "-"}</TableCell>
                       <TableCell className="text-xs">{d.insurance || "-"}</TableCell>
@@ -946,6 +967,7 @@ export default function CollectionsPage() {
                       <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
                       <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <TrackerPriorityBadge priority={p} /> : "-"; })()}</TableCell>
                       <TableCell className="text-xs font-medium">{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
+                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={canEdit} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`collection-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       {canDelete && (
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-done-${d.id}`}>
@@ -1062,6 +1084,10 @@ export default function CollectionsPage() {
                   <Label className="text-xs text-muted-foreground">Amount</Label>
                   <Input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="$0.00" data-testid="input-collection-amount" />
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="collection-paid" checked={form.paid} onCheckedChange={checked => { if (typeof checked === "boolean") setForm(f => ({ ...f, paid: checked })); }} />
+                <Label htmlFor="collection-paid">PAID</Label>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">

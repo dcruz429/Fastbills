@@ -14,6 +14,7 @@ import { eq, desc, and, inArray } from "drizzle-orm";
 import { buildPatientOverview } from "./patient-overview";
 import { searchPatientRecords } from "./patient-overview-query";
 import { patientSearchTokens } from "../shared/patient-overview";
+import { isPaidOnlyUpdate, validatePaidFlag } from "./paid-flag";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -46,8 +47,17 @@ async function getAssigneeUserId(assignedName: string | null | undefined): Promi
 }
 
 function autoAssignStatus(data: any, existing?: any): any {
+  if (existing && isPaidOnlyUpdate(data)) return data;
   const newAssigned = data.assignedTo !== undefined ? data.assignedTo : existing?.assignedTo;
   const newStatus = data.status !== undefined ? data.status : existing?.status;
+  // Forms submit every field. A changed PAID checkbox must not implicitly
+  // reassign the workflow status when assignment/status themselves are unchanged.
+  const normalized = (value: unknown) => String(value ?? "").trim();
+  if (existing && typeof data.paid === "boolean" && data.paid !== existing.paid
+    && normalized(newAssigned) === normalized(existing.assignedTo)
+    && normalized(newStatus) === normalized(existing.status)) {
+    return data;
+  }
   const hasAssignee = newAssigned != null && String(newAssigned).trim() !== "";
   const statusEmpty = !newStatus || ["", "unassigned"].includes(String(newStatus).trim().toLowerCase());
   if (hasAssignee && statusEmpty) {
@@ -76,6 +86,7 @@ async function handleOutcomeTransfer(
   const clinic      = record.clinic      || null;
   const insurance   = record.insurance   || null;
   const amount      = record.amount      || null;
+  const paid        = record.paid === true;
   const assignedTo  = record.assignedTo  || null;
 
   // Notes — denials/arbitration use "comments", everything else uses "notes"
@@ -212,6 +223,7 @@ async function handleOutcomeTransfer(
         clinic,
         insurance,
         amount,
+        paid,
         assignedTo,
         fileNumber,
         documentType,
@@ -231,6 +243,7 @@ async function handleOutcomeTransfer(
         clinic,
         insurance,
         amount,
+        paid,
         assignedTo,
         dosFrom,
         dosTo,
@@ -254,6 +267,7 @@ async function handleOutcomeTransfer(
         clinic,
         insurance,
         amount,
+        paid,
         assignedTo,
         dosFrom,
         dosTo,
@@ -284,6 +298,7 @@ async function handleOutcomeTransfer(
         clinic,
         insurance,
         amount,
+        paid,
         assignedTo,
         dosFrom,
         dosTo,
@@ -1185,6 +1200,7 @@ export async function registerRoutes(
   });
 
   const denialFieldLabels: Record<string, string> = {
+    paid: "PAID",
     denialFileName: "File Name", dateInput: "Date Input", intake: "Intake", doa: "DOA",
     clinic: "Clinic", patientName: "Patient Name", insurance: "Insurance",
     dateOfLetter: "Date of Letter", typeOfDenial: "Type of Denial", effectiveDate: "Effective Date",
@@ -1197,7 +1213,7 @@ export async function registerRoutes(
 
   const denialTrackFields = Object.keys(denialFieldLabels);
 
-  app.post("/api/denials", requireAuth, async (req, res) => {
+  app.post("/api/denials", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const data: any = { ...req.body };
       const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"];
@@ -1232,7 +1248,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/denials/:id", requireAuth, async (req, res) => {
+  app.patch("/api/denials/:id", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const existing = await storage.getDenial(id);
@@ -1252,6 +1268,7 @@ export async function registerRoutes(
         const denialActivityHistory = await storage.getDenialActivity(id);
         await handleOutcomeTransfer(data.outcome, "Denials", {
           ...existing,
+          paid: data.paid ?? existing.paid,
           activityHistory: denialActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -1354,6 +1371,7 @@ export async function registerRoutes(
       const denial = await storage.getDenial(parseInt(req.params.id));
       if (!denial) return res.status(404).json({ message: "Denial not found" });
       const arbData = {
+        paid: denial.paid,
         denialFileName: denial.denialFileName,
         dateInput: denial.dateInput,
         intake: denial.intake,
@@ -1446,6 +1464,7 @@ export async function registerRoutes(
   });
 
   const arbFieldLabels: Record<string, string> = {
+    paid: "PAID",
     denialFileName: "File Name", dateInput: "Date Input", intake: "Intake", doa: "DOA",
     clinic: "Clinic", patientName: "Patient Name", insurance: "Insurance",
     dateOfLetter: "Date of Letter", typeOfDenial: "Type of Denial", effectiveDate: "Effective Date",
@@ -1457,7 +1476,7 @@ export async function registerRoutes(
   };
   const arbTrackFields = Object.keys(arbFieldLabels);
 
-  app.post("/api/arbitrations", requireAuth, async (req, res) => {
+  app.post("/api/arbitrations", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const data: any = { ...req.body };
       const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"];
@@ -1490,7 +1509,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/arbitrations/:id", requireAuth, async (req, res) => {
+  app.patch("/api/arbitrations/:id", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const existing = await storage.getArbitration(id);
@@ -1509,6 +1528,7 @@ export async function registerRoutes(
         const arbActivityHistory = await storage.getArbitrationActivity(id);
         await handleOutcomeTransfer(data.outcome, "Arbitration", {
           ...existing,
+          paid: data.paid ?? existing.paid,
           activityHistory: arbActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -1657,6 +1677,7 @@ export async function registerRoutes(
   });
 
   const collectionFieldLabels: Record<string, string> = {
+    paid: "PAID",
     patientName: "Patient's Name", inputDate: "Input Date", clinic: "Clinic", division: "Division",
     insurance: "Insurance", dosFrom: "DOS From", dosTo: "DOS To", numberOfVisits: "# of Visits",
     amount: "Amount", issueType: "Issue Type", typeOfDenial: "Type of Denial", action: "Activity",
@@ -1664,7 +1685,7 @@ export async function registerRoutes(
   };
   const collectionTrackFields = Object.keys(collectionFieldLabels);
 
-  app.post("/api/collections", requireAuth, async (req, res) => {
+  app.post("/api/collections", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !ADMIN_ROLES.includes(user.role)) {
@@ -2044,7 +2065,7 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.patch("/api/collections/:id", requireAuth, async (req, res) => {
+  app.patch("/api/collections/:id", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !ADMIN_ROLES.includes(user.role)) {
@@ -2065,6 +2086,7 @@ export async function registerRoutes(
         const collActivityHistory = await storage.getCollectionActivity(id);
         await handleOutcomeTransfer(data.outcome, "Collections", {
           ...existing,
+          paid: data.paid ?? existing.paid,
           activityHistory: collActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -2311,7 +2333,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/postings", requireAuth, async (req, res) => {
+  app.post("/api/postings", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !ADMIN_ROLES.includes(user.role)) {
@@ -2341,7 +2363,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/postings/:id", requireAuth, async (req, res) => {
+  app.patch("/api/postings/:id", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || !ADMIN_ROLES.includes(user.role)) {
@@ -2359,6 +2381,7 @@ export async function registerRoutes(
         const postingActivityHistory = await storage.getPostingActivity(id);
         await handleOutcomeTransfer(data.outcome, "Posting", {
           ...existing,
+          paid: data.paid ?? existing.paid,
           activityHistory: postingActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -2366,18 +2389,18 @@ export async function registerRoutes(
       const postingCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       const postingDateFields = new Set(["scannedDate", "postedDate"]);
       const normPostingDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
-      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount", "outcome", "activity"];
+      const trackFields = ["fileNumber", "clinic", "documentType", "priority", "assignedTo", "status", "scannedDate", "postedDate", "amount", "outcome", "activity", "paid"];
       for (const field of trackFields) {
         const oldRaw = (existing as any)[field];
         const newRaw = data[field];
-        const oldVal = postingDateFields.has(field) ? normPostingDate(oldRaw) : String(oldRaw || "");
-        const newVal = postingDateFields.has(field) ? normPostingDate(newRaw) : String(newRaw || "");
+        const oldVal = field === "paid" ? String(oldRaw === true) : postingDateFields.has(field) ? normPostingDate(oldRaw) : String(oldRaw || "");
+        const newVal = field === "paid" ? String(newRaw === true) : postingDateFields.has(field) ? normPostingDate(newRaw) : String(newRaw || "");
         if (newRaw !== undefined && oldVal !== newVal) {
           const activityUserId = (field === "status" && String(newVal) === "Done") ? (postingCreditId || req.session.userId!) : req.session.userId!;
           await storage.createPostingActivity({
             postingId: id,
             userId: activityUserId,
-            action: `Changed ${field}`,
+            action: field === "paid" ? (newRaw ? "Marked PAID" : "Unmarked PAID") : `Changed ${field}`,
             field,
             oldValue: oldVal ? String(oldVal) : null,
             newValue: newVal ? String(newVal) : null,
