@@ -44,6 +44,24 @@ function viewer(role: User["role"]) {
   return { id: 7, role, fullName: "Test Viewer" };
 }
 
+test("Patient Overview keeps transfer histories but counts dollars only at the destination", () => {
+  const data = fixture();
+  data.collections = [{ ...tracker(30, "Done", "1000"), outcome: "Send to Denials" }];
+  data.denials = [tracker(40, "Unassigned", "1000")];
+  data.posting = [];
+  data.arbitration = [];
+  data.checks = [];
+  const response = buildPatientOverview("Example Patient", data, viewer("admin"));
+  const source = response.sections.find(section => section.id === "collections")!;
+  const destination = response.sections.find(section => section.id === "denials")!;
+  assert.equal(source.records.length, 1);
+  assert.equal(source.records[0].amount, "1000");
+  assert.equal(source.totals.done.amount, 0);
+  assert.equal(source.totals.done.count, 1);
+  assert.equal(destination.totals.open.amount, 1000);
+  assert.equal(response.totals.grandTotal.amount, 1000);
+});
+
 test("case, punctuation, spacing, and name order do not prevent a patient match", () => {
   for (const query of ["patient example", "EXAMPLE, PATIENT", "  example    patient ", "Pat Ex"]) {
     assert.ok(matchesPatientName("Example, Patient", query));

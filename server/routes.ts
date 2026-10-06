@@ -1281,6 +1281,7 @@ export async function registerRoutes(
         const denialActivityHistory = await storage.getDenialActivity(id);
         await handleOutcomeTransfer(data.outcome, "Denials", {
           ...existing,
+          amount: data.amount !== undefined ? data.amount : existing.amount,
           paid: data.paid ?? existing.paid,
           activityHistory: denialActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
@@ -1541,6 +1542,7 @@ export async function registerRoutes(
         const arbActivityHistory = await storage.getArbitrationActivity(id);
         await handleOutcomeTransfer(data.outcome, "Arbitration", {
           ...existing,
+          amount: data.amount !== undefined ? data.amount : existing.amount,
           paid: data.paid ?? existing.paid,
           activityHistory: arbActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
@@ -2099,6 +2101,7 @@ export async function registerRoutes(
         const collActivityHistory = await storage.getCollectionActivity(id);
         await handleOutcomeTransfer(data.outcome, "Collections", {
           ...existing,
+          amount: data.amount !== undefined ? data.amount : existing.amount,
           paid: data.paid ?? existing.paid,
           activityHistory: collActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
@@ -2394,6 +2397,7 @@ export async function registerRoutes(
         const postingActivityHistory = await storage.getPostingActivity(id);
         await handleOutcomeTransfer(data.outcome, "Posting", {
           ...existing,
+          amount: data.amount !== undefined ? data.amount : existing.amount,
           paid: data.paid ?? existing.paid,
           activityHistory: postingActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
@@ -3160,6 +3164,7 @@ export async function registerRoutes(
         const checkActivityHistory = await storage.getCheckActivity(id);
         await handleOutcomeTransfer(data.outcome, "Checks", {
           ...existing,
+          amount: data.amount !== undefined ? data.amount : existing.amount,
           activityHistory: checkActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }
@@ -3436,6 +3441,7 @@ export async function registerRoutes(
         const closedActivityHistory = await storage.getClosedActivity(id);
         await handleOutcomeTransfer(data.outcome, "RTP", {
           ...existing,
+          amount: data.amount !== undefined ? data.amount : existing.amount,
           activityHistory: closedActivityHistory.map((a: any) => ({ field: a.field || "", oldValue: a.oldValue, newValue: a.newValue, action: a.action, timestamp: a.timestamp })),
         }, req.session.userId!);
       }

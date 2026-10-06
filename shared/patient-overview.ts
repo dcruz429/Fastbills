@@ -1,3 +1,5 @@
+import { countedTrackerAmount } from "./tracker-amounts";
+
 export const PATIENT_OVERVIEW_SECTIONS = [
   { id: "verification", label: "Verification", path: "/verification", hasAmounts: false },
   { id: "billing", label: "Billing", path: "/", hasAmounts: false },
@@ -60,14 +62,13 @@ export function matchesPatientName(name: string | null, query: string): boolean 
   return tokens.length > 0 && tokens.every(token => normalized.includes(token));
 }
 
-export function calculatePatientTotals(records: readonly Pick<PatientOverviewRecord, "state" | "amount">[]): PatientOverviewTotals {
+export function calculatePatientTotals(records: readonly (Pick<PatientOverviewRecord, "state" | "amount"> & Partial<Pick<PatientOverviewRecord, "outcome">>)[]): PatientOverviewTotals {
   const open = { count: 0, amount: 0 };
   const done = { count: 0, amount: 0 };
   for (const record of records) {
     const total = record.state === "done" ? done : open;
-    const amount = parseFloat((record.amount || "").replace(/[^0-9.\-]/g, ""));
     total.count++;
-    if (Number.isFinite(amount)) total.amount += amount;
+    total.amount += countedTrackerAmount(record);
   }
   return { open, done, grandTotal: { count: open.count + done.count, amount: open.amount + done.amount } };
 }

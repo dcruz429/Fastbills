@@ -19,7 +19,7 @@ test("totals currency-formatted, negative, missing, and invalid amounts", () => 
 });
 
 for (const label of ["Collections", "Posting", "Denials", "Arbitration", "RTP", "Checks"]) {
-  test(`${label} renders separate amounts and counts, including completed outcomes`, () => {
+  test(`${label} excludes transferred dollars but retains completed amounts and all record counts`, () => {
     const openRecords = [{ amount: "100.00", outcome: "Follow-Up" }];
     const doneRecords = [
       { amount: "$1,000.00", outcome: "Paid" },
@@ -30,13 +30,14 @@ for (const label of ["Collections", "Posting", "Denials", "Arbitration", "RTP", 
     assert.ok(html.includes(`Open ${label}:`));
     assert.ok(html.includes(`Done ${label}:`));
     assert.ok(html.includes("$100.00"));
-    assert.ok(html.includes("$1,075.00"));
+    assert.ok(html.includes("$1,050.00"));
     assert.ok(html.includes("(1 record)"));
     assert.ok(html.includes("(3 records)"));
     assert.ok(html.includes("Grand Total:"));
-    assert.ok(html.includes("$1,175.00"));
+    assert.ok(html.includes("$1,150.00"));
     assert.ok(html.includes("(4 records)"));
     assert.ok(!html.includes("Total Amount:"));
+    assert.ok(html.includes("Transferred-out amounts are excluded"));
   });
 }
 
@@ -86,4 +87,17 @@ test("non-admins still see an empty Open summary", () => {
   assert.equal(html.match(/\$0\.00/g)?.length, 1);
   assert.equal(html.match(/\(0 records\)/g)?.length, 1);
   assert.ok(html.includes("Open Posting:"));
+});
+
+test("Open excludes transferred dollars even if the source was not marked Done", () => {
+  const html = renderToStaticMarkup(createElement(TrackerAmountSummary, {
+    label: "Collections", userRole: "manager",
+    openRecords: [{ amount: "1000", outcome: "Send to Denials" }, { amount: "75", outcome: null }],
+    doneRecords: [],
+  }));
+  assert.ok(html.includes("$75.00"));
+  assert.ok(!html.includes("$1,075.00"));
+  assert.ok(html.includes("(2 records)"));
+  assert.ok(html.includes("Record counts are unchanged."));
+  assert.ok(!html.includes("sum-done-amount"));
 });

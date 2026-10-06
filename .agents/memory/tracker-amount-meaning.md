@@ -3,11 +3,11 @@ name: Tracker amount meaning
 description: Financial meaning of the requested Open and Done tracker summaries.
 ---
 
-Open/Done amount summaries represent the amounts attached to records in each status group, including Paid, Loss, and transfer outcomes. Do not interpret Done amounts as cash received or Open amounts as collectible debt.
+Open/Done amount summaries represent tracked amounts in each status group. Include Paid and Loss outcomes, but exclude transferred-out records' amounts from the source's Open, Done and Grand Total dollar summaries. Keep the amounts visible on source records and retain their record counts.
 
-**Why:** The user requested amounts for the Open and Done buckets, first in Collections and then in Posting, Denials, Arbitration, RTP, and Checks. Outcome exclusions from the older total would obscure completed records and make the new summaries inconsistent with Collections.
+**Why:** The user requested Open/Done summaries across trackers, then explicitly revised the rule to prevent double-counting when an outcome transfer copies a record to another tracker. Source histories remain useful, but their dollars must not be counted again alongside the destination.
 
-**How to apply:** Keep these summaries bucket-based and responsive to existing filters and role visibility. If outstanding balances or actual receipts are needed, present them as separate financial metrics rather than silently changing these summaries.
+**How to apply:** Apply the transferred-out exclusion consistently to tracker cards, Patient Overview and dashboard calculations. Keep existing filters and role visibility. Ordinary completion and the PAID checkbox do not trigger this exclusion. These are tracked amounts, not cash receipts or collectible debt.
 
 Only the exact admin role should see the Done and Grand Total summary cards. Other users who can access each tracker see only Open.
 

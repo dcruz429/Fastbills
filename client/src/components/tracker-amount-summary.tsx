@@ -1,13 +1,6 @@
 import * as React from "react";
-
-type AmountRecord = { amount: string | null | undefined };
-
-export function sumTrackerAmounts(records: readonly AmountRecord[]): number {
-  return records.reduce((sum, record) => {
-    const amount = parseFloat((record.amount || "0").replace(/[^0-9.\-]/g, ""));
-    return sum + (Number.isFinite(amount) ? amount : 0);
-  }, 0);
-}
+import { isTransferredOutcome, sumTrackerAmounts, type TrackerAmountRecord } from "@shared/tracker-amounts";
+export { sumTrackerAmounts } from "@shared/tracker-amounts";
 
 export function TrackerAmountSummary({
   label,
@@ -17,8 +10,8 @@ export function TrackerAmountSummary({
 }: {
   label: string;
   userRole: string | undefined;
-  openRecords: readonly AmountRecord[];
-  doneRecords: readonly AmountRecord[];
+  openRecords: readonly TrackerAmountRecord[];
+  doneRecords: readonly TrackerAmountRecord[];
 }) {
   const isAdmin = userRole === "admin";
   return (
@@ -36,6 +29,11 @@ export function TrackerAmountSummary({
           <span className="text-xs text-muted-foreground">({records.length} record{records.length !== 1 ? "s" : ""})</span>
         </div>
       ))}
+      {[...openRecords, ...doneRecords].some(record => isTransferredOutcome(record.outcome)) && (
+        <p className="basis-full text-xs text-muted-foreground" data-testid="transfer-amount-exclusion-note">
+          Transferred-out amounts are excluded from dollar totals. Record counts are unchanged.
+        </p>
+      )}
     </div>
   );
 }

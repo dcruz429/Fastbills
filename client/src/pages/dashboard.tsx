@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { sumTrackerAmounts } from "@shared/tracker-amounts";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -297,16 +298,11 @@ export default function DashboardPage() {
   const totalAllRecords = statusOverview.reduce((s, v) => s + v.value, 0);
 
   const amountByTracker: { name: string; amount: number; color: string }[] = [];
-  const parseAmount = (v: string | null | undefined) => {
-    if (!v) return 0;
-    const n = parseFloat(v.replace(/[^0-9.\-]/g, ""));
-    return isNaN(n) ? 0 : n;
-  };
   const EXCLUDED_OUTCOMES = ["Paid", "Loss", "RTP", "Send to RTP"];
-  const denialsAmount = allDenials.filter((d: any) => !EXCLUDED_OUTCOMES.includes(d.outcome || "")).reduce((s: number, d: any) => s + parseAmount(d.amount), 0);
-  const collectionsAmount = allCollections.filter((c: any) => !EXCLUDED_OUTCOMES.includes(c.outcome || "")).reduce((s: number, c: any) => s + parseAmount(c.amount), 0);
-  const arbAmount = allArbitrations.filter((a: any) => !EXCLUDED_OUTCOMES.includes(a.outcome || "")).reduce((s: number, a: any) => s + parseAmount(a.amount), 0);
-  const checksAmount = allChecks.filter((c: any) => !EXCLUDED_OUTCOMES.includes(c.outcome || "")).reduce((s: number, c: any) => s + parseAmount(c.amount), 0);
+  const denialsAmount = sumTrackerAmounts(allDenials.filter((d: any) => !EXCLUDED_OUTCOMES.includes(d.outcome || "")));
+  const collectionsAmount = sumTrackerAmounts(allCollections.filter((c: any) => !EXCLUDED_OUTCOMES.includes(c.outcome || "")));
+  const arbAmount = sumTrackerAmounts(allArbitrations.filter((a: any) => !EXCLUDED_OUTCOMES.includes(a.outcome || "")));
+  const checksAmount = sumTrackerAmounts(allChecks.filter((c: any) => !EXCLUDED_OUTCOMES.includes(c.outcome || "")));
   if (denialsAmount > 0) amountByTracker.push({ name: "Denials", amount: denialsAmount, color: "hsl(0 70% 50%)" });
   if (collectionsAmount > 0) amountByTracker.push({ name: "Collections", amount: collectionsAmount, color: "hsl(40 80% 50%)" });
   if (arbAmount > 0) amountByTracker.push({ name: "Arbitration", amount: arbAmount, color: "hsl(140 60% 40%)" });
