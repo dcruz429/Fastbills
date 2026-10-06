@@ -2,3 +2,4 @@
 - [Production API logging](production-api-logging.md) — log request metadata and bounded errors, never successful tracker response bodies.
 - [Tracker amount meaning](tracker-amount-meaning.md) — Open/Done summaries describe tracked record amounts, not receivables or cash collected.
 - [Verification-to-billing continuity](task-transfer-contract.md) — an outcome transfer must retain insurance and the current deadline, including edits made in the same save.
+- [Patient Overview scope](patient-overview-scope.md) — all roles may search across trackers, including other assignees and Done records; original edit permissions remain unchanged.

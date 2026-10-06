@@ -11,6 +11,9 @@ import { z } from "zod";
 import { db, pool } from "./db";
 import { fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS, ceoBox, CEO_USERS, DR_AL_NAME } from "@shared/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
+import { buildPatientOverview } from "./patient-overview";
+import { searchPatientRecords } from "./patient-overview-query";
+import { patientSearchTokens } from "../shared/patient-overview";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -847,6 +850,26 @@ export async function registerRoutes(
       res.json(deduped);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/patient-overview", requireAuth, async (req, res) => {
+    try {
+      const viewer = await storage.getUser(req.session.userId!);
+      if (!viewer || viewer.active === false) return res.status(401).json({ message: "Not authenticated" });
+      const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+      if (search.length > 100 || patientSearchTokens(search).join("").length < 2) {
+        return res.status(400).json({ message: "Enter a patient name with at least 2 letters or numbers, up to 100 characters." });
+      }
+      // All signed-in roles may view matching records here. Original tracker
+      // permissions still control opening/editing records on their own pages.
+      const data = await searchPatientRecords(search);
+      res.json(buildPatientOverview(search, data, viewer));
+    } catch (error: any) {
+      // Database errors may embed query parameters (patient names). Log only
+      // the error class/code, never the search text or returned records.
+      console.error("Patient overview search failed", { name: error?.name, code: error?.code || error?.cause?.code });
+      res.status(500).json({ message: "Unable to search patient records. Please try again." });
     }
   });
 
