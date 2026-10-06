@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { Suspense } from "react";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,55 +11,14 @@ import { LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
-import BoardPage from "@/pages/board";
-import DashboardPage from "@/pages/dashboard";
-import WorkloadPage from "@/pages/workload";
-import BillingQueuePage from "@/pages/billing-queue";
-import NotificationsPage from "@/pages/notifications";
-import SettingsPage from "@/pages/settings";
-import ReportsPage from "@/pages/reports";
-import ProductivityPage from "@/pages/productivity";
-import DenialsPage from "@/pages/denials";
-import TicketsPage from "@/pages/tickets";
-import CollectionsPage from "@/pages/collections";
-import ArbitrationPage from "@/pages/arbitration";
-import MessageBoardPage from "@/pages/message-board";
-import MessagesPage from "@/pages/messages";
-import PostingPage from "@/pages/posting";
-import ChecksPage from "@/pages/checks";
-import VerificationPage from "@/pages/verification";
-import MyTasksPage from "@/pages/my-tasks";
-import ClosedPage from "@/pages/closed";
-import CeoBoxPage from "@/pages/ceo-box";
-import CallCalendarPage from "@/pages/call-calendar";
-import PatientOverviewPage from "@/pages/patient-overview";
+import { pageRoutes } from "@/lib/page-routes";
+import { PageLoadBoundary, PageLoading } from "@/components/page-load-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={BoardPage} />
-      <Route path="/verification" component={VerificationPage} />
-      <Route path="/my-tasks" component={MyTasksPage} />
-      <Route path="/dashboard" component={DashboardPage} />
-      <Route path="/workload" component={WorkloadPage} />
-      <Route path="/billing-queue" component={BillingQueuePage} />
-      <Route path="/notifications" component={NotificationsPage} />
-      <Route path="/settings" component={SettingsPage} />
-      <Route path="/reports" component={ReportsPage} />
-      <Route path="/productivity" component={ProductivityPage} />
-      <Route path="/denials" component={DenialsPage} />
-      <Route path="/arbitration" component={ArbitrationPage} />
-      <Route path="/tickets" component={TicketsPage} />
-      <Route path="/posting" component={PostingPage} />
-      <Route path="/collections" component={CollectionsPage} />
-      <Route path="/checks" component={ChecksPage} />
-      <Route path="/closed" component={ClosedPage} />
-        <Route path="/ceo-box" component={CeoBoxPage} />
-      <Route path="/call-calendar" component={CallCalendarPage} />
-      <Route path="/patient-overview" component={PatientOverviewPage} />
-      <Route path="/message-board" component={MessageBoardPage} />
-      <Route path="/messages" component={MessagesPage} />
+      {pageRoutes.map(({ path, Component }) => <Route key={path} path={path} component={Component} />)}
       <Route component={NotFound} />
     </Switch>
   );
@@ -87,6 +47,7 @@ function ImpersonationBanner() {
 
 function AuthenticatedApp() {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
 
   if (isLoading) {
     return (
@@ -119,7 +80,11 @@ function AuthenticatedApp() {
             <SidebarTrigger data-testid="button-sidebar-toggle" />
           </header>
           <main className="flex-1 overflow-auto">
-            <Router />
+            <PageLoadBoundary key={location}>
+              <Suspense fallback={<PageLoading />}>
+                <Router />
+              </Suspense>
+            </PageLoadBoundary>
           </main>
         </div>
       </div>

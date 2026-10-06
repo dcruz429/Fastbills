@@ -3,3 +3,4 @@
 - [Tracker amount meaning](tracker-amount-meaning.md) — Open/Done summaries describe tracked record amounts, not receivables or cash collected.
 - [Verification-to-billing continuity](task-transfer-contract.md) — an outcome transfer must retain insurance and the current deadline, including edits made in the same save.
 - [Patient Overview scope](patient-overview-scope.md) — all roles may search across trackers, including other assignees and Done records; original edit permissions remain unchanged.
+- [JSX test runtime](jsx-test-runtime.md) — rendering tests must match Vite’s automatic JSX runtime; default tsx can falsely report React is undefined.

@@ -28,6 +28,7 @@ import logoImg from "@assets/FastBills_Logo_1771803683003.jpg";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { preloadPage } from "@/lib/page-routes";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -212,6 +213,8 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     data-testid={`nav-${item.title.toLowerCase().replace(/\s/g, "-")}`}
                     data-active={location === item.url}
+                    onPointerEnter={() => preloadPage(item.url)}
+                    onFocus={() => preloadPage(item.url)}
                     onClick={() => setLocation(item.url)}
                   >
                     <item.icon className="h-4 w-4" />
@@ -230,6 +233,8 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   data-testid="nav-notifications"
                   data-active={location === "/notifications"}
+                  onPointerEnter={() => preloadPage("/notifications")}
+                  onFocus={() => preloadPage("/notifications")}
                   onClick={() => setLocation("/notifications")}
                 >
                   <Bell className="h-4 w-4" />
@@ -255,6 +260,8 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       data-testid={`nav-${item.title.toLowerCase()}`}
                       data-active={location === item.url}
+                      onPointerEnter={() => preloadPage(item.url)}
+                      onFocus={() => preloadPage(item.url)}
                       onClick={() => setLocation(item.url)}
                     >
                       <item.icon className="h-4 w-4" />
