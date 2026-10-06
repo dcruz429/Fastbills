@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,11 +12,13 @@ import { Redirect, useLocation } from "wouter";
 import {
   ChevronDown, ChevronUp, CalendarDays, Trophy, Users, CheckCircle2, TrendingUp,
   FileText, ShieldAlert, Scale, CreditCard, Package, ClipboardList, RotateCcw, BadgeCheck,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import type { User } from "@shared/schema";
+import { filterProductivityTransfers, type ProductivityTransfer } from "@shared/productivity-transfers";
 
 type ProductivityRecord = {
   id: number;
@@ -128,6 +129,8 @@ export default function ProductivityPage() {
   const [sortField, setSortField] = useState<"total" | string>("total");
   const [sortAsc, setSortAsc] = useState(false);
   const [logPage, setLogPage] = useState(1);
+  const [transferPage, setTransferPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("log");
   const LOG_PAGE_SIZE = 50;
 
   if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
@@ -136,6 +139,18 @@ export default function ProductivityPage() {
 
   const { data: records = [], isLoading } = useQuery<ProductivityRecord[]>({
     queryKey: ["/api/productivity"],
+  });
+  const {
+    data: transfers,
+    isLoading: transfersLoading,
+    isError: transfersError,
+    error: transfersQueryError,
+    refetch: refetchTransfers,
+  } = useQuery<ProductivityTransfer[]>({
+    queryKey: ["/api/productivity/transfers"],
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 30_000,
   });
   const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
@@ -176,6 +191,10 @@ export default function ProductivityPage() {
     }
     return true;
   }), [records, selectedUser, selectedDept, dateStart, dateEnd]);
+
+  const filteredTransfers = useMemo(() => filterProductivityTransfers(transfers || [], {
+    selectedUser, selectedDept, dateStart, dateEnd,
+  }), [transfers, selectedUser, selectedDept, dateStart, dateEnd]);
 
   const today = useMemo(() => {
     const s = startOfDay(now);
@@ -235,6 +254,12 @@ export default function ProductivityPage() {
   const logRows = useMemo(() => [...filtered].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [filtered]);
   const logPageCount = Math.max(1, Math.ceil(logRows.length / LOG_PAGE_SIZE));
   const pagedLog = logRows.slice((logPage - 1) * LOG_PAGE_SIZE, logPage * LOG_PAGE_SIZE);
+  const transferRows = useMemo(
+    () => [...filteredTransfers].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+    [filteredTransfers],
+  );
+  const transferPageCount = Math.max(1, Math.ceil(transferRows.length / LOG_PAGE_SIZE));
+  const pagedTransfers = transferRows.slice((transferPage - 1) * LOG_PAGE_SIZE, transferPage * LOG_PAGE_SIZE);
 
   function toggleSort(field: string) {
     if (sortField === field) setSortAsc(v => !v);
@@ -274,10 +299,10 @@ export default function ProductivityPage() {
             <TrendingUp className="h-6 w-6 text-primary" />
             Productivity
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Tracking cases marked <span className="font-medium text-emerald-600">Done</span> across all departments</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Completions track cases marked <span className="font-medium text-emerald-600">Done</span>; transfers track outcome changes between departments.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Select value={selectedDept} onValueChange={v => { setSelectedDept(v); setLogPage(1); }}>
+          <Select value={selectedDept} onValueChange={v => { setSelectedDept(v); setLogPage(1); setTransferPage(1); }}>
             <SelectTrigger className="w-[165px]" data-testid="select-productivity-dept">
               <SelectValue placeholder="All Departments" />
             </SelectTrigger>
@@ -286,7 +311,7 @@ export default function ProductivityPage() {
               {DEPARTMENTS.map(d => <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={selectedUser} onValueChange={v => { setSelectedUser(v); setLogPage(1); }}>
+          <Select value={selectedUser} onValueChange={v => { setSelectedUser(v); setLogPage(1); setTransferPage(1); }}>
             <SelectTrigger className="w-[165px]" data-testid="select-productivity-user">
               <SelectValue placeholder="All Staff" />
             </SelectTrigger>
@@ -313,7 +338,7 @@ export default function ProductivityPage() {
       <div className="flex items-center gap-1.5 flex-wrap">
         {(["today", "last_7_days", "this_month", "last_month", "last_3_months", "all_time"] as PeriodPreset[]).map(p => (
           <Button key={p} size="sm" variant={periodPreset === p ? "default" : "outline"}
-            onClick={() => { setPeriodPreset(p); setSingleDay(""); setLogPage(1); if (p === "last_7_days" || p === "today") setTimeRange("day"); }}
+            onClick={() => { setPeriodPreset(p); setSingleDay(""); setLogPage(1); setTransferPage(1); if (p === "last_7_days" || p === "today") setTimeRange("day"); }}
             data-testid={`button-period-${p}`}>
             {p === "today" ? "Today" : p === "last_7_days" ? "Last 7 Days" : p === "this_month" ? "This Month" : p === "last_month" ? "Last Month" : p === "last_3_months" ? "Last 3 Months" : "All Time"}
           </Button>
@@ -321,14 +346,14 @@ export default function ProductivityPage() {
         <div className="flex items-center gap-1 ml-1 border rounded-md px-2 py-1">
           <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
           <Input type="date" value={singleDay}
-            onChange={e => { setSingleDay(e.target.value); if (e.target.value) { setPeriodPreset("single_day"); setTimeRange("day"); setLogPage(1); } }}
+            onChange={e => { setSingleDay(e.target.value); if (e.target.value) { setPeriodPreset("single_day"); setTimeRange("day"); setLogPage(1); setTransferPage(1); } }}
             className="h-7 w-[135px] border-0 p-0 text-sm shadow-none focus-visible:ring-0"
             data-testid="input-productivity-date" />
         </div>
         <span className="text-sm text-muted-foreground ml-1 italic">Showing: {periodLabel}</span>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900">
@@ -376,6 +401,26 @@ export default function ProductivityPage() {
             </div>
           </CardContent>
         </Card>
+        <Card className="p-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab("transfers")}
+            className="flex h-full w-full items-center gap-3 rounded-xl p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            data-testid="tile-total-transfers"
+            aria-label={`Total Transfers: ${transfersLoading ? "loading" : transfersError ? "unavailable" : filteredTransfers.length}. Open transfer log.`}
+          >
+            <div className="rounded-lg bg-violet-100 p-2 dark:bg-violet-900">
+              <ArrowRightLeft className="h-5 w-5 text-violet-700 dark:text-violet-300" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Transfers</p>
+              <p className="text-2xl font-bold text-violet-700 dark:text-violet-300" data-testid="text-total-transfers">
+                {transfersLoading ? "…" : transfersError ? "—" : filteredTransfers.length}
+              </p>
+              {transfersError && <p className="text-xs text-destructive">Unable to load</p>}
+            </div>
+          </button>
+        </Card>
       </div>
 
       <div>
@@ -388,7 +433,7 @@ export default function ProductivityPage() {
             return (
               <Card key={d.key}
                 className={`cursor-pointer transition-all hover:shadow-md ${active ? "ring-2 ring-primary" : ""}`}
-                onClick={() => { setSelectedDept(active ? "all" : d.key); setLogPage(1); }}
+                onClick={() => { setSelectedDept(active ? "all" : d.key); setLogPage(1); setTransferPage(1); }}
                 data-testid={`card-dept-${d.key}`}>
                 <CardContent className="p-2.5 text-center">
                   <DIcon className={`h-4 w-4 mx-auto mb-1 ${d.color}`} />
@@ -401,9 +446,10 @@ export default function ProductivityPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="log" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="log" data-testid="tab-log">Activity Log</TabsTrigger>
+          <TabsTrigger value="transfers" data-testid="tab-transfers">Transfers</TabsTrigger>
           <TabsTrigger value="employees" data-testid="tab-employees">By Employee</TabsTrigger>
           <TabsTrigger value="chart" data-testid="tab-chart">Over Time</TabsTrigger>
         </TabsList>
@@ -467,6 +513,94 @@ export default function ProductivityPage() {
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" disabled={logPage <= 1} onClick={() => setLogPage(p => p - 1)} data-testid="button-log-prev">Previous</Button>
                         <Button size="sm" variant="outline" disabled={logPage >= logPageCount} onClick={() => setLogPage(p => p + 1)} data-testid="button-log-next">Next</Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transfers">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Transfer Log</h2>
+                <p className="text-sm text-muted-foreground">Outcome changes from one department tracker to another.</p>
+              </div>
+              {!transfersLoading && !transfersError && (
+                <span className="shrink-0 text-sm text-muted-foreground">{filteredTransfers.length} transfers</span>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              {transfersLoading ? (
+                <div className="space-y-3 p-4" aria-label="Loading transfers" data-testid="transfers-loading">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-3/4" />
+                </div>
+              ) : transfersError ? (
+                <div className="flex flex-col items-center gap-3 px-4 py-10 text-center" role="alert" data-testid="transfers-error">
+                  <p className="text-sm font-medium">Transfer activity could not be loaded.</p>
+                  <p className="max-w-md text-sm text-muted-foreground">
+                    {transfersQueryError instanceof Error ? transfersQueryError.message : "Please try again."}
+                  </p>
+                  <Button size="sm" variant="outline" onClick={() => refetchTransfers()} data-testid="button-retry-transfers">
+                    Retry
+                  </Button>
+                </div>
+              ) : transferRows.length === 0 ? (
+                <div className="px-4 py-12 text-center" data-testid="transfers-empty">
+                  <ArrowRightLeft className="mx-auto mb-3 h-6 w-6 text-muted-foreground/60" aria-hidden="true" />
+                  <p className="text-sm font-medium">No transfers found</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Try a wider date range or different staff and source department filters.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[130px]">Date</TableHead>
+                          <TableHead className="min-w-[90px]">Time</TableHead>
+                          <TableHead className="min-w-[150px]">Employee</TableHead>
+                          <TableHead className="min-w-[200px]">Patient / Case</TableHead>
+                          <TableHead className="min-w-[130px]">From</TableHead>
+                          <TableHead className="min-w-[130px]">To</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pagedTransfers.map(transfer => {
+                          const { date, time } = formatTs(transfer.timestamp);
+                          return (
+                            <TableRow key={`${transfer.department}-${transfer.id}`} data-testid={`row-transfer-${transfer.department}-${transfer.id}`}>
+                              <TableCell className="text-sm">{date}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{time}</TableCell>
+                              <TableCell className="text-sm font-medium">{transfer.userName || "—"}</TableCell>
+                              <TableCell className="text-sm">{transfer.patientName || "—"}</TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getDept(transfer.department).badge}`}>
+                                  {transfer.department}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getDept(transfer.destination).badge}`}>
+                                  {transfer.destination}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {transferPageCount > 1 && (
+                    <div className="flex items-center justify-between border-t px-4 py-3">
+                      <span className="text-sm text-muted-foreground">Page {transferPage} of {transferPageCount}</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" disabled={transferPage <= 1} onClick={() => setTransferPage(p => p - 1)} data-testid="button-transfers-prev">Previous</Button>
+                        <Button size="sm" variant="outline" disabled={transferPage >= transferPageCount} onClick={() => setTransferPage(p => p + 1)} data-testid="button-transfers-next">Next</Button>
                       </div>
                     </div>
                   )}

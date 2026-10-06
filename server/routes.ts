@@ -15,6 +15,7 @@ import { buildPatientOverview } from "./patient-overview";
 import { searchPatientRecords } from "./patient-overview-query";
 import { patientSearchTokens } from "../shared/patient-overview";
 import { isPaidOnlyUpdate, validatePaidFlag } from "./paid-flag";
+import { getProductivityTransfers } from "./productivity-transfers";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -865,6 +866,18 @@ export async function registerRoutes(
       res.json(deduped);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/productivity/transfers", requireAuth, async (req, res) => {
+    try {
+      const viewer = await storage.getUser(req.session.userId!);
+      if (!viewer || viewer.active === false || !["admin", "manager", "account_manager", "case_manager"].includes(viewer.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      res.json(await getProductivityTransfers());
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 
