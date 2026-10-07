@@ -1,3 +1,5 @@
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -493,10 +495,10 @@ export default function ChecksPage() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <DebouncedSearchInput
             placeholder="Search checks..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onValueChange={nextSearch => setSearchQuery(nextSearch)}
             className="pl-9"
             data-testid="input-search-checks"
           />
@@ -598,6 +600,8 @@ export default function ChecksPage() {
             )}
             <CardContent className="p-0">
       <ScrollSync className="border-0">
+        <PaginatedTrackerTable rows={activeRecords} label="Open Checks records">
+        {visibleRows => (
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -634,7 +638,7 @@ export default function ChecksPage() {
                   No checks found
                 </TableCell>
               </TableRow>
-            ) : activeRecords.map(d => {
+            ) : visibleRows.map(d => {
               const isTransferred = (d.notes || "").startsWith("[Transferred from");
               const isSelected = selectedIds.has(d.id);
               return (
@@ -679,6 +683,8 @@ export default function ChecksPage() {
             })}
           </TableBody>
         </Table>
+        )}
+        </PaginatedTrackerTable>
       </ScrollSync>
             </CardContent>
           </CollapsibleContent>
@@ -699,6 +705,8 @@ export default function ChecksPage() {
           <CollapsibleContent>
             <CardContent className="p-0">
             <div className="overflow-auto max-h-80 border-t">
+              <PaginatedTrackerTable rows={doneSorted} label="Done Checks records">
+              {visibleRows => (
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -710,7 +718,7 @@ export default function ChecksPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doneSorted.map(d => {
+                  {visibleRows.map(d => {
                     const isTransferred = (d.notes || "").startsWith("[Transferred from");
                     return (
                     <TableRow
@@ -746,6 +754,8 @@ export default function ChecksPage() {
                   })}
                 </TableBody>
               </Table>
+              )}
+              </PaginatedTrackerTable>
             </div>
             </CardContent>
           </CollapsibleContent>

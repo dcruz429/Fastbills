@@ -1,3 +1,5 @@
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -705,10 +707,10 @@ export default function CollectionsPage() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <DebouncedSearchInput
             placeholder="Search collections..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onValueChange={nextSearch => setSearchQuery(nextSearch)}
             className="pl-9"
             data-testid="input-search-collections"
           />
@@ -819,6 +821,8 @@ export default function CollectionsPage() {
         />
       )}
       <ScrollSync className="border-0">
+        <PaginatedTrackerTable rows={activeRecords} label="Open Collections records">
+        {visibleRows => (
         <Table>
           <TableHeader className="sticky top-0 bg-background z-20 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <TableRow>
@@ -863,7 +867,7 @@ export default function CollectionsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              activeRecords.map(d => {
+              visibleRows.map(d => {
                 const isTransferred = (d.notes || "").startsWith("[Transferred from");
                 return (
                 <TableRow key={d.id} data-testid={`row-collection-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
@@ -913,6 +917,8 @@ export default function CollectionsPage() {
             )}
           </TableBody>
         </Table>
+        )}
+        </PaginatedTrackerTable>
       </ScrollSync>
             </CardContent>
           </CollapsibleContent>
@@ -933,6 +939,8 @@ export default function CollectionsPage() {
           <CollapsibleContent>
             <CardContent className="p-0">
             <div className="overflow-auto max-h-80 border-t">
+              <PaginatedTrackerTable rows={doneSorted} label="Done Collections records">
+              {visibleRows => (
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
@@ -946,7 +954,7 @@ export default function CollectionsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doneSorted.map(d => {
+                  {visibleRows.map(d => {
                     const isTransferred = (d.notes || "").startsWith("[Transferred from");
                     return (
                     <TableRow key={d.id} data-testid={`row-collection-done-${d.id}`} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => handleEdit(d)}>
@@ -980,6 +988,8 @@ export default function CollectionsPage() {
                   })}
                 </TableBody>
               </Table>
+              )}
+              </PaginatedTrackerTable>
             </div>
             </CardContent>
           </CollapsibleContent>

@@ -1,3 +1,5 @@
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState, useEffect, useRef } from "react";
@@ -501,10 +503,10 @@ export default function ArbitrationPage() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <DebouncedSearchInput
             placeholder="Search arbitrations..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onValueChange={nextSearch => setSearchQuery(nextSearch)}
             className="pl-9"
             data-testid="input-search-arbitrations"
           />
@@ -623,6 +625,8 @@ export default function ArbitrationPage() {
             />
           )}
           <ScrollSync>
+            <PaginatedTrackerTable rows={activeRecords} label="Open Arbitration records">
+            {visibleRows => (
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
@@ -675,7 +679,7 @@ export default function ArbitrationPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {activeRecords.map(d => {
+                {visibleRows.map(d => {
                   const isTransferred = (d.comments || "").startsWith("[Transferred from");
                   return (
                   <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-${d.id}`}>
@@ -742,6 +746,8 @@ export default function ArbitrationPage() {
                 })}
               </TableBody>
             </Table>
+            )}
+            </PaginatedTrackerTable>
           </ScrollSync>
             </CardContent>
           </CollapsibleContent>
@@ -762,6 +768,8 @@ export default function ArbitrationPage() {
           <CollapsibleContent>
             <CardContent className="p-0">
             <div className="overflow-auto max-h-80 border-t">
+              <PaginatedTrackerTable rows={doneSorted} label="Done Arbitration records">
+              {visibleRows => (
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
@@ -773,7 +781,7 @@ export default function ArbitrationPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doneSorted.map(d => {
+                  {visibleRows.map(d => {
                     const isTransferred = (d.comments || "").startsWith("[Transferred from");
                     return (
                     <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-arbitration-done-${d.id}`}>
@@ -817,6 +825,8 @@ export default function ArbitrationPage() {
                   })}
                 </TableBody>
               </Table>
+              )}
+              </PaginatedTrackerTable>
             </div>
             </CardContent>
           </CollapsibleContent>

@@ -1,3 +1,5 @@
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -282,10 +284,10 @@ export default function BoardPage() {
       <div className="flex items-center gap-2 px-6 pb-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <DebouncedSearchInput
             placeholder="Search patients, clinics, insurance..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={nextSearch => setSearch(nextSearch)}
             className="pl-8"
             data-testid="input-board-search"
           />
@@ -429,6 +431,8 @@ export default function BoardPage() {
                         </div>
                       ) : (
                         <div className="overflow-x-auto">
+                          <PaginatedTrackerTable rows={bucketTasks} label={bucket === "done" ? "Done Billing" : "Open Billing"}>
+                          {visibleRows => (
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b text-xs text-muted-foreground">
@@ -462,7 +466,7 @@ export default function BoardPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {bucketTasks.map((task) => {
+                              {visibleRows.map((task) => {
                                 const isOverdue =
                                   task.dueDate &&
                                   new Date(task.dueDate) < new Date() &&
@@ -548,6 +552,8 @@ export default function BoardPage() {
                               })}
                             </tbody>
                           </table>
+                          )}
+                          </PaginatedTrackerTable>
                         </div>
                       )}
                     </CardContent>

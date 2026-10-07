@@ -1,3 +1,5 @@
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -471,11 +473,11 @@ export default function PostingPage() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <DebouncedSearchInput
             placeholder="Search postings or amount..."
             value={searchQuery}
-            onChange={e => {
-              const value = e.target.value;
+            onValueChange={nextSearch => {
+              const value = nextSearch;
               setSearchQuery(value);
               if (!value.trim()) {
                 setMainOpen(true);
@@ -575,6 +577,8 @@ export default function PostingPage() {
         />
       )}
       <ScrollSync>
+        <PaginatedTrackerTable rows={activeRecords} label="Open Posting records">
+        {visibleRows => (
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
@@ -614,7 +618,7 @@ export default function PostingPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              activeRecords.map(d => (
+              visibleRows.map(d => (
                 <TableRow
                   key={d.id}
                   className={canEdit ? "cursor-pointer hover:bg-muted/50" : ""}
@@ -659,6 +663,8 @@ export default function PostingPage() {
             )}
           </TableBody>
         </Table>
+        )}
+        </PaginatedTrackerTable>
       </ScrollSync>
             </CardContent>
           </CollapsibleContent>
@@ -679,6 +685,8 @@ export default function PostingPage() {
           <CollapsibleContent>
             <CardContent className="p-0">
             <div className="overflow-auto max-h-80 border-t">
+              <PaginatedTrackerTable rows={doneSorted} label="Done Posting records">
+              {visibleRows => (
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
@@ -691,7 +699,7 @@ export default function PostingPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doneSorted.map(d => (
+                  {visibleRows.map(d => (
                     <TableRow
                       key={d.id}
                       className={canEdit ? "cursor-pointer hover:bg-muted/50" : ""}
@@ -722,6 +730,8 @@ export default function PostingPage() {
                   ))}
                 </TableBody>
               </Table>
+              )}
+              </PaginatedTrackerTable>
             </div>
             </CardContent>
           </CollapsibleContent>

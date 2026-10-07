@@ -1,3 +1,5 @@
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -703,10 +705,10 @@ export default function ClosedPage() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <DebouncedSearchInput
             placeholder="Search RTP records..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onValueChange={nextSearch => setSearchQuery(nextSearch)}
             className="pl-9"
             data-testid="input-search-closed"
           />
@@ -817,6 +819,8 @@ export default function ClosedPage() {
                     ) : (() => {
                       const extraCols = getExtraCols(section.key);
                       return (
+                        <PaginatedTrackerTable rows={sectionItems} label="RTP records">
+                        {visibleRows => (
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -860,7 +864,7 @@ export default function ClosedPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {sectionItems.map(d => {
+                            {visibleRows.map(d => {
                               let rec: any = {};
                               try { if (d.recordData) rec = JSON.parse(d.recordData); } catch {}
                               const statusVal = normalizeStatus(d.status || rec.status || "");
@@ -915,6 +919,8 @@ export default function ClosedPage() {
                             })}
                           </TableBody>
                         </Table>
+                        )}
+                        </PaginatedTrackerTable>
                       );
                     })()}
                   </div>

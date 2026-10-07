@@ -1,3 +1,5 @@
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState, useEffect, useRef } from "react";
@@ -500,10 +502,10 @@ export default function DenialsPage() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <DebouncedSearchInput
             placeholder="Search denials..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onValueChange={nextSearch => setSearchQuery(nextSearch)}
             className="pl-9"
             data-testid="input-search-denials"
           />
@@ -622,6 +624,8 @@ export default function DenialsPage() {
             />
           )}
           <ScrollSync>
+            <PaginatedTrackerTable rows={activeRecords} label="Open Denials records">
+            {visibleRows => (
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
@@ -683,7 +687,7 @@ export default function DenialsPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {activeRecords.map(d => {
+                {visibleRows.map(d => {
                   const isTransferred = (d.comments || "").startsWith("[Transferred from");
                   return (
                   <TableRow
@@ -746,6 +750,8 @@ export default function DenialsPage() {
                 })}
               </TableBody>
             </Table>
+            )}
+            </PaginatedTrackerTable>
           </ScrollSync>
             </CardContent>
           </CollapsibleContent>
@@ -766,6 +772,8 @@ export default function DenialsPage() {
           <CollapsibleContent>
             <CardContent className="p-0">
             <div className="overflow-auto max-h-80 border-t">
+              <PaginatedTrackerTable rows={doneSorted} label="Done Denials records">
+              {visibleRows => (
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
@@ -797,7 +805,7 @@ export default function DenialsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doneSorted.map(d => {
+                  {visibleRows.map(d => {
                     const isTransferred = (d.comments || "").startsWith("[Transferred from");
                     return (
                     <TableRow key={d.id} className={`cursor-pointer ${isTransferred ? "text-blue-600 dark:text-blue-400" : ""}`} onClick={() => openEdit(d)} data-testid={`row-denial-done-${d.id}`}>
@@ -835,6 +843,8 @@ export default function DenialsPage() {
                   })}
                 </TableBody>
               </Table>
+              )}
+              </PaginatedTrackerTable>
             </div>
             </CardContent>
           </CollapsibleContent>

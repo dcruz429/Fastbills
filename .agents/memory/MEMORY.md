@@ -6,3 +6,4 @@
 - [JSX test runtime](jsx-test-runtime.md) — rendering tests must match Vite’s automatic JSX runtime; default tsx can falsely report React is undefined.
 - [PAID marker meaning](paid-marker-meaning.md) — PAID is reversible and independent of workflow status, outcomes, and tracked-amount summaries.
 - [Productivity transfer counts](productivity-transfer-counts.md) — count original outcome-transfer events credited to the actor, separate from completions and copied history.
+- [Tracker pagination scope](tracker-pagination-scope.md) — pagination limits rendering, not search coverage, financial totals, exports or bulk-selection scope.

@@ -1,3 +1,5 @@
+import { DebouncedSearchInput } from "@/components/debounced-search-input";
+import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -273,10 +275,10 @@ export default function VerificationPage() {
       <div className="flex items-center gap-2 px-6 pb-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <DebouncedSearchInput
             placeholder="Search patients, clinics, insurance..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={nextSearch => setSearch(nextSearch)}
             className="pl-8"
             data-testid="input-verification-search"
           />
@@ -405,6 +407,8 @@ export default function VerificationPage() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
+                    <PaginatedTrackerTable rows={activeSorted} label="Open Verification records">
+                    {visibleRows => (
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-xs text-muted-foreground">
@@ -439,7 +443,7 @@ export default function VerificationPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {activeSorted.map((task) => {
+                        {visibleRows.map((task) => {
                           const isOverdue =
                             task.dueDate &&
                             new Date(task.dueDate) < new Date() &&
@@ -528,6 +532,8 @@ export default function VerificationPage() {
                         })}
                       </tbody>
                     </table>
+                    )}
+                    </PaginatedTrackerTable>
                   </div>
                 )}
               </CardContent>
@@ -549,6 +555,8 @@ export default function VerificationPage() {
                 <CollapsibleContent>
                   <CardContent className="p-0">
                   <div className="overflow-x-auto border-t">
+                    <PaginatedTrackerTable rows={doneSorted} label="Done Verification records">
+                    {visibleRows => (
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-xs text-muted-foreground">
@@ -565,7 +573,7 @@ export default function VerificationPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {doneSorted.map((task) => {
+                        {visibleRows.map((task) => {
                           const isTransferred = (task.notes || "").startsWith("[Transferred from");
                           return (
                             <tr
@@ -606,6 +614,8 @@ export default function VerificationPage() {
                         })}
                       </tbody>
                     </table>
+                    )}
+                    </PaginatedTrackerTable>
                   </div>
                   </CardContent>
                 </CollapsibleContent>
