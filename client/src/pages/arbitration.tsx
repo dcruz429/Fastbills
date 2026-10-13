@@ -2,7 +2,7 @@ import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +69,7 @@ const emptyForm = {
   paid: false,
   comments: "",
   filedTo: "",
+  filedDate: "",
   arbStatus: "",
   trialDate: "",
   arbPaymentStatus: "",
@@ -176,6 +177,7 @@ export default function ArbitrationPage() {
     { value: "typeOfDenial", label: "Type of Denial", type: "select", options: (denialTypeOpts || []).map(o => o.value) },
     { value: "effectiveDate", label: "Effective Date", type: "date" },
     { value: "filedTo", label: "Filed To", type: "select", options: (filedToOpts || []).map(o => o.value) },
+    { value: "filedDate", label: "Filed Date", type: "date" },
     { value: "arbStatus", label: "ARB Status", type: "select", options: (arbStatusOpts || []).map(o => o.value) },
     { value: "trialDate", label: "Trial Date", type: "date" },
     { value: "arbPaymentStatus", label: "ARB Payment Status", type: "select", options: (arbPaymentOpts || []).map(o => o.value) },
@@ -273,7 +275,7 @@ export default function ArbitrationPage() {
     "clinic": "clinic", "insurance": "insurance",
     "dos from": "dosFrom", "dos to": "dosTo",
     "amount": "amount", "type of denial": "typeOfDenial", "denial type": "typeOfDenial",
-    "date of letter": "dateOfLetter", "filed to": "filedTo",
+    "date of letter": "dateOfLetter", "filed to": "filedTo", "filed date": "filedDate",
     "arb status": "arbStatus", "arb payment status": "arbPaymentStatus",
     "amount received": "amountReceived", "assigned to": "assignedTo",
     "status": "status", "priority": "priority", "outcome": "outcome",
@@ -319,6 +321,7 @@ export default function ArbitrationPage() {
       paid: arb.paid === true,
       comments: arb.comments || "",
       filedTo: arb.filedTo || "",
+      filedDate: toInputDate(arb.filedDate),
       arbStatus: arb.arbStatus || "",
       trialDate: toInputDate(arb.trialDate),
       arbPaymentStatus: arb.arbPaymentStatus || "",
@@ -354,7 +357,7 @@ export default function ArbitrationPage() {
 
   const canDelete = ["admin", "case_manager", "account_manager"].includes(user?.role || "");
 
-  const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
+  const dateColumns = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate", "filedDate"]);
   const numberColumns = new Set(["numberOfDays"]);
 
   function handleSort(col: string) {
@@ -462,7 +465,7 @@ export default function ArbitrationPage() {
     if (doneSortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 inline-block opacity-40" />;
     return doneSortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-1 inline-block" /> : <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
-  const _doneDateCols = new Set(["dosFrom", "dosTo", "dateInput", "doa", "dateOfLetter", "effectiveDate", "trialDate"]);
+  const _doneDateCols = new Set(["dosFrom", "dosTo", "dateInput", "doa", "dateOfLetter", "effectiveDate", "trialDate", "filedDate"]);
   const _doneNumCols = new Set(["numberOfDays", "amount", "amountReceived"]);
   const doneSorted = doneSortCol ? [...doneRecords].sort((a, b) => {
     const vA = (a as any)[doneSortCol] ?? ""; const vB = (b as any)[doneSortCol] ?? "";
@@ -583,6 +586,7 @@ export default function ArbitrationPage() {
             <SelectItem value="doa">Date of Accident</SelectItem>
             <SelectItem value="dateOfLetter">Date of Letter</SelectItem>
             <SelectItem value="effectiveDate">Effective Date</SelectItem>
+            <SelectItem value="filedDate">Filed Date</SelectItem>
             <SelectItem value="dosFrom">DOS From</SelectItem>
             <SelectItem value="dosTo">DOS To</SelectItem>
             <SelectItem value="trialDate">Trial Date</SelectItem>
@@ -662,6 +666,7 @@ export default function ArbitrationPage() {
                   <TableHead className="min-w-[120px] cursor-pointer select-none" onClick={() => handleSort("typeOfDenial")} data-testid="sort-typeOfDenial">Type of Denial{renderSortIcon("typeOfDenial")}</TableHead>
                   <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("effectiveDate")} data-testid="sort-effectiveDate">Effective Date{renderSortIcon("effectiveDate")}</TableHead>
                   <TableHead className="min-w-[80px] cursor-pointer select-none" onClick={() => handleSort("filedTo")} data-testid="sort-filedTo">Filed To{renderSortIcon("filedTo")}</TableHead>
+                  <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => handleSort("filedDate")} data-testid="sort-filedDate">Filed Date{renderSortIcon("filedDate")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("arbStatus")} data-testid="sort-arbStatus">ARB Status{renderSortIcon("arbStatus")}</TableHead>
                   <TableHead className="min-w-[90px] cursor-pointer select-none" onClick={() => handleSort("trialDate")} data-testid="sort-trialDate">Trial Date{renderSortIcon("trialDate")}</TableHead>
                   <TableHead className="min-w-[110px] cursor-pointer select-none" onClick={() => handleSort("arbPaymentStatus")} data-testid="sort-arbPaymentStatus">ARB Payment{renderSortIcon("arbPaymentStatus")}</TableHead>
@@ -674,7 +679,7 @@ export default function ArbitrationPage() {
               <TableBody>
                 {activeRecords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={27 + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={(canDelete ? 28 : 27) + (canBulkEdit ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                       No arbitrations found
                     </TableCell>
                   </TableRow>
@@ -722,6 +727,7 @@ export default function ArbitrationPage() {
                     <TableCell className="text-xs">
                       {d.filedTo ? <TrackerStatusBadge status={d.filedTo} /> : "-"}
                     </TableCell>
+                    <TableCell className="text-xs">{formatDate(d.filedDate)}</TableCell>
                     <TableCell className="text-xs">
                       {d.arbStatus ? <TrackerStatusBadge status={d.arbStatus} /> : "-"}
                     </TableCell>
@@ -774,9 +780,12 @@ export default function ArbitrationPage() {
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     {([["patientName","Patient Name","130px"],["clinic","Clinic","100px"],["insurance","Insurance","100px"],["dosFrom","DOS From","90px"],["dosTo","DOS To","90px"],["numberOfDays","# of Visits","70px"],["amount","Amount","80px"],["assignedTo","Assigned To","110px"],["action","Action","100px"],["status","Status","100px"],["outcome","Outcome","100px"],["denialFileName","File Name","120px"],["dateInput","Date Input","90px"],["intake","Intake","80px"],["doa","DOA","90px"],["dateOfLetter","Date of Letter","100px"],["typeOfDenial","Type of Denial","120px"],["effectiveDate","Effective Date","100px"],["filedTo","Filed To","80px"],["arbStatus","ARB Status","90px"],["trialDate","Trial Date","90px"],["arbPaymentStatus","ARB Payment","110px"],["amountReceived","Amt Received","90px"],["checkedBy","Checked By","90px"],["comment","Comment","120px"]] as [string,string,string][]).map(([col,label,minW]) => (
-                      <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
+                      <Fragment key={col}>
+                        <TableHead className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
+                        {col === "amount" && <TableHead className="min-w-[90px]">PAID</TableHead>}
+                        {col === "filedTo" && <TableHead className="min-w-[100px] cursor-pointer select-none" onClick={() => toggleDoneSort("filedDate")}>Filed Date<DoneSortIcon col="filedDate" /></TableHead>}
+                      </Fragment>
                     ))}
-                    <TableHead className="min-w-[90px]">PAID</TableHead>
                     {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -792,6 +801,7 @@ export default function ArbitrationPage() {
                       <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                       <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                       <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`arbitration-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                       <TableCell className="text-xs">{(d as any).activity || "-"}</TableCell>
                       <TableCell className="text-xs">{(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}</TableCell>
@@ -804,13 +814,13 @@ export default function ArbitrationPage() {
                       <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                       <TableCell className="text-xs">{d.filedTo ? <TrackerStatusBadge status={d.filedTo} /> : "-"}</TableCell>
+                      <TableCell className="text-xs">{formatDate(d.filedDate)}</TableCell>
                       <TableCell className="text-xs">{d.arbStatus ? <TrackerStatusBadge status={d.arbStatus} /> : "-"}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.trialDate)}</TableCell>
                       <TableCell className="text-xs">{d.arbPaymentStatus ? <TrackerStatusBadge status={d.arbPaymentStatus} /> : "-"}</TableCell>
                       <TableCell className="text-xs">{d.amountReceived ? (() => { const n = parseFloat(d.amountReceived.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amountReceived : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
                       <TableCell className="text-xs">{d.checkedBy || "-"}</TableCell>
                       <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
-                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`arbitration-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           {canDelete && (
@@ -1086,6 +1096,10 @@ export default function ArbitrationPage() {
                     </datalist>
                   </div>
                 </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="arb-filed-date" className="text-xs text-muted-foreground">Filed Date</Label>
+                  <Input id="arb-filed-date" type="date" value={form.filedDate} onChange={e => setForm(f => ({ ...f, filedDate: e.target.value }))} data-testid="input-arb-filed-date" />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1257,7 +1271,7 @@ export default function ArbitrationPage() {
                 <input id="csv-file-input-arb" type="file" accept=".csv" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); e.target.value = ""; }} />
               </div>
-              <p className="text-xs text-muted-foreground">Expected columns: Patient Name, Clinic, Insurance, DOS From, DOS To, Amount, Type of Denial, Date of Letter, Filed To, ARB Status, Assigned To, Status, Priority</p>
+              <p className="text-xs text-muted-foreground">Expected columns: Patient Name, Clinic, Insurance, DOS From, DOS To, Amount, Type of Denial, Date of Letter, Filed To, Filed Date, ARB Status, Assigned To, Status, Priority</p>
             </div>
           ) : (
             <div className="space-y-3">

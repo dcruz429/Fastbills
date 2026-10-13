@@ -15,6 +15,7 @@ import { buildPatientOverview } from "./patient-overview";
 import { searchPatientRecords } from "./patient-overview-query";
 import { patientSearchTokens } from "../shared/patient-overview";
 import { isPaidOnlyUpdate, validatePaidFlag } from "./paid-flag";
+import { registerGuidelineBoardRoutes } from "./guideline-board";
 import { getProductivityTransfers } from "./productivity-transfers";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
@@ -1483,7 +1484,7 @@ export async function registerRoutes(
     clinic: "Clinic", patientName: "Patient Name", insurance: "Insurance",
     dateOfLetter: "Date of Letter", typeOfDenial: "Type of Denial", effectiveDate: "Effective Date",
     dosFrom: "DOS From", dosTo: "DOS To", numberOfDays: "# of Days", amount: "Amount",
-    comments: "Comments", filedTo: "Filed To", arbStatus: "ARB Status", trialDate: "Trial Date",
+    comments: "Comments", filedTo: "Filed To", filedDate: "Filed Date", arbStatus: "ARB Status", trialDate: "Trial Date",
     arbPaymentStatus: "ARB Payment Status", amountReceived: "Amount Received",
     checkedBy: "Checked By", comment: "Comment", assignedTo: "Assigned To",
     activity: "Activity", status: "Status",
@@ -1493,12 +1494,15 @@ export async function registerRoutes(
   app.post("/api/arbitrations", requireAuth, validatePaidFlag, async (req, res) => {
     try {
       const data: any = { ...req.body };
-      const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"];
+      const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate", "filedDate"];
       for (const f of dateFields) {
         if (data[f]) {
           data[f] = new Date(data[f]);
         } else {
           data[f] = null;
+        }
+        if (f === "filedDate" && data[f] && isNaN(data[f].getTime())) {
+          return res.status(400).json({ message: "Invalid Filed Date" });
         }
       }
       if (data.numberOfDays !== undefined && data.numberOfDays !== null) {
@@ -1529,10 +1533,13 @@ export async function registerRoutes(
       const existing = await storage.getArbitration(id);
       if (!existing) return res.status(404).json({ message: "Arbitration not found" });
       const data: any = { ...req.body };
-      const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"];
+      const dateFields = ["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate", "filedDate"];
       for (const f of dateFields) {
         if (data[f] !== undefined) {
           data[f] = data[f] ? new Date(data[f]) : null;
+          if (f === "filedDate" && data[f] && isNaN(data[f].getTime())) {
+            return res.status(400).json({ message: "Invalid Filed Date" });
+          }
         }
       }
       if (data.numberOfDays !== undefined) {
@@ -1550,7 +1557,7 @@ export async function registerRoutes(
 
       const arbCreditId = await getAssigneeUserId(data.assignedTo !== undefined ? data.assignedTo : existing.assignedTo);
       autoAssignStatus(data, existing);
-      const arbDateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
+      const arbDateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate", "filedDate"]);
       const normArbDate = (v: any) => { if (!v) return ""; try { return new Date(v).toISOString().slice(0, 10); } catch { return String(v); } };
       for (const field of [...arbTrackFields, "outcome"]) {
         if (data[field] !== undefined) {
@@ -1589,7 +1596,7 @@ export async function registerRoutes(
       const data: any = {};
       for (const k of Object.keys(rawData || {})) if (ALLOWED.has(k)) data[k] = rawData[k];
       if (Object.keys(data).length === 0) return res.status(400).json({ message: "No editable fields provided" });
-      const dateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate"]);
+      const dateFields = new Set(["dateInput", "doa", "dateOfLetter", "effectiveDate", "dosFrom", "dosTo", "trialDate", "filedDate"]);
       for (const f of Array.from(dateFields)) {
         if (data[f] !== undefined) {
           if (data[f] === null || data[f] === "") { data[f] = null; }
@@ -1837,14 +1844,18 @@ export async function registerRoutes(
       if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
       const { rows } = req.body;
       if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
-      const dateFields = ["inputDate", "dosFrom", "dosTo", "dateOfLetter", "trialDate", "effectiveDate"];
+      const dateFields = ["inputDate", "dosFrom", "dosTo", "dateOfLetter", "trialDate", "effectiveDate", "filedDate"];
       const results = { success: 0, updated: 0, errors: [] as string[] };
       const existing = await storage.getAllArbitrations();
       for (let i = 0; i < rows.length; i++) {
         try {
           const data: any = { ...rows[i] };
           if (!data.patientName?.trim()) { results.errors.push(`Row ${i + 1}: Patient Name required`); continue; }
-          for (const f of dateFields) { data[f] = data[f] ? new Date(data[f]) : null; }
+          for (const f of dateFields) {
+            if (f === "filedDate" && data[f] === undefined) continue;
+            data[f] = data[f] ? new Date(data[f]) : null;
+          }
+          if (data.filedDate && isNaN(data.filedDate.getTime())) throw new Error("Invalid Filed Date");
           if (data.amount) data.amount = data.amount.replace(/[$,\s()]/g, "");
           const match = existing.find(r => r.patientName?.toLowerCase().trim() === data.patientName.toLowerCase().trim() && (r.clinic || "").toLowerCase() === (data.clinic || "").toLowerCase());
           if (match) {
@@ -2555,6 +2566,8 @@ export async function registerRoutes(
   });
 
   // Announcements / Message Board
+  registerGuidelineBoardRoutes(app, { storage, requireAuth, upload, saveUploadedFiles });
+
   app.get("/api/announcements/unread-count", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

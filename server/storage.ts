@@ -59,6 +59,10 @@ import {
   type CollectionActivity,
   type InsertCollectionActivity,
   announcements,
+  guidelineModules,
+  type GuidelineModule,
+  type InsertGuidelineModule,
+  type GuidelineModuleWithRelations,
   announcementAcks,
   directMessages,
   type Announcement,
@@ -185,6 +189,10 @@ export interface IStorage {
   createTicketActivity(data: InsertTicketActivity): Promise<any>;
 
   getAllAnnouncements(): Promise<AnnouncementWithRelations[]>;
+  getAllGuidelineModules(): Promise<GuidelineModuleWithRelations[]>;
+  getGuidelineModule(id: number): Promise<GuidelineModule | undefined>;
+  createGuidelineModule(data: InsertGuidelineModule): Promise<GuidelineModule>;
+  updateGuidelineModule(id: number, data: Pick<InsertGuidelineModule, "title" | "body" | "moduleType" | "attachments" | "updatedById">): Promise<GuidelineModule | undefined>;
   createAnnouncement(data: InsertAnnouncement): Promise<Announcement>;
   deleteAnnouncement(id: number): Promise<void>;
   acknowledgeAnnouncement(announcementId: number, userId: number): Promise<void>;
@@ -731,6 +739,33 @@ export class DatabaseStorage implements IStorage {
   async createTicketActivity(data: InsertTicketActivity): Promise<any> {
     const [activity] = await db.insert(ticketActivity).values(data).returning();
     return activity;
+  }
+
+  async getAllGuidelineModules(): Promise<GuidelineModuleWithRelations[]> {
+    const modules = await db.select().from(guidelineModules).orderBy(desc(guidelineModules.updatedAt), desc(guidelineModules.id));
+    const ids = Array.from(new Set(modules.flatMap(module => [module.authorId, module.updatedById]).filter((id): id is number => id !== null)));
+    const names = ids.length ? await db.select({ id: users.id, fullName: users.fullName }).from(users).where(inArray(users.id, ids)) : [];
+    const namesById = new Map(names.map(user => [user.id, user.fullName]));
+    return modules.map(module => ({
+      ...module,
+      authorName: module.authorId === null ? null : namesById.get(module.authorId) ?? null,
+      updatedByName: module.updatedById === null ? null : namesById.get(module.updatedById) ?? null,
+    }));
+  }
+
+  async getGuidelineModule(id: number): Promise<GuidelineModule | undefined> {
+    const [module] = await db.select().from(guidelineModules).where(eq(guidelineModules.id, id));
+    return module;
+  }
+
+  async createGuidelineModule(data: InsertGuidelineModule): Promise<GuidelineModule> {
+    const [module] = await db.insert(guidelineModules).values(data).returning();
+    return module;
+  }
+
+  async updateGuidelineModule(id: number, data: Pick<InsertGuidelineModule, "title" | "body" | "moduleType" | "attachments" | "updatedById">): Promise<GuidelineModule | undefined> {
+    const [module] = await db.update(guidelineModules).set({ ...data, updatedAt: new Date() }).where(eq(guidelineModules.id, id)).returning();
+    return module;
   }
 
   async getAllAnnouncements(): Promise<AnnouncementWithRelations[]> {

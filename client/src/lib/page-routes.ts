@@ -24,6 +24,7 @@ const imports = {
   "/ceo-box": () => import("@/pages/ceo-box"),
   "/call-calendar": () => import("@/pages/call-calendar"),
   "/patient-overview": () => import("@/pages/patient-overview"),
+  "/guideline-board": () => import("@/pages/guideline-board"),
   "/message-board": () => import("@/pages/message-board"),
   "/messages": () => import("@/pages/messages"),
 };

@@ -2,7 +2,7 @@ import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -662,8 +662,8 @@ export default function DenialsPage() {
                     { key: "effectiveDate", label: "Effective Date", minW: "100px" },
                     { key: "comment", label: "Comment", minW: "120px" },
                   ].map(col => (
+                    <Fragment key={col.key}>
                     <TableHead
-                      key={col.key}
                       className="cursor-pointer select-none hover-elevate"
                       style={{ minWidth: col.minW }}
                       onClick={() => handleSort(col.key)}
@@ -674,8 +674,9 @@ export default function DenialsPage() {
                         {renderSortIcon(col.key)}
                       </div>
                     </TableHead>
+                    {col.key === "amount" && <TableHead className="min-w-[90px]">PAID</TableHead>}
+                    </Fragment>
                   ))}
-                  <TableHead className="min-w-[90px]">PAID</TableHead>
                   {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -716,6 +717,7 @@ export default function DenialsPage() {
                     <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                     <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                     <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                    <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`denial-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                     <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                     <TableCell className="text-xs">{d.action || "-"}</TableCell>
                     <TableCell className="text-xs">
@@ -732,7 +734,6 @@ export default function DenialsPage() {
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                     <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
-                    <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`denial-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600" onClick={() => setSendToArbId(d.id)} title="Send to Arbitration" data-testid={`button-send-arb-${d.id}`}>
@@ -798,9 +799,11 @@ export default function DenialsPage() {
                       { key: "effectiveDate", label: "Effective Date", minW: "100px" },
                       { key: "comment", label: "Comment", minW: "120px" },
                     ].map(col => (
-                      <TableHead key={col.key} style={{ minWidth: col.minW }} className="cursor-pointer select-none whitespace-nowrap" onClick={() => toggleDoneSort(col.key)}>{col.label}<DoneSortIcon col={col.key} /></TableHead>
+                      <Fragment key={col.key}>
+                        <TableHead style={{ minWidth: col.minW }} className="cursor-pointer select-none whitespace-nowrap" onClick={() => toggleDoneSort(col.key)}>{col.label}<DoneSortIcon col={col.key} /></TableHead>
+                        {col.key === "amount" && <TableHead className="min-w-[90px]">PAID</TableHead>}
+                      </Fragment>
                     ))}
-                    <TableHead className="min-w-[90px]">PAID</TableHead>
                     {canDelete && <TableHead className="min-w-[80px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -816,6 +819,7 @@ export default function DenialsPage() {
                       <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                       <TableCell className="text-xs">{d.numberOfDays ?? "-"}</TableCell>
                       <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`denial-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                       <TableCell className="text-xs">{d.action || "-"}</TableCell>
                       <TableCell className="text-xs">{(d as any).status ? <TrackerStatusBadge status={(d as any).status} /> : "-"}</TableCell>
@@ -828,7 +832,6 @@ export default function DenialsPage() {
                       <TableCell className="text-xs">{d.typeOfDenial ? <TrackerStatusBadge status={d.typeOfDenial} /> : "-"}</TableCell>
                       <TableCell className="text-xs">{formatDate(d.effectiveDate)}</TableCell>
                       <TableCell className="text-xs max-w-[150px] truncate">{d.comment || "-"}</TableCell>
-                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={isAdminOrManager} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`denial-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       <TableCell>
                         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                           {canDelete && (

@@ -2,7 +2,7 @@ import { DebouncedSearchInput } from "@/components/debounced-search-input";
 import { PaginatedTrackerTable } from "@/components/paginated-tracker-table";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { Fragment, useState, useEffect, useRef, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -945,11 +945,13 @@ export default function CollectionsPage() {
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     {([["patientName","Patient's Name","160px"],["clinic","Clinic","60px"],["division","Division","70px"],["insurance","Insurance","120px"],["dosFrom","DOS From","90px"],["dosTo","DOS To","90px"],["numberOfVisits","# of Visits","70px"],["amount","Amount","80px"],["assignedTo","Assigned To","120px"],["action","Action","120px"],["status","Status","100px"],["outcome","Outcome","100px"],["inputDate","Input Date","90px"],["issueType","Issue Type","120px"],["typeOfDenial","Type of Denial","120px"]] as [string,string,string][]).map(([col,label,minW]) => (
-                      <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
+                      <Fragment key={col}>
+                        <TableHead className="cursor-pointer select-none whitespace-nowrap" style={{minWidth:minW}} onClick={() => toggleDoneSort(col)}>{label}<DoneSortIcon col={col} /></TableHead>
+                        {col === "amount" && <TableHead className="min-w-[90px]">PAID</TableHead>}
+                      </Fragment>
                     ))}
                     <TableHead className="min-w-[120px]">Priority</TableHead>
                     <TableHead className="min-w-[70px]">Ageing</TableHead>
-                    <TableHead className="min-w-[90px]">PAID</TableHead>
                     {canDelete && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -966,6 +968,7 @@ export default function CollectionsPage() {
                       <TableCell className="text-xs">{formatDate(d.dosTo)}</TableCell>
                       <TableCell className="text-xs text-center">{d.numberOfVisits ?? "-"}</TableCell>
                       <TableCell className="text-xs">{d.amount ? (() => { const n = parseFloat(d.amount.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? d.amount : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })() : "-"}</TableCell>
+                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={canEdit} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`collection-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       <TableCell className="text-xs">{d.assignedTo || "-"}</TableCell>
                       <TableCell className="text-xs">{d.action || "-"}</TableCell>
                       <TableCell className="text-xs">{d.status ? <TrackerStatusBadge status={d.status} /> : "-"}</TableCell>
@@ -975,7 +978,6 @@ export default function CollectionsPage() {
                       <TableCell className="text-xs">{d.typeOfDenial || "-"}</TableCell>
                       <TableCell className="text-xs">{(() => { const p = computePriority(d.inputDate); return p ? <TrackerPriorityBadge priority={p} /> : "-"; })()}</TableCell>
                       <TableCell className="text-xs font-medium">{(() => { const a = computeAgeing(d.inputDate); return a !== null ? `${a} days` : "-"; })()}</TableCell>
-                      <TableCell className="text-xs"><PaidStatusCell paid={d.paid === true} canEdit={canEdit} pending={paidMutation.isPending && paidMutation.variables?.id === d.id} busy={paidMutation.isPending} label={`collection-done-${d.id}`} onChange={paid => paidMutation.mutate({ id: d.id, paid })} /></TableCell>
                       {canDelete && (
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirmId(d.id)} data-testid={`button-delete-collection-done-${d.id}`}>

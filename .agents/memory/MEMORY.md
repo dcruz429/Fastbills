@@ -3,7 +3,9 @@
 - [Tracker amount meaning](tracker-amount-meaning.md) — Open/Done summaries describe tracked record amounts, not receivables or cash collected.
 - [Verification-to-billing continuity](task-transfer-contract.md) — an outcome transfer must retain insurance and the current deadline, including edits made in the same save.
 - [Patient Overview scope](patient-overview-scope.md) — all roles may search across trackers, including other assignees and Done records; original edit permissions remain unchanged.
-- [JSX test runtime](jsx-test-runtime.md) — rendering tests must match Vite’s automatic JSX runtime; default tsx can falsely report React is undefined.
+- [UI rendering checks](jsx-test-runtime.md) — match Vite’s automatic JSX runtime; verify generated table headers and record cells, not just column metadata.
 - [PAID marker meaning](paid-marker-meaning.md) — PAID is reversible and independent of workflow status, outcomes, and tracked-amount summaries.
 - [Productivity transfer counts](productivity-transfer-counts.md) — count original outcome-transfer events credited to the actor, separate from completions and copied history.
 - [Tracker pagination scope](tracker-pagination-scope.md) — pagination limits rendering, not search coverage, financial totals, exports or bulk-selection scope.
+- [Optional CSV fields](csv-import-field-preservation.md) — new optional columns must preserve existing values when omitted from an older import template.
+- [Guideline Board scope](guideline-board-scope.md) — shared, editable staff references; admin-only authoring, distinct from broader Message Board permissions.

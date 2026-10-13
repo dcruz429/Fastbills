@@ -247,6 +247,7 @@ export const arbitrations = pgTable("arbitrations", {
   paid: boolean("paid").notNull().default(false),
   comments: text("comments"),
   filedTo: text("filed_to"),
+  filedDate: timestamp("filed_date"),
   arbStatus: text("arb_status"),
   trialDate: timestamp("trial_date"),
   arbPaymentStatus: text("arb_payment_status"),
@@ -384,6 +385,30 @@ export const announcements = pgTable("announcements", {
   attachments: text("attachments").array(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const guidelineModules = pgTable("guideline_modules", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  moduleType: text("module_type").notNull().default("guideline"),
+  attachments: text("attachments").array(),
+  authorId: integer("author_id").references(() => users.id, { onDelete: "set null" }),
+  updatedById: integer("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const guidelineModuleContentSchema = z.object({
+  title: z.string().trim().min(1, "Module title is required").max(200),
+  body: z.string().trim().min(1, "Module content is required").max(100_000),
+  moduleType: z.enum(["guideline", "training"]),
+});
+export type GuidelineModule = typeof guidelineModules.$inferSelect;
+export type InsertGuidelineModule = typeof guidelineModules.$inferInsert;
+export type GuidelineModuleWithRelations = GuidelineModule & {
+  authorName: string | null;
+  updatedByName: string | null;
+};
 
 export const announcementAcks = pgTable("announcement_acks", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
