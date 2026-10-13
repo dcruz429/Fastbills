@@ -8,4 +8,4 @@
 - [Productivity transfer counts](productivity-transfer-counts.md) — count original outcome-transfer events credited to the actor, separate from completions and copied history.
 - [Tracker pagination scope](tracker-pagination-scope.md) — pagination limits rendering, not search coverage, financial totals, exports or bulk-selection scope.
 - [Optional CSV fields](csv-import-field-preservation.md) — new optional columns must preserve existing values when omitted from an older import template.
-- [Guideline Board scope](guideline-board-scope.md) — shared, editable staff references; admin-only authoring, distinct from broader Message Board permissions.
+- [Guidelines Board scope](guideline-board-scope.md) — shared, editable staff references; admin-only authoring, distinct from broader Message Board permissions.

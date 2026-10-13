@@ -37,7 +37,7 @@ function render(role: string, query: object = {}) {
 
 test("admin sees create/edit controls, readable content, attachments and update attribution", () => {
   const html = render("admin");
-  for (const marker of ["button-create-guideline", "button-edit-guideline-1", "Read these steps.", "reference.pdf", "Module editor", "Guideline Board"]) {
+  for (const marker of ["button-create-guideline", "button-edit-guideline-1", "Read these steps.", "reference.pdf", "Module editor", "Guidelines Board"]) {
     assert.ok(html.includes(marker), marker);
   }
 });
@@ -59,9 +59,9 @@ test("loading, empty and retryable errors are explicit, not misleading empty lis
   assert.ok(!error.includes("state-guidelines-empty"));
 });
 
-test("Guideline Board navigation is immediately above Message Board with the same staff visibility", () => {
+test("Guidelines Board navigation is immediately above Message Board with the same staff visibility", () => {
   const sidebar = readFileSync(new URL("./app-sidebar.tsx", import.meta.url), "utf8");
-  const guidelineLine = sidebar.split("\n").findIndex(line => line.includes('title: "Guideline Board"'));
+  const guidelineLine = sidebar.split("\n").findIndex(line => line.includes('title: "Guidelines Board"'));
   assert.equal(sidebar.split("\n")[guidelineLine + 1].includes('title: "Message Board"'), true);
   const guidelineRoles = sidebar.split("\n")[guidelineLine].match(/roles: \[(.*?)\]/)?.[1];
   const messageRoles = sidebar.split("\n")[guidelineLine + 1].match(/roles: \[(.*?)\]/)?.[1];

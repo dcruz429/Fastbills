@@ -208,7 +208,7 @@ export default function GuidelineBoardPage() {
                 Staff reference
               </div>
               <h1 className="text-3xl font-semibold tracking-tight text-[#253b30] sm:text-4xl" data-testid="text-guideline-board-title">
-                Guideline Board
+                Guidelines Board
               </h1>
               <p className="mt-2 max-w-xl text-sm leading-6 text-[#53685b] sm:text-base">
                 Clear, current instructions for the work we do every day.

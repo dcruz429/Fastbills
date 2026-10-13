@@ -1,9 +1,9 @@
 ---
-name: Guideline Board scope
+name: Guidelines Board scope
 description: Authoring permissions and durable-reference semantics for guideline and training modules.
 ---
 
-Guideline Board is a shared staff reference for guideline and training modules that admins create and edit over time, separate from Message Board announcements.
+Guidelines Board is a shared staff reference for guideline and training modules that admins create and edit over time, separate from Message Board announcements.
 
 **Why:** The user specifically asked for an Admin to create modules and update them when instructions change. Unlike Message Board, whose authoring permissions include several other roles, this board deliberately restricts authoring to the actual admin role while allowing signed-in staff to read.
 
