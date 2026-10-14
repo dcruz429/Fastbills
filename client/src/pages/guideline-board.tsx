@@ -3,6 +3,8 @@ import { useMemo, useRef, useState } from "react";
 import type { GuidelineModuleWithRelations } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
+import { useManagedDropdown } from "@/hooks/use-managed-dropdown";
+import { moduleTypeLabel, withStoredDropdownValues } from "@/lib/managed-dropdowns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +25,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "pdf", "doc", "docx", "xls", "xlsx", "csv", "txt"]);
 const ACCEPTED_FILE_TYPES = ".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
 
-type ModuleKind = "guideline" | "training";
-type EditorDraft = { id: number | null; title: string; body: string; moduleType: ModuleKind; retainedAttachments: string[]; files: File[] };
+type EditorDraft = { id: number | null; title: string; body: string; moduleType: string; retainedAttachments: string[]; files: File[] };
 
 function formatDate(value: string | Date | null | undefined) {
   if (!value) return "Date unavailable";
@@ -80,7 +81,7 @@ function ModuleAttachments({ attachments }: { attachments: string[] | null }) {
 }
 
 function emptyDraft(): EditorDraft {
-  return { id: null, title: "", body: "", moduleType: "guideline", retainedAttachments: [], files: [] };
+  return { id: null, title: "", body: "", moduleType: "", retainedAttachments: [], files: [] };
 }
 
 export default function GuidelineBoardPage() {
@@ -90,7 +91,7 @@ export default function GuidelineBoardPage() {
   const [draft, setDraft] = useState<EditorDraft>(emptyDraft);
   const [formError, setFormError] = useState("");
   const [query, setQuery] = useState("");
-  const [kindFilter, setKindFilter] = useState<"all" | ModuleKind>("all");
+  const [kindFilter, setKindFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const modulesQuery = useQuery<GuidelineModuleWithRelations[]>({
@@ -101,10 +102,15 @@ export default function GuidelineBoardPage() {
   });
 
   const modules = modulesQuery.data || [];
+  const moduleTypesQuery = useManagedDropdown("guideline_module_type");
+  const moduleTypeOptions = moduleTypesQuery.values;
+  const moduleTypeFilterOptions = withStoredDropdownValues(moduleTypeOptions, modules.map(module => module.moduleType));
+  const moduleTypeEditorOptions = withStoredDropdownValues(moduleTypeOptions, draft.id === null ? [] : [draft.moduleType]);
+  const canCreate = moduleTypeOptions.length > 0 && !moduleTypesQuery.isError;
   const filteredModules = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return modules
-      .filter((module) => kindFilter === "all" || module.moduleType === kindFilter)
+      .filter((module) => kindFilter === null || module.moduleType === kindFilter)
       .filter((module) => !normalized || `${module.title} ${module.body} ${module.authorName || ""}`.toLowerCase().includes(normalized))
       .slice()
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -141,7 +147,7 @@ export default function GuidelineBoardPage() {
   });
 
   function openNewModule() {
-    setDraft(emptyDraft());
+    setDraft({ ...emptyDraft(), moduleType: moduleTypeOptions[0] || "" });
     setFormError("");
     setEditorOpen(true);
   }
@@ -151,7 +157,7 @@ export default function GuidelineBoardPage() {
       id: module.id,
       title: module.title,
       body: module.body,
-      moduleType: module.moduleType === "training" ? "training" : "guideline",
+      moduleType: module.moduleType,
       retainedAttachments: [...(module.attachments || [])],
       files: [],
     });
@@ -193,7 +199,7 @@ export default function GuidelineBoardPage() {
 
   const remainingAttachments = draft.retainedAttachments.length + draft.files.length;
   const canSave = !!draft.title.trim() && !!draft.body.trim() && draft.title.trim().length <= 200 &&
-    draft.body.trim().length <= 100_000 && remainingAttachments <= MAX_FILES && !saveMutation.isPending;
+    draft.body.trim().length <= 100_000 && !!draft.moduleType.trim() && remainingAttachments <= MAX_FILES && !saveMutation.isPending;
 
   return (
     <main className="min-h-[100dvh] p-4 sm:p-6 lg:p-8" data-testid="page-guideline-board">
@@ -215,7 +221,7 @@ export default function GuidelineBoardPage() {
               </p>
             </div>
             {isAdmin && (
-              <Button onClick={openNewModule} className="shrink-0 bg-[#315844] text-white hover:bg-[#274735]" data-testid="button-create-guideline">
+              <Button onClick={openNewModule} disabled={!canCreate} className="shrink-0 bg-[#315844] text-white hover:bg-[#274735]" data-testid="button-create-guideline">
                 <Plus className="mr-2 h-4 w-4" /> Create module
               </Button>
             )}
@@ -244,19 +250,26 @@ export default function GuidelineBoardPage() {
                   data-testid="input-guideline-search"
                 />
               </div>
-              <Select value={kindFilter} onValueChange={(value) => setKindFilter(value as "all" | ModuleKind)}>
+              <Select value={kindFilter === null ? "all" : `type:${kindFilter}`} onValueChange={value => setKindFilter(value === "all" ? null : value.slice(5))}>
                 <SelectTrigger className="sm:w-40" aria-label="Filter by module type" data-testid="select-guideline-filter">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All modules</SelectItem>
-                  <SelectItem value="guideline">Guidelines</SelectItem>
-                  <SelectItem value="training">Training</SelectItem>
+                  {moduleTypeFilterOptions.map(type => <SelectItem key={type} value={`type:${type}`}>{moduleTypeLabel(type)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
+          {isAdmin && moduleTypesQuery.isError && (
+            <div role="alert" className="mb-4 text-sm text-destructive">
+              Module types could not be loaded. <Button variant="ghost" size="sm" className="underline" onClick={() => void moduleTypesQuery.refetch()}>Try again</Button>
+            </div>
+          )}
+          {isAdmin && !moduleTypesQuery.isLoading && !moduleTypesQuery.isError && moduleTypeOptions.length === 0 && (
+            <p className="mb-4 text-sm text-muted-foreground">Add module types in Admin Settings → Dropdowns before creating a module.</p>
+          )}
           {modulesQuery.isLoading ? (
             <div className="space-y-4" aria-label="Loading guideline modules" data-testid="state-guidelines-loading">
               {[0, 1, 2].map((item) => (
@@ -295,7 +308,7 @@ export default function GuidelineBoardPage() {
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
                   {isAdmin ? "Create the first guideline or training module for your team." : "There are no guideline or training modules yet."}
                 </p>
-                {isAdmin && <Button className="mt-5 bg-[#315844] text-white hover:bg-[#274735]" onClick={openNewModule} data-testid="button-create-first-guideline">Create a module</Button>}
+                {isAdmin && <Button disabled={!canCreate} className="mt-5 bg-[#315844] text-white hover:bg-[#274735]" onClick={openNewModule} data-testid="button-create-first-guideline">Create a module</Button>}
               </CardContent>
             </Card>
           ) : filteredModules.length === 0 ? (
@@ -320,7 +333,7 @@ export default function GuidelineBoardPage() {
                               ? "border border-[#d9c9a5] bg-[#f5f0e4] text-[#765e2d] hover:bg-[#f5f0e4]"
                               : "border border-[#c3d5c9] bg-[#eaf2ec] text-[#3e684e] hover:bg-[#eaf2ec]"}>
                               {training ? <ClipboardList className="mr-1.5 h-3.5 w-3.5" /> : <BookOpen className="mr-1.5 h-3.5 w-3.5" />}
-                              {training ? "Training" : "Guideline"}
+                              {moduleTypeLabel(module.moduleType)}
                             </Badge>
                             {!!module.attachments?.length && (
                               <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
@@ -397,11 +410,10 @@ export default function GuidelineBoardPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="guideline-type">Module type</Label>
-              <Select value={draft.moduleType} onValueChange={(value) => setDraft((current) => ({ ...current, moduleType: value as ModuleKind }))}>
-                <SelectTrigger id="guideline-type" data-testid="select-guideline-type"><SelectValue /></SelectTrigger>
+              <Select value={draft.moduleType} onValueChange={(value) => setDraft((current) => ({ ...current, moduleType: value }))}>
+                <SelectTrigger id="guideline-type" data-testid="select-guideline-type"><SelectValue placeholder="Select a module type" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="guideline">Guideline</SelectItem>
-                  <SelectItem value="training">Training</SelectItem>
+                  {moduleTypeEditorOptions.map(type => <SelectItem key={type} value={type}>{moduleTypeLabel(type)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

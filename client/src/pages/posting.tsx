@@ -7,7 +7,9 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Redirect } from "wouter";
 import type { Posting, User, Clinic } from "@shared/schema";
-import { POSTING_DOCUMENT_TYPES, POSTING_STATUS_OPTIONS, POSTING_PRIORITY_OPTIONS, OUTCOME_OPTIONS } from "@shared/schema";
+import { POSTING_STATUS_OPTIONS, POSTING_PRIORITY_OPTIONS, OUTCOME_OPTIONS } from "@shared/schema";
+import { useManagedDropdown } from "@/hooks/use-managed-dropdown";
+import { withStoredDropdownValues } from "@/lib/managed-dropdowns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,6 +156,10 @@ export default function PostingPage() {
   const { data: postingActivityOptions } = useQuery<any[]>({
     queryKey: ["/api/dropdown-options/posting_action"],
   });
+  const documentTypesQuery = useManagedDropdown("posting_document_type");
+  const documentTypeOptions = documentTypesQuery.values;
+  const documentTypeFilterOptions = withStoredDropdownValues(documentTypeOptions, (postingList || []).map(posting => posting.documentType));
+  const documentTypeEditorOptions = withStoredDropdownValues(documentTypeOptions, editingId ? [form.documentType] : []);
 
   const activeUsers = (allUsers || []).filter((u: any) => u.active !== false).sort((a, b) => a.fullName.localeCompare(b.fullName));
   const activeClinics = (allClinics || []).sort((a, b) => a.name.localeCompare(b.name));
@@ -161,7 +167,7 @@ export default function PostingPage() {
   const POSTING_BULK_FIELDS: BulkField[] = [
     { value: "clinic", label: "Clinic", type: "select", options: activeClinics.map(c => c.name) },
     { value: "scannedDate", label: "Scanned Date", type: "date" },
-    { value: "documentType", label: "Document Type", type: "select", options: [...POSTING_DOCUMENT_TYPES] },
+    { value: "documentType", label: "Document Type", type: "select", options: documentTypeOptions },
     { value: "postedDate", label: "Posted Date", type: "date" },
     { value: "priority", label: "Priority", type: "select", options: [...POSTING_PRIORITY_OPTIONS] },
     { value: "assignedTo", label: "Assigned To", type: "select", options: activeUsers.map(u => u.fullName) },
@@ -352,7 +358,7 @@ export default function PostingPage() {
     if (!canSeePaymentDocs && (d.documentType || "").toLowerCase() === "payment") return false;
     if (!matchesPostingSearch(d, searchQuery)) return false;
     if (filterClinic && filterClinic !== "__all__" && d.clinic !== filterClinic) return false;
-    if (filterDocumentType && filterDocumentType !== "__all__" && d.documentType !== filterDocumentType) return false;
+    if (filterDocumentType && filterDocumentType !== "__all__" && d.documentType !== filterDocumentType.slice(5)) return false;
     if (filterStatus && filterStatus !== "__all__" && d.status !== filterStatus) return false;
     if (filterPriority && filterPriority !== "__all__" && d.priority !== filterPriority) return false;
     if (filterAssignedTo && filterAssignedTo !== "__all__" && (d.assignedTo || "").replace(/\s+/g, ' ').trim().toLowerCase() !== filterAssignedTo.replace(/\s+/g, ' ').trim().toLowerCase()) return false;
@@ -479,11 +485,11 @@ export default function PostingPage() {
             {activeClinics.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterDocumentType || "__all__"} onValueChange={v => setFilterDocumentType(v)}>
+        <Select value={filterDocumentType || "__all__"} onValueChange={setFilterDocumentType}>
           <SelectTrigger className="w-[150px]" data-testid="filter-posting-document-type"><SelectValue placeholder="All Doc Types" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Doc Types</SelectItem>
-            {POSTING_DOCUMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {documentTypeFilterOptions.map(t => <SelectItem key={t} value={`type:${t}`}>{t}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v)}>
@@ -757,15 +763,19 @@ export default function PostingPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Document Type</Label>
-                <Select value={form.documentType || "__none__"} onValueChange={v => setForm(f => ({ ...f, documentType: v === "__none__" ? "" : v }))}>
+                <Select value={form.documentType ? `type:${form.documentType}` : "__none__"} onValueChange={v => setForm(f => ({ ...f, documentType: v === "__none__" ? "" : v.slice(5) }))}>
                   <SelectTrigger data-testid="select-posting-document-type"><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">-- None --</SelectItem>
-                    {POSTING_DOCUMENT_TYPES.map(t => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    {documentTypeEditorOptions.map(t => (
+                      <SelectItem key={t} value={`type:${t}`}>{t}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {documentTypesQuery.isError && <p role="alert" className="text-sm text-destructive">Document types could not be loaded. <button type="button" className="underline" onClick={() => void documentTypesQuery.refetch()}>Try again</button></p>}
+                {!documentTypesQuery.isLoading && !documentTypesQuery.isError && documentTypeOptions.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Manage document types in Admin Settings → Dropdowns.</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Posted Date</Label>

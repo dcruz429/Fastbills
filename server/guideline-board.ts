@@ -3,7 +3,7 @@ import type { IStorage } from "./storage";
 import { guidelineModuleContentSchema } from "../shared/schema";
 
 type Dependencies = {
-  storage: Pick<IStorage, "getUser" | "getAllGuidelineModules" | "getGuidelineModule" | "createGuidelineModule" | "updateGuidelineModule">;
+  storage: Pick<IStorage, "getUser" | "getAllGuidelineModules" | "getGuidelineModule" | "createGuidelineModule" | "updateGuidelineModule" | "getDropdownOptionsByCategory">;
   requireAuth: RequestHandler;
   upload: { array: (name: string, maxCount?: number) => RequestHandler };
   saveUploadedFiles: (files: Express.Multer.File[]) => Promise<string[]>;
@@ -62,6 +62,10 @@ export function registerGuidelineBoardRoutes(app: Express, { storage, requireAut
         if (edit && (!Number.isSafeInteger(id) || id! <= 0)) return res.status(400).json({ message: "Invalid module ID" });
         const existing = edit ? await storage.getGuidelineModule(id!) : undefined;
         if (edit && !existing) return res.status(404).json({ message: "Module not found" });
+        const types = await storage.getDropdownOptionsByCategory("guideline_module_type");
+        if (parsed.data.moduleType !== existing?.moduleType && !types.some(option => option.value === parsed.data.moduleType)) {
+          return res.status(400).json({ message: "Select a module type configured in Admin Settings → Dropdowns" });
+        }
         let retained = existing?.attachments || [];
         if (edit && req.body.retainedAttachments !== undefined) {
           try {

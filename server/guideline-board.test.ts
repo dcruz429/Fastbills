@@ -11,6 +11,7 @@ async function fixture(t: any) {
   let nextId = 1;
   const roles = ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"];
   const storage: any = {
+    getDropdownOptionsByCategory: async () => [{ value: "guideline" }, { value: "training" }],
     getUser: async (id: number) => roles[id - 1] ? { id, role: roles[id - 1], active: true } : undefined,
     getAllGuidelineModules: async () => [...records.values()].map(record => ({ ...record, authorName: "Module author", updatedByName: "Module editor" })),
     getGuidelineModule: async (id: number) => records.get(id),
@@ -172,4 +173,20 @@ test("storage errors are reported and deactivated users cannot author modules", 
   f.storage.getUser = async () => ({ id: 1, role: "admin", active: false });
   assert.equal((await f.call("POST", content)).status, 403);
   assert.equal((await f.call("GET")).status, 403);
+});
+
+test("configured custom module types are accepted and historical types survive retirement without becoming new choices", async t => {
+  const f = await fixture(t);
+  f.storage.getDropdownOptionsByCategory = async () => [{ value: "Billing policy" }, { value: "all" }];
+  const created = await f.call("POST", { ...content, moduleType: "Billing policy" });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.moduleType, "Billing policy");
+  assert.equal((await f.call("POST", { ...content, moduleType: "all" })).status, 201);
+  f.storage.getDropdownOptionsByCategory = async () => [];
+  const edited = await f.call("PATCH", { ...content, moduleType: "Billing policy", body: "Revised policy" }, created.body.id);
+  assert.equal(edited.status, 200);
+  assert.equal(edited.body.moduleType, "Billing policy");
+  assert.equal((await f.call("POST", { ...content, moduleType: "Billing policy" })).status, 400);
+  assert.equal((await f.call("PATCH", { ...content, moduleType: "Retired other type" }, created.body.id)).status, 400);
+  assert.equal(f.records.get(created.body.id).body, "Revised policy");
 });

@@ -17,13 +17,14 @@ const module = {
   authorName: "Module author", updatedByName: "Module editor",
   createdAt: "2026-10-13T12:00:00Z", updatedAt: "2026-10-14T12:00:00Z",
 };
-function render(role: string, query: object = {}) {
+function render(role: string, query: object = {}, types = ["guideline", "training"]) {
   const exports: any = {};
   const requireReal = createRequire(import.meta.url);
   runInNewContext(code, {
     exports, Date, FormData, File,
     require(name: string) {
       if (name === "@/lib/auth") return { useAuth: () => ({ user: { id: 1, role } }) };
+      if (name === "@/hooks/use-managed-dropdown") return { useManagedDropdown: () => ({ values: types, isError: false, isLoading: false }) };
       if (name === "@tanstack/react-query") return {
         useQuery: () => ({ data: [module], isLoading: false, isError: false, ...query }),
         useMutation: () => ({ isPending: false, mutate: () => {} }),
@@ -71,6 +72,7 @@ test("Guidelines Board navigation is immediately above Message Board with the sa
 });
 
 test("the editor loads existing modules, retains/removes attachments, saves real multipart changes and preserves failed drafts", () => {
+  assert.ok(text.includes("moduleType: module.moduleType"));
   assert.ok(text.includes("id: module.id"));
   assert.ok(text.includes("title: module.title"));
   assert.ok(text.includes("body: module.body"));
@@ -81,4 +83,12 @@ test("the editor loads existing modules, retains/removes attachments, saves real
   assert.ok(text.includes("onError: (error: Error) => setFormError"));
   assert.ok(text.includes("if (!open && saveMutation.isPending) return"));
   assert.ok(!text.includes("dangerouslySetInnerHTML"));
+});
+
+test("custom module types render without being relabeled as Guideline and empty configuration is explicit", () => {
+  const html = render("admin", { data: [{ ...module, moduleType: "Billing policy" }] }, ["Billing policy"]);
+  assert.ok(html.includes("Billing policy"));
+  const empty = render("admin", {}, []);
+  assert.ok(empty.includes("Add module types in Admin Settings"));
+  assert.match(empty, /disabled=""[^>]*data-testid="button-create-guideline"/);
 });

@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import { db } from "./db";
-import { users, insurances, dropdownOptions,
+import { users, insurances, dropdownOptions, dropdownCategoryInitializations, MANAGED_TYPE_DROPDOWN_DEFAULTS,
   DENIAL_TYPE_OPTIONS, FILED_TO_OPTIONS, ARB_STATUS_OPTIONS, ARB_PAYMENT_STATUS_OPTIONS,
   COLLECTION_DIVISION_OPTIONS, COLLECTION_ISSUE_TYPE_OPTIONS, COLLECTION_ACTION_OPTIONS,
   COLLECTION_OUTCOME_OPTIONS, COLLECTION_STATUS_OPTIONS,
@@ -301,4 +301,20 @@ export async function seedDropdownOptions() {
     console.log(`Seeded ${rows.length} dropdown options for new categories`);
   }
 
+  await seedManagedTypeDropdownOptions();
+}
+
+export async function seedManagedTypeDropdownOptions() {
+  for (const [category, values] of Object.entries(MANAGED_TYPE_DROPDOWN_DEFAULTS)) {
+    await db.transaction(async tx => {
+      const [initialized] = await tx.insert(dropdownCategoryInitializations).values({ category })
+        .onConflictDoNothing().returning();
+      if (!initialized) return;
+      const existingOptions = await tx.select({ id: dropdownOptions.id }).from(dropdownOptions)
+        .where(eq(dropdownOptions.category, category)).limit(1);
+      if (existingOptions.length === 0) {
+        await tx.insert(dropdownOptions).values(values.map((value, sortOrder) => ({ category, value, sortOrder })));
+      }
+    });
+  }
 }

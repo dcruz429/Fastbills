@@ -401,7 +401,7 @@ export const guidelineModules = pgTable("guideline_modules", {
 export const guidelineModuleContentSchema = z.object({
   title: z.string().trim().min(1, "Module title is required").max(200),
   body: z.string().trim().min(1, "Module content is required").max(100_000),
-  moduleType: z.enum(["guideline", "training"]),
+  moduleType: z.string().trim().min(1, "Module type is required").max(200),
 });
 export type GuidelineModule = typeof guidelineModules.$inferSelect;
 export type InsertGuidelineModule = typeof guidelineModules.$inferInsert;
@@ -573,6 +573,12 @@ export const dropdownOptions = pgTable("dropdown_options", {
   category: text("category").notNull(),
   value: text("value").notNull(),
   sortOrder: integer("sort_order").default(0),
+});
+
+// Remember initialization even when admins intentionally remove every option.
+export const dropdownCategoryInitializations = pgTable("dropdown_category_initializations", {
+  category: text("category").primaryKey(),
+  initializedAt: timestamp("initialized_at").notNull().defaultNow(),
 });
 
 export const insertDropdownOptionSchema = createInsertSchema(dropdownOptions).omit({ id: true });
@@ -950,6 +956,8 @@ export const DROPDOWN_CATEGORIES = [
   { key: "verification_action", label: "Verification Action" },
   { key: "billing_action", label: "Billing Action" },
   { key: "posting_action", label: "Posting Action" },
+  { key: "posting_document_type", label: "Posting Document Types" },
+  { key: "guideline_module_type", label: "Guidelines Board Module Types" },
   { key: "collection_action", label: "Collection Action" },
   { key: "denial_action", label: "Denial Action" },
   { key: "arbitration_action", label: "Arbitration Action" },
@@ -959,3 +967,8 @@ export const DROPDOWN_CATEGORIES = [
   { key: "ceo_action", label: "CEO Box Action" },
   { key: "rtp_reason", label: "RTP Reason" },
 ] as const;
+
+export const MANAGED_TYPE_DROPDOWN_DEFAULTS: Record<string, string[]> = {
+  posting_document_type: POSTING_DOCUMENT_TYPES,
+  guideline_module_type: ["guideline", "training"],
+};

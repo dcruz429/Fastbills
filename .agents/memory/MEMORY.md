@@ -9,3 +9,4 @@
 - [Tracker pagination scope](tracker-pagination-scope.md) — pagination limits rendering, not search coverage, financial totals, exports or bulk-selection scope.
 - [Optional CSV fields](csv-import-field-preservation.md) — new optional columns must preserve existing values when omitted from an older import template.
 - [Guidelines Board scope](guideline-board-scope.md) — shared, editable staff references; admin-only authoring, distinct from broader Message Board permissions.
+- [Managed dropdown types](managed-dropdown-types.md) — configurable Posting/module types; preserve historical selections and never restore intentionally deleted defaults.

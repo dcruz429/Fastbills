@@ -2714,6 +2714,9 @@ export async function registerRoutes(
       if (!validCategories.includes(category)) {
         return res.status(400).json({ message: `Invalid category. Must be one of: ${validCategories.join(", ")}` });
       }
+      if (["posting_document_type", "guideline_module_type"].includes(category) && (!value.trim() || value.trim().length > 200)) {
+        return res.status(400).json({ message: "Type names must be between 1 and 200 characters" });
+      }
       const opt = await storage.createDropdownOption({ category, value: value.trim(), sortOrder: req.body.sortOrder ?? 0 });
       res.json(opt);
     } catch (e: any) {
@@ -2730,6 +2733,11 @@ export async function registerRoutes(
       const { value } = req.body;
       if (!value || typeof value !== "string") {
         return res.status(400).json({ message: "value is required" });
+      }
+      const existingOption = (await storage.getAllDropdownOptions()).find(option => option.id === Number(req.params.id));
+      if (existingOption && ["posting_document_type", "guideline_module_type"].includes(existingOption.category)
+        && (!value.trim() || value.trim().length > 200)) {
+        return res.status(400).json({ message: "Type names must be between 1 and 200 characters" });
       }
       const opt = await storage.updateDropdownOption(parseInt(req.params.id), { value: value.trim() });
       res.json(opt);

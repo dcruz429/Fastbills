@@ -646,7 +646,7 @@ function DropdownSettings() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {DROPDOWN_CATEGORIES.map((cat) => (
+            {DROPDOWN_CATEGORIES.slice().sort((a, b) => a.label.localeCompare(b.label)).map((cat) => (
               <SelectItem key={cat.key} value={cat.key}>
                 {cat.label}
               </SelectItem>
@@ -658,6 +658,7 @@ function DropdownSettings() {
       <div className="flex gap-2">
         <Input
           placeholder={`New ${categoryLabel} option`}
+          maxLength={["posting_document_type", "guideline_module_type"].includes(selectedCategory) ? 200 : undefined}
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
           data-testid="input-new-dropdown-option"
@@ -682,6 +683,7 @@ function DropdownSettings() {
                 <div className="flex items-center gap-2 flex-1 mr-2">
                   <Input
                     value={editValue}
+                    maxLength={["posting_document_type", "guideline_module_type"].includes(selectedCategory) ? 200 : undefined}
                     onChange={(e) => setEditValue(e.target.value)}
                     className="h-7 text-sm"
                     data-testid={`input-edit-dropdown-option-${opt.id}`}
