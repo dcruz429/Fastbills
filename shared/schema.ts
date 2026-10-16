@@ -16,6 +16,7 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull().default("verifier"),
   active: boolean("active").notNull().default(true),
   ceoBoxAccess: boolean("ceo_box_access").notNull().default(false),
+  guidelineModuleAccess: boolean("guideline_module_access").notNull().default(false),
 });
 
 export const clinics = pgTable("clinics", {

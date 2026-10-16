@@ -610,6 +610,9 @@ export async function registerRoutes(
       }
       const id = parseInt(req.params.id);
       const updateData = { ...req.body };
+      if (Object.hasOwn(updateData, "guidelineModuleAccess")) {
+        return res.status(403).json({ message: "Use the admin-only module editor access control to change this permission" });
+      }
       if (updateData.username) updateData.username = updateData.username.trim();
       if (updateData.fullName) updateData.fullName = updateData.fullName.trim();
       if (updateData.username) {

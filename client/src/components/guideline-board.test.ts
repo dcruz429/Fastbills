@@ -17,13 +17,13 @@ const module = {
   authorName: "Module author", updatedByName: "Module editor",
   createdAt: "2026-10-13T12:00:00Z", updatedAt: "2026-10-14T12:00:00Z",
 };
-function render(role: string, query: object = {}, types = ["guideline", "training"]) {
+function render(role: string, query: object = {}, types = ["guideline", "training"], guidelineModuleAccess = false, active = true) {
   const exports: any = {};
   const requireReal = createRequire(import.meta.url);
   runInNewContext(code, {
     exports, Date, FormData, File,
     require(name: string) {
-      if (name === "@/lib/auth") return { useAuth: () => ({ user: { id: 1, role } }) };
+      if (name === "@/lib/auth") return { useAuth: () => ({ user: { id: 1, role, guidelineModuleAccess, active } }) };
       if (name === "@/hooks/use-managed-dropdown") return { useManagedDropdown: () => ({ values: types, isError: false, isLoading: false }) };
       if (name === "@tanstack/react-query") return {
         useQuery: () => ({ data: [module], isLoading: false, isError: false, ...query }),
@@ -49,6 +49,17 @@ test("all other staff roles see module content without any authoring controls", 
     assert.ok(html.includes("Read these steps."));
     assert.ok(!html.includes("button-create-guideline"));
     assert.ok(!html.includes("button-edit-guideline"));
+  }
+});
+
+test("delegated module editors see create/edit controls for every staff role, but revoked or inactive editors do not", () => {
+  for (const role of ["manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"]) {
+    const html = render(role, {}, undefined, true);
+    assert.ok(html.includes("button-create-guideline"));
+    assert.ok(html.includes("button-edit-guideline-1"));
+    assert.ok(render(role, { data: [] }, undefined, true).includes("button-create-first-guideline"));
+    assert.ok(!render(role, {}, undefined, false).includes("button-edit-guideline"));
+    assert.ok(!render(role, {}, undefined, true, false).includes("button-create-guideline"));
   }
 });
 

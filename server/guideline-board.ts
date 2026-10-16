@@ -1,9 +1,10 @@
 import type { Express, RequestHandler } from "express";
 import type { IStorage } from "./storage";
 import { guidelineModuleContentSchema } from "../shared/schema";
+import { canEditGuidelineModules } from "../shared/guideline-permissions";
 
 type Dependencies = {
-  storage: Pick<IStorage, "getUser" | "getAllGuidelineModules" | "getGuidelineModule" | "createGuidelineModule" | "updateGuidelineModule" | "getDropdownOptionsByCategory">;
+  storage: Pick<IStorage, "getUser" | "updateUser" | "getAllGuidelineModules" | "getGuidelineModule" | "createGuidelineModule" | "updateGuidelineModule" | "getDropdownOptionsByCategory">;
   requireAuth: RequestHandler;
   upload: { array: (name: string, maxCount?: number) => RequestHandler };
   saveUploadedFiles: (files: Express.Multer.File[]) => Promise<string[]>;
@@ -30,11 +31,11 @@ export function registerGuidelineBoardRoutes(app: Express, { storage, requireAut
       next();
     });
   };
-  const requireAdmin: RequestHandler = async (req, res, next) => {
+  const requireModuleEditor: RequestHandler = async (req, res, next) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || user.active === false || user.role !== "admin") {
-        res.status(403).json({ message: "Only admins can create or edit guideline modules" });
+      if (!canEditGuidelineModules(user)) {
+        res.status(403).json({ message: "Module editor access is required to create or edit guideline modules" });
         return;
       }
       next();
@@ -42,6 +43,29 @@ export function registerGuidelineBoardRoutes(app: Express, { storage, requireAut
       res.status(500).json({ message: "Unable to verify module permissions" });
     }
   };
+
+  app.patch("/api/users/:id/guideline-module-access", requireAuth, async (req, res) => {
+    try {
+      const admin = await storage.getUser(req.session.userId!);
+      if (!admin || admin.active === false || admin.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can manage module editor access" });
+      }
+      const id = Number(req.params.id);
+      if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ message: "Invalid user ID" });
+      if (typeof req.body?.guidelineModuleAccess !== "boolean") {
+        return res.status(400).json({ message: "Module editor access must be true or false" });
+      }
+      const target = await storage.getUser(id);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.role === "admin") return res.status(400).json({ message: "Admins always have module editor access" });
+      const updated = await storage.updateUser(id, { guidelineModuleAccess: req.body.guidelineModuleAccess });
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      const { password: _, ...safeUser } = updated;
+      res.json(safeUser);
+    } catch {
+      res.status(500).json({ message: "Unable to update module editor access" });
+    }
+  });
 
   app.get("/api/guideline-modules", requireAuth, async (req, res) => {
     try {
@@ -96,6 +120,6 @@ export function registerGuidelineBoardRoutes(app: Express, { storage, requireAut
     };
   }
 
-  app.post("/api/guideline-modules", requireAuth, requireAdmin, receiveAttachments, save(false));
-  app.patch("/api/guideline-modules/:id", requireAuth, requireAdmin, receiveAttachments, save(true));
+  app.post("/api/guideline-modules", requireAuth, requireModuleEditor, receiveAttachments, save(false));
+  app.patch("/api/guideline-modules/:id", requireAuth, requireModuleEditor, receiveAttachments, save(true));
 }

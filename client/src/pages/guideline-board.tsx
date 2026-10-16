@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { GuidelineModuleWithRelations } from "@shared/schema";
+import { canEditGuidelineModules } from "@shared/guideline-permissions";
 import { useAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
 import { useManagedDropdown } from "@/hooks/use-managed-dropdown";
@@ -86,7 +87,7 @@ function emptyDraft(): EditorDraft {
 
 export default function GuidelineBoardPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEditModules = canEditGuidelineModules(user);
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<EditorDraft>(emptyDraft);
   const [formError, setFormError] = useState("");
@@ -220,7 +221,7 @@ export default function GuidelineBoardPage() {
                 Clear, current instructions for the work we do every day.
               </p>
             </div>
-            {isAdmin && (
+            {canEditModules && (
               <Button onClick={openNewModule} disabled={!canCreate} className="shrink-0 bg-[#315844] text-white hover:bg-[#274735]" data-testid="button-create-guideline">
                 <Plus className="mr-2 h-4 w-4" /> Create module
               </Button>
@@ -262,12 +263,12 @@ export default function GuidelineBoardPage() {
             </div>
           </div>
 
-          {isAdmin && moduleTypesQuery.isError && (
+          {canEditModules && moduleTypesQuery.isError && (
             <div role="alert" className="mb-4 text-sm text-destructive">
               Module types could not be loaded. <Button variant="ghost" size="sm" className="underline" onClick={() => void moduleTypesQuery.refetch()}>Try again</Button>
             </div>
           )}
-          {isAdmin && !moduleTypesQuery.isLoading && !moduleTypesQuery.isError && moduleTypeOptions.length === 0 && (
+          {canEditModules && !moduleTypesQuery.isLoading && !moduleTypesQuery.isError && moduleTypeOptions.length === 0 && (
             <p className="mb-4 text-sm text-muted-foreground">Add module types in Admin Settings → Dropdowns before creating a module.</p>
           )}
           {modulesQuery.isLoading ? (
@@ -306,9 +307,9 @@ export default function GuidelineBoardPage() {
                 </div>
                 <h3 className="font-semibold text-[#314a39]">Your shared reference starts here</h3>
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  {isAdmin ? "Create the first guideline or training module for your team." : "There are no guideline or training modules yet."}
+                  {canEditModules ? "Create the first guideline or training module for your team." : "There are no guideline or training modules yet."}
                 </p>
-                {isAdmin && <Button disabled={!canCreate} className="mt-5 bg-[#315844] text-white hover:bg-[#274735]" onClick={openNewModule} data-testid="button-create-first-guideline">Create a module</Button>}
+                {canEditModules && <Button disabled={!canCreate} className="mt-5 bg-[#315844] text-white hover:bg-[#274735]" onClick={openNewModule} data-testid="button-create-first-guideline">Create a module</Button>}
               </CardContent>
             </Card>
           ) : filteredModules.length === 0 ? (
@@ -345,7 +346,7 @@ export default function GuidelineBoardPage() {
                             {module.title}
                           </h3>
                         </div>
-                        {isAdmin && (
+                        {canEditModules && (
                           <Button
                             variant="outline"
                             size="sm"

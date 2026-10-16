@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -345,6 +346,18 @@ function UserSettings() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const moduleAccessMutation = useMutation({
+    mutationFn: async ({ id, guidelineModuleAccess }: { id: number; guidelineModuleAccess: boolean }) => {
+      await apiRequest("PATCH", `/api/users/${id}/guideline-module-access`, { guidelineModuleAccess });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({ title: "Module editor access updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/users/${id}`);
@@ -531,6 +544,22 @@ function UserSettings() {
                 </div>
                 {!isManager && (
                   <div className="flex items-center gap-1">
+                    {isAdmin && (
+                      <div className="flex items-center gap-2 mr-2">
+                        <Switch
+                          id={`module-editor-${u.id}`}
+                          checked={u.role === "admin" || u.guidelineModuleAccess}
+                          disabled={u.role === "admin" || moduleAccessMutation.isPending}
+                          onCheckedChange={(checked) => moduleAccessMutation.mutate({ id: u.id, guidelineModuleAccess: checked })}
+                          aria-label={`Module editor access for ${u.fullName}`}
+                          data-testid={`switch-module-editor-${u.id}`}
+                        />
+                        <Label htmlFor={`module-editor-${u.id}`} className="text-xs"
+                          title="Allows creating and editing Guidelines Board modules. Admins always have access.">
+                          Module editor{u.role === "admin" ? " (admin)" : ""}
+                        </Label>
+                      </div>
+                    )}
                     {isAdmin && u.id !== currentUser?.id && (
                       <Button
                         size="icon"

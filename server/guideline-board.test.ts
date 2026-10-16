@@ -10,9 +10,16 @@ async function fixture(t: any) {
   let uploaded = 0;
   let nextId = 1;
   const roles = ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"];
+  const users = new Map(roles.map((role, i) => [i + 1, { id: i + 1, role, active: true, guidelineModuleAccess: false, password: "private-hash" }]));
   const storage: any = {
     getDropdownOptionsByCategory: async () => [{ value: "guideline" }, { value: "training" }],
-    getUser: async (id: number) => roles[id - 1] ? { id, role: roles[id - 1], active: true } : undefined,
+    getUser: async (id: number) => users.get(id),
+    updateUser: async (id: number, data: any) => {
+      const user = users.get(id);
+      if (!user) return undefined;
+      Object.assign(user, data);
+      return user;
+    },
     getAllGuidelineModules: async () => [...records.values()].map(record => ({ ...record, authorName: "Module author", updatedByName: "Module editor" })),
     getGuidelineModule: async (id: number) => records.get(id),
     createGuidelineModule: async (data: any) => {
@@ -46,7 +53,15 @@ async function fixture(t: any) {
   t.after(() => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/guideline-modules`;
   return {
-    records, storage, get uploaded() { return uploaded; },
+    records, storage, users, get uploaded() { return uploaded; },
+    async access(id: string | number, guidelineModuleAccess: unknown, user = 1) {
+      const response = await fetch(`${base.replace("/api/guideline-modules", "/api/users")}/${id}/guideline-module-access`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(user ? { "x-test-user": String(user) } : {}) },
+        body: JSON.stringify({ guidelineModuleAccess, role: "admin", active: false }),
+      });
+      return { status: response.status, body: await response.json() };
+    },
     async call(method: string, body?: any, id?: string | number, user = 1) {
       const headers: Record<string, string> = user ? { "x-test-user": String(user) } : {};
       if (body && !(body instanceof FormData)) headers["Content-Type"] = "application/json";
@@ -99,11 +114,61 @@ test("every other staff role can read modules but cannot create or edit, even wi
   await f.call("POST", content);
   for (const user of [2, 3, 4, 5, 6, 7, 8]) {
     assert.equal((await f.call("GET", undefined, undefined, user)).status, 200);
-    assert.equal((await f.call("POST", { ...content, role: "admin" }, undefined, user)).status, 403);
+    assert.equal((await f.call("POST", { ...content, role: "admin", guidelineModuleAccess: true }, undefined, user)).status, 403);
     assert.equal((await f.call("PATCH", { ...content, body: "Unauthorized edit" }, 1, user)).status, 403);
   }
   assert.equal(f.records.get(1).body, content.body);
   assert.equal(f.records.size, 1);
+});
+
+test("admin can grant and revoke authoring for every staff role without changing roles or exposing passwords", async t => {
+  const f = await fixture(t);
+  const original = await f.call("POST", content);
+  for (const user of [2, 3, 4, 5, 6, 7, 8]) {
+    const role = f.users.get(user)!.role;
+    const granted = await f.access(user, true);
+    assert.equal(granted.status, 200);
+    assert.equal(granted.body.guidelineModuleAccess, true);
+    assert.equal(granted.body.password, undefined);
+    assert.equal(granted.body.role, role);
+    assert.equal(granted.body.active, true);
+    const created = await f.call("POST", content, undefined, user);
+    assert.equal(created.status, 201);
+    assert.equal(created.body.authorId, user);
+    const edited = await f.call("PATCH", { ...content, body: "Delegated edit" }, original.body.id, user);
+    assert.equal(edited.status, 200);
+    assert.equal(edited.body.authorId, 1);
+    assert.equal(edited.body.updatedById, user);
+    assert.equal((await f.access(user, false)).status, 200);
+    assert.equal((await f.call("POST", content, undefined, user)).status, 403);
+    assert.equal((await f.call("PATCH", content, original.body.id, user)).status, 403);
+    assert.equal((await f.call("GET", undefined, undefined, user)).status, 200);
+  }
+});
+
+test("only active admins may change module editor access, including for themselves", async t => {
+  const f = await fixture(t);
+  assert.equal((await f.access(3, true, 0)).status, 401);
+  for (const user of [2, 3, 4, 5, 6, 7, 8]) {
+    await f.access(user, true);
+    assert.equal((await f.access(user, true, user)).status, 403);
+    assert.equal((await f.access(3, false, user)).status, 403);
+  }
+  f.users.get(1)!.active = false;
+  assert.equal((await f.access(3, true)).status, 403);
+});
+
+test("access changes validate users and boolean values and cannot revoke automatic admin access", async t => {
+  const f = await fixture(t);
+  for (const id of ["abc", "1.5", "-1"]) assert.equal((await f.access(id, true)).status, 400);
+  assert.equal((await f.access(999, true)).status, 404);
+  assert.equal((await f.access(1, false)).status, 400);
+  for (const value of ["false", 1, null, undefined, {}]) assert.equal((await f.access(3, value)).status, 400);
+  assert.equal(f.users.get(3)!.guidelineModuleAccess, false);
+  await f.access(3, true);
+  f.users.get(3)!.active = false;
+  assert.equal((await f.call("POST", content, undefined, 3)).status, 403);
+  assert.equal((await f.call("PATCH", content, 1, 3)).status, 403);
 });
 
 test("missing, whitespace, overlong and invalid module fields cannot be saved", async t => {

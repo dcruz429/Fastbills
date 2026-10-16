@@ -8,5 +8,5 @@
 - [Productivity transfer counts](productivity-transfer-counts.md) — count original outcome-transfer events credited to the actor, separate from completions and copied history.
 - [Tracker pagination scope](tracker-pagination-scope.md) — pagination limits rendering, not search coverage, financial totals, exports or bulk-selection scope.
 - [Optional CSV fields](csv-import-field-preservation.md) — new optional columns must preserve existing values when omitted from an older import template.
-- [Guidelines Board scope](guideline-board-scope.md) — shared, editable staff references; admin-only authoring, distinct from broader Message Board permissions.
+- [Guidelines Board scope](guideline-board-scope.md) — shared staff references; admins may delegate module authoring per user without changing their role.
 - [Managed dropdown types](managed-dropdown-types.md) — configurable Posting/module types; preserve historical selections and never restore intentionally deleted defaults.
