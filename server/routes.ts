@@ -16,6 +16,8 @@ import { searchPatientRecords } from "./patient-overview-query";
 import { patientSearchTokens } from "../shared/patient-overview";
 import { isPaidOnlyUpdate, validatePaidFlag } from "./paid-flag";
 import { registerGuidelineBoardRoutes } from "./guideline-board";
+import { registerMedicalRecordsRoutes } from "./medical-records-routes";
+import { medicalRecordsRepository, ensureMedicalRecordsHistory } from "./medical-records-repository";
 import { getProductivityTransfers } from "./productivity-transfers";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
@@ -2570,6 +2572,7 @@ export async function registerRoutes(
 
   // Announcements / Message Board
   registerGuidelineBoardRoutes(app, { storage, requireAuth, upload, saveUploadedFiles });
+  registerMedicalRecordsRoutes(app, { storage, requireAuth, repository: medicalRecordsRepository, ensureHistory: ensureMedicalRecordsHistory });
 
   app.get("/api/announcements/unread-count", requireAuth, async (req, res) => {
     try {

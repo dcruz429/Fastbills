@@ -63,7 +63,7 @@ test("all existing page paths remain registered as lazy components", () => {
   const expected = ["/", "/verification", "/my-tasks", "/dashboard", "/workload", "/billing-queue",
     "/notifications", "/settings", "/reports", "/productivity", "/denials", "/arbitration",
     "/tickets", "/posting", "/collections", "/checks", "/closed", "/ceo-box", "/call-calendar",
-    "/patient-overview", "/guideline-board", "/message-board", "/messages"];
+    "/patient-overview", "/guideline-board", "/medical-records-request", "/message-board", "/messages"];
   assert.deepEqual(pageRoutes.map(route => route.path), expected);
   assert.equal(new Set(pageRoutes.map(route => route.path)).size, expected.length);
   assert.ok(pageRoutes.every(route => typeof route.Component === "object" && typeof route.load === "function"));

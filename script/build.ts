@@ -1,6 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, mkdir, copyFile } from "fs/promises";
+import { MEDICAL_HISTORY_FILE } from "../server/medical-records-import";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -34,6 +35,10 @@ const allowlist = [
 
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
+  // Historical requests contain private medical/contact information. Bundle
+  // the source only on the server side, never under the public asset directory.
+  await mkdir("dist/private", { recursive: true });
+  await copyFile(MEDICAL_HISTORY_FILE, "dist/private/medical-records-history.xlsx");
 
   console.log("building client...");
   await viteBuild();

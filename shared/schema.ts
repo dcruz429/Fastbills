@@ -411,6 +411,63 @@ export type GuidelineModuleWithRelations = GuidelineModule & {
   updatedByName: string | null;
 };
 
+export const medicalRecordTabs = pgTable("medical_record_tabs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull().unique(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const medicalRecordContacts = pgTable("medical_record_contacts", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  fingerprint: text("fingerprint").notNull().unique(),
+  contactPerson: text("contact_person").notNull().default(""),
+  contactDetails: text("contact_details").notNull().default(""),
+  contactNumber: text("contact_number").notNull().default(""),
+  email: text("email").notNull().default(""),
+  faxNumber: text("fax_number").notNull().default(""),
+});
+
+export const medicalRecordRequests = pgTable("medical_record_requests", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  tabId: integer("tab_id").notNull().references(() => medicalRecordTabs.id),
+  todayDate: text("today_date").notNull().default(""),
+  intake: text("intake").notNull().default(""),
+  patientName: text("patient_name").notNull().default(""),
+  clinicLocation: text("clinic_location").notNull().default(""),
+  requestReceived: text("request_received").notNull().default(""),
+  requestSent: text("request_sent").notNull().default(""),
+  contactPerson: text("contact_person").notNull().default(""),
+  contactDetails: text("contact_details").notNull().default(""),
+  contactNumber: text("contact_number").notNull().default(""),
+  sentThru: text("sent_thru").notNull().default(""),
+  sentBy: text("sent_by").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  invoice: text("invoice").notNull().default(""),
+  payment: text("payment").notNull().default(""),
+  email: text("email").notNull().default(""),
+  faxNumber: text("fax_number").notNull().default(""),
+  status: text("status").notNull().default("pending"),
+  sourceKey: text("source_key").unique(),
+  sourceSheet: text("source_sheet"),
+  sourceRow: integer("source_row"),
+  createdById: integer("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  updatedById: integer("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  index("medical_record_requests_tab_id_idx").on(t.tabId),
+]);
+
+export const medicalRecordImports = pgTable("medical_record_imports", {
+  source: text("source").primaryKey(),
+  requestCount: integer("request_count").notNull(),
+  importedAt: timestamp("imported_at").notNull().defaultNow(),
+});
+
+export type MedicalRecordTab = typeof medicalRecordTabs.$inferSelect;
+export type MedicalRecordContact = typeof medicalRecordContacts.$inferSelect;
+export type MedicalRecordRequest = typeof medicalRecordRequests.$inferSelect;
+
 export const announcementAcks = pgTable("announcement_acks", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   announcementId: integer("announcement_id").notNull().references(() => announcements.id),
