@@ -267,12 +267,12 @@ export default function MedicalRecordsRequestPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visible.map((request) => <tr key={request.id} className="group hover:bg-[#f5fafb]" data-testid={`row-medical-${request.id}`}>
-                      {medicalRecordFields.map(({ key }, index) => <td key={key} title={request[key]} className={`max-w-[260px] whitespace-nowrap border-b border-r border-[#edf1f2] px-3 py-2.5 text-[#435a63] ${index === 2 ? "sticky left-0 z-10 min-w-[190px] bg-white font-medium text-[#243f49] group-hover:bg-[#f5fafb]" : ""}`}>
+                    {visible.map((request) => <tr key={request.id} className={`group ${request.status === "pending" ? "bg-[#fff9db] hover:bg-[#fff1ad]" : "hover:bg-[#f5fafb]"}`} data-testid={`row-medical-${request.id}`}>
+                      {medicalRecordFields.map(({ key }, index) => <td key={key} title={request[key]} className={`max-w-[260px] whitespace-nowrap border-b border-r border-[#edf1f2] px-3 py-2.5 text-[#435a63] ${index === 2 ? `sticky left-0 z-10 min-w-[190px] font-medium text-[#243f49] ${request.status === "pending" ? "bg-[#fff9db] group-hover:bg-[#fff1ad]" : "bg-white group-hover:bg-[#f5fafb]"}` : ""}`}>
                         <span className="block max-w-[240px] truncate">{request[key] || <span className="text-[#b5c0c4]">—</span>}</span>
                       </td>)}
                       <td className="border-b border-r border-[#edf1f2] px-3 py-2.5">{statusBadge(request.status)}</td>
-                      <td className="sticky right-0 border-b border-[#edf1f2] bg-white px-2 py-1.5 text-right group-hover:bg-[#f5fafb]">
+                      <td className={`sticky right-0 border-b border-[#edf1f2] px-2 py-1.5 text-right ${request.status === "pending" ? "bg-[#fff9db] group-hover:bg-[#fff1ad]" : "bg-white group-hover:bg-[#f5fafb]"}`}>
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-[#51727e] hover:text-[#176b87]" aria-label={`Edit ${request.patientName || "request"}`} onClick={() => openEdit(request)} data-testid={`button-edit-medical-${request.id}`}><Pencil className="h-3.5 w-3.5" /></Button>
                           {canDelete && <Button variant="ghost" size="icon" className="h-7 w-7 text-[#98716c] hover:text-destructive" aria-label={`Delete ${request.patientName || "request"}`} onClick={() => setDeleteTarget(request)} data-testid={`button-delete-medical-${request.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>}

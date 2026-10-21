@@ -220,3 +220,22 @@ test("legacy Sent requests are Completed in summary, filters, table, editor and 
   assert.ok(!csv.includes('"sent"'));
   assert.equal((csv.split("\r\n").length), 61);
 });
+
+test("pending rows are yellow across the row and both fixed columns while completed rows are unchanged", () => {
+  const f = fixture();
+  const row = (id: number) => {
+    const html = f.html.match(new RegExp(`<tr[^>]*data-testid="row-medical-${id}"[\\s\\S]*?</tr>`))?.[0];
+    assert.ok(html, `row ${id} should be rendered`);
+    return html;
+  };
+  const pending = row(1);
+  assert.equal((pending.match(/bg-\[#fff9db\]/g) || []).length, 3);
+  assert.ok(pending.includes("hover:bg-[#fff1ad]"));
+  assert.match(pending, /<td[^>]*sticky left-0[^>]*bg-\[#fff9db\][^>]*group-hover:bg-\[#fff1ad\]/);
+  assert.match(pending, /<td[^>]*sticky right-0[^>]*bg-\[#fff9db\][^>]*group-hover:bg-\[#fff1ad\]/);
+  const completed = row(2);
+  assert.ok(!completed.includes("#fff9db"));
+  assert.ok(!completed.includes("#fff1ad"));
+  assert.match(completed, /<td[^>]*sticky left-0[^>]*bg-white/);
+  assert.match(completed, /<td[^>]*sticky right-0[^>]*bg-white/);
+});
