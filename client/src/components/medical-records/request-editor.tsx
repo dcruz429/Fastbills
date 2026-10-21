@@ -32,7 +32,14 @@ export function MedicalRequestEditor({
   saveError?: string;
   initialTabId: number;
 }) {
-  const [draft, setDraft] = useState<MedicalRecordInput>(() => emptyMedicalRecord(initialTabId, easternToday(), userName));
+  function newRequestDraft(): MedicalRecordInput {
+    return {
+      ...emptyMedicalRecord(initialTabId, easternToday(), userName),
+      clinicLocation: tabs.find(tab => tab.id === initialTabId)?.name ?? "",
+    };
+  }
+
+  const [draft, setDraft] = useState<MedicalRecordInput>(() => request ? medicalRecordDraft(request) : newRequestDraft());
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -40,7 +47,7 @@ export function MedicalRequestEditor({
     if (request) {
       setDraft(medicalRecordDraft(request));
     } else {
-      setDraft(emptyMedicalRecord(initialTabId, easternToday(), userName));
+      setDraft(newRequestDraft());
     }
     setError("");
   }, [open, request, initialTabId, userName]);
@@ -84,7 +91,14 @@ export function MedicalRequestEditor({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="mr-tab">Workbook tab</Label>
-                <Select value={String(draft.tabId)} onValueChange={(value) => update("tabId", Number(value))}>
+                <Select value={String(draft.tabId)} onValueChange={(value) => {
+                  const tabId = Number(value);
+                  setDraft(current => ({
+                    ...current,
+                    tabId,
+                    ...(!request ? { clinicLocation: tabs.find(tab => tab.id === tabId)?.name ?? "" } : {}),
+                  }));
+                }}>
                   <SelectTrigger id="mr-tab" data-testid="select-medical-tab"><SelectValue placeholder="Select tab" /></SelectTrigger>
                   <SelectContent>{tabs.map((tab) => <SelectItem key={tab.id} value={String(tab.id)}>{tab.name}</SelectItem>)}</SelectContent>
                 </Select>

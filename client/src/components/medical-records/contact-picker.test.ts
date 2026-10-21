@@ -21,6 +21,8 @@ function harness(file: string, component: string, initialProps: any, formHost = 
   const exports: any = {};
   const states: unknown[] = [];
   const controls = new Map<string, any>();
+  const selects: any[] = [];
+  const effects: (() => void)[] = [];
   const requireReal = createRequire(import.meta.url);
   let index = 0;
   let form: any;
@@ -41,12 +43,13 @@ function harness(file: string, component: string, initialProps: any, formHost = 
           if (!(slot in states)) states[slot] = typeof initial === "function" ? initial() : initial;
           return [states[slot], (next: any) => { states[slot] = typeof next === "function" ? next(states[slot]) : next; }];
         },
-        useEffect: () => {},
+        useEffect: (effect: () => void) => { effects.push(effect); },
       };
       if (name === "react/jsx-runtime") {
         const runtime = requireReal(name);
         const wrap = (fn: any) => (type: any, attributes: any, key: any) => {
           if (type === "form") form = attributes;
+          if (typeof attributes?.onValueChange === "function") selects.push(attributes);
           return fn(type, attributes, key);
         };
         return { ...runtime, jsx: wrap(runtime.jsx), jsxs: wrap(runtime.jsxs) };
@@ -66,11 +69,14 @@ function harness(file: string, component: string, initialProps: any, formHost = 
     },
   });
   return {
-    controls, get form() { return form; }, get picker() { return picker; }, get dialog() { return dialog; },
+    controls, selects, runEffects() { effects.splice(0).forEach(effect => effect()); },
+    get form() { return form; }, get picker() { return picker; }, get dialog() { return dialog; },
     render(nextProps = props) {
       props = nextProps;
       index = 0;
       controls.clear();
+      selects.length = 0;
+      effects.length = 0;
       const element = createElement(exports[component], props);
       return renderToStaticMarkup(formHost ? createElement("form", null, element) : element);
     },
@@ -193,4 +199,67 @@ test("the parent dialog does not dismiss before the open contact picker can hand
   const outside = { ...keyboard("Escape"), target: { closest: () => null } };
   f.dialog.onEscapeKeyDown(outside);
   assert.equal(outside.prevented, false);
+});
+
+const editorProps = {
+  open: true, onOpenChange: () => {},
+  tabs: [
+    { id: 1, name: "HW", sortOrder: 0 }, { id: 2, name: "GC", sortOrder: 1 },
+    { id: 3, name: "URGENT", sortOrder: 2 }, { id: 4, name: "Not Found", sortOrder: 3 },
+  ],
+  contacts, userName: "Staff", request: null, initialTabId: 1, saving: false, onSave: (_value: any) => {},
+};
+
+test("new requests populate Clinic Location from the initial and every newly selected workbook tab", () => {
+  let saved: any;
+  const f = harness("./request-editor.tsx", "MedicalRequestEditor", { ...editorProps, onSave: (value: any) => { saved = value; } });
+  f.render();
+  assert.equal(f.controls.get("input-medical-clinicLocation").value, "HW");
+  f.runEffects();
+  f.render();
+  assert.equal(f.controls.get("input-medical-clinicLocation").value, "HW");
+  f.controls.get("input-medical-patientName").onChange({ target: { value: "Synthetic Patient" } });
+  for (const tab of editorProps.tabs.slice(1)) {
+    f.selects[0].onValueChange(String(tab.id));
+    f.render();
+    assert.equal(f.controls.get("input-medical-clinicLocation").value, tab.name);
+    f.form.onSubmit({ preventDefault() {} });
+    assert.equal(saved.tabId, tab.id);
+    assert.equal(saved.clinicLocation, tab.name);
+    assert.equal(saved.patientName, "Synthetic Patient");
+  }
+});
+
+test("Clinic Location stays editable and reopening a new request restores the selected tab's default", () => {
+  const props = { ...editorProps, initialTabId: 2 };
+  const f = harness("./request-editor.tsx", "MedicalRequestEditor", props);
+  f.render();
+  assert.equal(f.controls.get("input-medical-clinicLocation").value, "GC");
+  f.controls.get("input-medical-clinicLocation").onChange({ target: { value: "Custom location" } });
+  f.render();
+  assert.equal(f.controls.get("input-medical-clinicLocation").value, "Custom location");
+  f.render({ ...props, open: false });
+  f.runEffects();
+  f.render(props);
+  f.runEffects();
+  f.render();
+  assert.equal(f.controls.get("input-medical-clinicLocation").value, "GC");
+});
+
+test("editing existing requests preserves their Clinic Location even when changing workbook tabs", () => {
+  let saved: any;
+  const request = { ...emptyMedicalRecord(1, "", "Staff"), patientName: "Synthetic Patient", clinicLocation: "Original historical location" };
+  const f = harness("./request-editor.tsx", "MedicalRequestEditor", {
+    ...editorProps, request, onSave: (value: any) => { saved = value; },
+  });
+  f.render();
+  f.runEffects();
+  f.render();
+  assert.equal(f.controls.get("input-medical-clinicLocation").value, request.clinicLocation);
+  f.selects[0].onValueChange("2");
+  f.render();
+  assert.equal(f.controls.get("input-medical-clinicLocation").value, request.clinicLocation);
+  f.form.onSubmit({ preventDefault() {} });
+  assert.equal(saved.tabId, 2);
+  assert.equal(saved.clinicLocation, request.clinicLocation);
 });

@@ -9,6 +9,12 @@ Keep the original workbook's tab structure, including non-clinic groupings such 
 
 **How to apply:** Preserve a request's workbook provenance separately from its editable tab/location. Exclude stray copied-template cells without request identifiers, but preserve genuinely incomplete requests.
 
+When creating a new request, the selected workbook tab should also populate Clinic Location, including the initial default and subsequent tab changes.
+
+**Why:** The user explicitly requested that whatever workbook tab is picked also populate Clinic Location when creating a new record.
+
+**How to apply:** Use the displayed tab name, including non-clinic groupings and “Not Found.” Keep the field editable and do not rewrite existing records' locations when editing their tab.
+
 Keep historical dates, invoice/payment notes, and contact details as written instead of automatically correcting or interpreting ambiguous text.
 
 **Why:** The supplied workbook contains date ranges, letter/fax/mail annotations, malformed date strings, multiple email addresses, and free-form financial notes. Converting them to strict dates, single-email fields, or monetary totals would lose information or introduce guesses.
