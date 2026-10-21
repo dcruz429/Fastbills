@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { medicalRecordInputSchema } from "../shared/medical-records";
+import { medicalRecordInputSchema, medicalRecordStatus } from "../shared/medical-records";
 import type { IStorage } from "./storage";
 import type { MedicalRecordsRepository } from "./medical-records-repository";
 
@@ -25,7 +25,11 @@ export function registerMedicalRecordsRoutes(app: Express, dependencies: {
       // One-time, transactional DATA import, never schema DDL. The persistent
       // marker prevents restart/deletion from bringing historical records back.
       await ensureHistory();
-      res.json(await repository.list());
+      const data = await repository.list();
+      res.json({
+        ...data,
+        requests: data.requests.map(request => ({ ...request, status: medicalRecordStatus(request.status) })),
+      });
     } catch { res.status(500).json({ message: "Unable to load medical records requests. Please retry or contact your administrator." }); }
   });
 

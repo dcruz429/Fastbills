@@ -126,7 +126,7 @@ test("full-data search finds a record beyond the rendered first page and exports
 });
 
 test("tab/status filters apply together and pagination clamps when the result set shrinks", () => {
-  const filtered = fixture({ states: { 0: "2", 1: "sent", 3: 99 } });
+  const filtered = fixture({ states: { 0: "2", 1: "completed", 3: 99 } });
   assert.ok(filtered.html.includes("60 matching requests"));
   assert.equal((filtered.html.match(/data-testid="row-medical-\d+"/g) || []).length, 10);
   assert.ok(filtered.html.includes("Page 2 of 2"));
@@ -202,4 +202,21 @@ test("sorting applies to all filtered records before pagination and CSV keeps th
   assert.equal(csv.split("\r\n").length, 121);
   assert.ok(csv.indexOf('"Synthetic Patient 120"') < csv.indexOf('"Synthetic Patient 119"'));
   assert.ok(csv.indexOf('"Synthetic Patient 119"') < csv.indexOf('"Synthetic Patient 1"'));
+});
+
+test("legacy Sent requests are Completed in summary, filters, table, editor and exports", () => {
+  const f = fixture({ states: { 1: "completed" } });
+  assert.ok(f.html.includes("60 matching requests"));
+  const summary = f.html.slice(f.html.indexOf('<section aria-label="Request summary"'), f.html.indexOf("</section>"));
+  assert.ok(!summary.includes(">Sent<"));
+  assert.match(summary, />Completed<\/p><p[^>]*>60<\/p>/);
+  assert.ok(!f.html.includes('value="sent"'));
+  assert.ok(f.html.includes(">completed</div>"));
+  f.controls.get("button-edit-medical-2").onClick();
+  assert.equal(f.stateChanges.find(change => change.index === 5)?.value.status, "completed");
+  f.controls.get("button-export-medical-csv").onClick();
+  const csv = f.downloads[0][0] as string;
+  assert.ok(csv.includes('"completed"'));
+  assert.ok(!csv.includes('"sent"'));
+  assert.equal((csv.split("\r\n").length), 61);
 });

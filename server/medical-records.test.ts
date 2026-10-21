@@ -41,7 +41,7 @@ test("calendar dates do not depend on server timezone, and annotated, ranged or 
     assert.ok(history.requests.some(row => [row.todayDate, row.requestReceived, row.requestSent].includes(value)));
     assert.equal(medicalCellText(value), value);
   }
-  assert.ok(history.requests.every(row => row.status === (row.requestSent.trim() ? "sent" : "pending")));
+  assert.ok(history.requests.every(row => row.status === (row.requestSent.trim() ? "completed" : "pending")));
 });
 
 test("unknown workbook columns with actual data fail instead of silently dropping information", () => {
@@ -167,6 +167,25 @@ test("saving new contact info makes it reusable without changing previous reques
   assert.equal(loaded.body.contacts.length, 2);
   assert.equal(f.records.get(first.body.id).email, input.email);
   assert.equal(f.records.get(first.body.id).contactNumber, "");
+});
+
+test("legacy Sent requests load, edit and save as Completed without rewriting history on read", async t => {
+  const f = await fixture(t);
+  f.records.set(20, { ...input, id: 20, status: "sent", sourceSheet: "HW", sourceRow: 3 });
+  const loaded = await f.call();
+  assert.equal(loaded.status, 200);
+  assert.equal(loaded.body.requests[0].status, "completed");
+  assert.equal(f.records.get(20).status, "sent");
+  assert.equal(medicalRecordDraft(f.records.get(20)).status, "completed");
+  const created = await f.call("POST", { ...input, status: "sent" });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.status, "completed");
+  assert.equal(f.records.get(created.body.id).status, "completed");
+  const edited = await f.call("PATCH", { ...input, status: "sent" }, 20);
+  assert.equal(edited.status, 200);
+  assert.equal(edited.body.status, "completed");
+  assert.equal(edited.body.sourceSheet, "HW");
+  assert.equal(edited.body.sourceRow, 3);
 });
 
 test("invalid inputs and forged provenance fail; imported incomplete requests can be corrected without losing history", async t => {

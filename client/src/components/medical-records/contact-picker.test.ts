@@ -263,3 +263,11 @@ test("editing existing requests preserves their Clinic Location even when changi
   assert.equal(saved.tabId, 2);
   assert.equal(saved.clinicLocation, request.clinicLocation);
 });
+
+test("legacy Sent records open as Completed and the editor offers only Pending and Completed", () => {
+  const request = { ...emptyMedicalRecord(1, "", "Staff"), patientName: "Synthetic Patient", status: "sent" };
+  const f = harness("./request-editor.tsx", "MedicalRequestEditor", { ...editorProps, request });
+  const html = f.render();
+  assert.equal(f.selects[1].value, "completed");
+  assert.ok(!html.includes('value="sent"'));
+});

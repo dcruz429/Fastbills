@@ -73,7 +73,7 @@ export function parseMedicalWorkbook(workbook: XLSX.WorkBook) {
       requests.push({
         ...record, tabName: name, sourceSheet: sheetName, sourceRow: i + 1,
         sourceKey: `${MEDICAL_HISTORY_SOURCE}:${sheetName}:${i + 1}`,
-        status: record.requestSent.trim() ? "sent" : "pending",
+        status: record.requestSent.trim() ? "completed" : "pending",
       });
     }
   }

@@ -19,7 +19,13 @@ Keep historical dates, invoice/payment notes, and contact details as written ins
 
 **Why:** The supplied workbook contains date ranges, letter/fax/mail annotations, malformed date strings, multiple email addresses, and free-form financial notes. Converting them to strict dates, single-email fields, or monetary totals would lose information or introduce guesses.
 
-**How to apply:** Calendar-date conversion of numeric Excel cells must not depend on server timezone. A sent date can support a “Sent” status, but it is not evidence of confirmed completion or payment.
+**How to apply:** Calendar-date conversion of numeric Excel cells must not depend on server timezone. Preserve original date text; a sent date is not evidence of payment.
+
+Medical Records Request “Sent” equals “Completed”; it is not a separate workflow stage.
+
+**Why:** The user explicitly clarified “sent equals completed.”
+
+**How to apply:** Treat legacy Sent requests as Completed throughout the UI, API, filters, counts and exports. Historical workbook rows with a sent date import as Completed. Preserve historical snapshots and do not infer payment.
 
 Contact selection should fill all contact fields while allowing new text; distinct contact variants must not be merged merely because the organization or person's name matches.
 

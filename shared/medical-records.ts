@@ -21,13 +21,19 @@ export const medicalRecordFields = [
 
 export type MedicalRecordField = typeof medicalRecordFields[number]["key"];
 export const contactFields = ["contactPerson", "contactDetails", "contactNumber", "email", "faxNumber"] as const;
-export const medicalRecordStatuses = ["pending", "sent", "completed"] as const;
+export const medicalRecordStatuses = ["pending", "completed"] as const;
+
+export function medicalRecordStatus(status: string): string {
+  return status === "sent" ? "completed" : status;
+}
 
 const fieldShape = Object.fromEntries(medicalRecordFields.map(({ key }) => [key, z.string().max(20_000).default("")])) as Record<MedicalRecordField, z.ZodDefault<z.ZodString>>;
 export const medicalRecordInputSchema = z.object({
   ...fieldShape,
   tabId: z.number().int().positive(),
-  status: z.enum(medicalRecordStatuses).default("pending"),
+  // Accept old clients' "sent" values, but only save the canonical status.
+  status: z.enum(["pending", "sent", "completed"]).default("pending")
+    .transform(status => status === "sent" ? "completed" as const : status),
 }).strict();
 export type MedicalRecordInput = z.infer<typeof medicalRecordInputSchema>;
 
@@ -45,6 +51,6 @@ export function medicalRecordDraft(record: Record<MedicalRecordField, string> & 
   return {
     ...Object.fromEntries(medicalRecordFields.map(({ key }) => [key, record[key]])),
     tabId: record.tabId,
-    status: record.status as MedicalRecordInput["status"],
+    status: medicalRecordStatus(record.status) as MedicalRecordInput["status"],
   } as MedicalRecordInput;
 }

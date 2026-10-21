@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Redirect } from "wouter";
 import type { MedicalRecordContact, MedicalRecordRequest, MedicalRecordTab } from "@shared/schema";
-import { medicalRecordFields, type MedicalRecordInput } from "@shared/medical-records";
+import { medicalRecordFields, medicalRecordStatus, type MedicalRecordInput } from "@shared/medical-records";
 import { MedicalRequestEditor } from "@/components/medical-records/request-editor";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -30,8 +30,7 @@ type MedicalRecordsResponse = {
 function statusBadge(status: string) {
   const style = status === "completed"
     ? "border-[#b9ddd5] bg-[#e9f5f1] text-[#28695a]"
-    : status === "sent" ? "border-[#c4d9ea] bg-[#edf4fa] text-[#315f7e]"
-      : "border-[#e7d9ad] bg-[#faf5e6] text-[#806b30]";
+    : "border-[#e7d9ad] bg-[#faf5e6] text-[#806b30]";
   return <Badge variant="outline" className={`font-medium capitalize ${style}`}>{status || "pending"}</Badge>;
 }
 
@@ -54,7 +53,9 @@ export default function MedicalRecordsRequestPage() {
   const recordsQuery = useQuery<MedicalRecordsResponse>({
     queryKey: QUERY_KEY, staleTime: 30_000, refetchOnWindowFocus: true, refetchInterval: 60_000,
   });
-  const records = recordsQuery.data?.requests || [];
+  const records = useMemo(() => (recordsQuery.data?.requests || []).map(request => ({
+    ...request, status: medicalRecordStatus(request.status),
+  })), [recordsQuery.data?.requests]);
   const tabs = useMemo(() => {
     const serverTabs = recordsQuery.data?.tabs || [];
     return serverTabs.map(tab => ({ ...tab, name: tab.name === "No Foud" ? "Not Found" : tab.name })).sort((a, b) => {
@@ -95,7 +96,6 @@ export default function MedicalRecordsRequestPage() {
 
   const statusCounts = useMemo(() => ({
     pending: records.filter((request) => request.status === "pending").length,
-    sent: records.filter((request) => request.status === "sent").length,
     completed: records.filter((request) => request.status === "completed").length,
   }), [records]);
   const countsByTab = useMemo(() => {
@@ -199,10 +199,9 @@ export default function MedicalRecordsRequestPage() {
         </header>
 
         {!recordsQuery.isLoading && !recordsQuery.isError && (
-          <section aria-label="Request summary" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <section aria-label="Request summary" className="grid grid-cols-3 gap-2">
             <div className="rounded-md border border-[#cfdee3] bg-white px-3 py-2.5"><p className="text-[11px] font-medium uppercase tracking-wide text-[#71868d]">All requests</p><p className="mt-0.5 text-xl font-semibold tabular-nums">{records.length}</p></div>
             <div className="rounded-md border border-[#e7d9ad] bg-[#fffdf7] px-3 py-2.5"><p className="text-[11px] font-medium uppercase tracking-wide text-[#897746]">Pending</p><p className="mt-0.5 text-xl font-semibold tabular-nums text-[#806b30]">{statusCounts.pending}</p></div>
-            <div className="rounded-md border border-[#c4d9ea] bg-[#f8fbfe] px-3 py-2.5"><p className="text-[11px] font-medium uppercase tracking-wide text-[#68849a]">Sent</p><p className="mt-0.5 text-xl font-semibold tabular-nums text-[#315f7e]">{statusCounts.sent}</p></div>
             <div className="rounded-md border border-[#b9ddd5] bg-[#f8fcfa] px-3 py-2.5"><p className="text-[11px] font-medium uppercase tracking-wide text-[#5e897d]">Completed</p><p className="mt-0.5 text-xl font-semibold tabular-nums text-[#28695a]">{statusCounts.completed}</p></div>
           </section>
         )}
@@ -235,7 +234,7 @@ export default function MedicalRecordsRequestPage() {
             </div>
             <Select value={statusFilter} onValueChange={(value) => changeFilter(setStatusFilter, value)}>
               <SelectTrigger className="h-9 w-full border-[#d5e1e4] sm:w-40" aria-label="Filter by request status" data-testid="select-medical-status-filter"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="sent">Sent</SelectItem><SelectItem value="completed">Completed</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="completed">Completed</SelectItem></SelectContent>
             </Select>
             <p className="shrink-0 text-xs text-[#71868d]" data-testid="text-medical-filter-count">{filtered.length} matching {filtered.length === 1 ? "request" : "requests"}</p>
           </div>
