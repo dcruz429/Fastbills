@@ -6,6 +6,7 @@ import { medicalRecordFields, type MedicalRecordInput } from "@shared/medical-re
 import { MedicalRequestEditor } from "@/components/medical-records/request-editor";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { sortMedicalRecords, type MedicalRecordSort, type MedicalRecordSortKey } from "@/lib/medical-records-sort";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileSpreadsheet, Plus, RefreshCw, Search, Pencil, Trash2, ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, FileSpreadsheet, Plus, RefreshCw, Search, Pencil, Trash2, ClipboardList, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 const QUERY_KEY = ["/api/medical-records"];
 const WORKBOOK_TABS = ["URGENT", "HW", "GC", "MV", "AN", "CA", "RH", "EL", "SB", "MA", "QB", "HA", "JA", "Not Found", "BX", "AA", "AKNY", "FM"];
@@ -49,6 +50,7 @@ export default function MedicalRecordsRequestPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<MedicalRecordRequest | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MedicalRecordRequest | null>(null);
+  const [sort, setSort] = useState<MedicalRecordSort | null>(null);
   const recordsQuery = useQuery<MedicalRecordsResponse>({
     queryKey: QUERY_KEY, staleTime: 30_000, refetchOnWindowFocus: true, refetchInterval: 60_000,
   });
@@ -110,15 +112,34 @@ export default function MedicalRecordsRequestPage() {
       return !normalized || Object.values(request).some((value) => value != null && String(value).toLocaleLowerCase().includes(normalized));
     });
   }, [records, tabFilter, statusFilter, search]);
+  const sorted = useMemo(() => sortMedicalRecords(filtered, sort), [filtered, sort]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
-  const visible = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const visible = sorted.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
   const startIndex = filtered.length ? currentPage * PAGE_SIZE + 1 : 0;
   const endIndex = Math.min((currentPage + 1) * PAGE_SIZE, filtered.length);
 
   function changeFilter(setter: (value: string) => void, value: string) {
     setter(value);
     setPage(0);
+  }
+  function changeSort(key: MedicalRecordSortKey) {
+    setSort(current => ({ key, direction: current?.key === key && current.direction === "asc" ? "desc" : "asc" }));
+    setPage(0);
+  }
+  function sortButton(key: MedicalRecordSortKey, label: string) {
+    const active = sort?.key === key;
+    const Icon = active ? sort.direction === "asc" ? ArrowUp : ArrowDown : ArrowUpDown;
+    return (
+      <Button type="button" variant="ghost" className="h-auto justify-start gap-1.5 px-0 py-0 text-xs font-semibold hover:bg-transparent hover:text-[#176b87]"
+        onClick={() => changeSort(key)} data-testid={`button-sort-medical-${key}`}
+        aria-label={`Sort by ${label}, ${active && sort.direction === "asc" ? "descending" : "ascending"}`}>
+        {label}<Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-[#176b87]" : "opacity-50"}`} aria-hidden="true" />
+      </Button>
+    );
+  }
+  function sortDirection(key: MedicalRecordSortKey): "ascending" | "descending" | "none" {
+    return sort?.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none";
   }
   function openCreate() {
     createMutation.reset();
@@ -139,7 +160,7 @@ export default function MedicalRecordsRequestPage() {
   function exportCsv() {
     const headers = [...medicalRecordFields.map((field) => field.label), "Status", "Workbook tab", "Source sheet", "Source row"];
     const lines = [headers.map(safeCsv).join(",")];
-    for (const request of filtered) {
+    for (const request of sorted) {
       const tabName = tabs.find((tab) => tab.id === request.tabId)?.name || "";
       lines.push([
         ...medicalRecordFields.map(({ key }) => request[key]),
@@ -241,8 +262,8 @@ export default function MedicalRecordsRequestPage() {
               <div className="max-h-[min(62dvh,760px)] overflow-auto" data-testid="table-medical-scroll">
                 <table className="w-max min-w-full border-separate border-spacing-0 text-left text-xs" data-testid="table-medical-records">
                   <thead className="sticky top-0 z-20">
-                    <tr>{medicalRecordFields.map(({ key, label }, index) => <th key={key} scope="col" className={`whitespace-nowrap border-b border-r border-[#d5e1e4] bg-[#edf4f6] px-3 py-2.5 font-semibold text-[#49616a] ${index === 2 ? "sticky left-0 z-30 min-w-[190px] bg-[#e5eff2]" : "min-w-[130px]"}`}>{label}</th>)}
-                      <th scope="col" className="min-w-[105px] whitespace-nowrap border-b border-r border-[#d5e1e4] bg-[#edf4f6] px-3 py-2.5 font-semibold text-[#49616a]">Status</th>
+                    <tr>{medicalRecordFields.map(({ key, label }, index) => <th key={key} scope="col" aria-sort={sortDirection(key)} className={`whitespace-nowrap border-b border-r border-[#d5e1e4] bg-[#edf4f6] px-3 py-2.5 font-semibold text-[#49616a] ${index === 2 ? "sticky left-0 z-30 min-w-[190px] bg-[#e5eff2]" : "min-w-[130px]"}`}>{sortButton(key, label)}</th>)}
+                      <th scope="col" aria-sort={sortDirection("status")} className="min-w-[105px] whitespace-nowrap border-b border-r border-[#d5e1e4] bg-[#edf4f6] px-3 py-2.5 font-semibold text-[#49616a]">{sortButton("status", "Status")}</th>
                       <th scope="col" className="sticky right-0 z-30 min-w-[98px] border-b border-[#d5e1e4] bg-[#edf4f6] px-2 py-2.5 text-right font-semibold text-[#49616a]">Actions</th>
                     </tr>
                   </thead>

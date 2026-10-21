@@ -30,6 +30,7 @@ function fixture({ role = "admin", states = {} as Record<number, unknown>, query
   const controls = new Map<string, any>();
   const editor: any[] = [];
   const downloads: any[] = [];
+  const stateChanges: { index: number; value: any }[] = [];
   let stateIndex = 0;
   runInNewContext(code, {
     exports, Date,
@@ -41,7 +42,11 @@ function fixture({ role = "admin", states = {} as Record<number, unknown>, query
         ...requireReal("react"),
         useState(initial: unknown) {
           const index = stateIndex++;
-          return [Object.hasOwn(states, index) ? states[index] : initial, () => {}];
+          let current = Object.hasOwn(states, index) ? states[index] : initial;
+          return [current, (update: any) => {
+            current = typeof update === "function" ? update(current) : update;
+            stateChanges.push({ index, value: current });
+          }];
         },
       };
       if (name === "@/lib/auth") return { useAuth: () => ({ user: { id: 1, role, fullName: "Synthetic Staff" } }) };
@@ -67,7 +72,7 @@ function fixture({ role = "admin", states = {} as Record<number, unknown>, query
     },
   });
   const html = renderToStaticMarkup(createElement(exports.default));
-  return { html, mutations, requests, controls, editor, downloads, safeCsv: exports.safeCsv };
+  return { html, mutations, requests, controls, editor, downloads, stateChanges, safeCsv: exports.safeCsv };
 }
 
 test("medical tracker renders all workbook columns and matching cells in order while limiting display to 50 records", () => {
@@ -169,4 +174,32 @@ test("CSV escapes quotes, line breaks and spreadsheet formulas", () => {
   const { safeCsv } = fixture();
   assert.equal(safeCsv('A "quoted"\nvalue'), '"A ""quoted""\nvalue"');
   for (const value of ["=1+1", "+SUM(A1)", "-1+2", "@formula", " \t=unsafe"]) assert.ok(safeCsv(value).startsWith("\"'"));
+});
+
+test("every data column and status has a sort control that toggles direction and resets pagination", () => {
+  const f = fixture({ states: { 3: 2 } });
+  for (const key of [...medicalRecordFields.map(field => field.key), "status"]) {
+    assert.ok(f.controls.has(`button-sort-medical-${key}`), key);
+  }
+  const button = f.controls.get("button-sort-medical-patientName");
+  button.onClick();
+  button.onClick();
+  assert.deepEqual(f.stateChanges.filter(change => change.index === 7).map(change => `${change.value.key}:${change.value.direction}`),
+    ["patientName:asc", "patientName:desc"]);
+  assert.deepEqual(f.stateChanges.filter(change => change.index === 3).map(change => change.value), [0, 0]);
+});
+
+test("sorting applies to all filtered records before pagination and CSV keeps the selected sort order", () => {
+  const f = fixture({ states: { 7: { key: "patientName", direction: "desc" } } });
+  const ids = Array.from(f.html.matchAll(/data-testid="row-medical-(\d+)"/g), match => Number(match[1]));
+  assert.equal(ids.length, 50);
+  assert.equal(ids[0], 120);
+  assert.equal(ids[49], 71);
+  assert.ok(f.html.includes('aria-sort="descending"'));
+  assert.equal(f.controls.get("button-sort-medical-patientName")["aria-label"], "Sort by Patient's Name, ascending");
+  f.controls.get("button-export-medical-csv").onClick();
+  const csv = f.downloads[0][0] as string;
+  assert.equal(csv.split("\r\n").length, 121);
+  assert.ok(csv.indexOf('"Synthetic Patient 120"') < csv.indexOf('"Synthetic Patient 119"'));
+  assert.ok(csv.indexOf('"Synthetic Patient 119"') < csv.indexOf('"Synthetic Patient 1"'));
 });
