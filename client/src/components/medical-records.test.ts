@@ -58,7 +58,7 @@ function fixture({ role = "admin", states = {} as Record<number, unknown>, query
       };
       if (name === "@tanstack/react-query") return {
         useQuery: () => ({
-          data: { requests: records, contacts: [], tabs: [{ id: 1, name: "HW", sortOrder: 0 }, { id: 2, name: "GC", sortOrder: 1 }], importSummary: { requestCount: 1180, importedAt: "2026-10-21T12:00:00Z" } },
+          data: { requests: records, contacts: [], tabs: [{ id: 1, name: "HW", sortOrder: 0 }, { id: 2, name: "GC", sortOrder: 1 }, { id: 3, name: "No Foud", sortOrder: 13 }], importSummary: { requestCount: 1180, importedAt: "2026-10-21T12:00:00Z" } },
           isLoading: false, isError: false, refetch: () => {}, ...query,
         }),
         useMutation: (options: any) => { mutations.push(options); return { isPending: false, reset: () => {}, mutate: () => {} }; },
@@ -88,6 +88,23 @@ test("medical tracker renders all workbook columns and matching cells in order w
   assert.ok(row.indexOf("10/21/2026") < row.indexOf("Synthetic Staff"));
   assert.ok(row.indexOf("Synthetic Staff") < row.indexOf("Synthetic Patient 1"));
   assert.ok(row.indexOf("Synthetic Patient 1") < row.indexOf("Synthetic office"));
+});
+
+test("Not Found replaces the legacy workbook tab label in tabs, the editor and exports without changing its ID", () => {
+  const f = fixture({
+    query: { data: {
+      tabs: [{ id: 3, name: "No Foud", sortOrder: 13 }],
+      requests: [{ ...records[0], tabId: 3, sourceSheet: "No Foud" }],
+      contacts: [], importSummary: null,
+    } },
+  });
+  assert.ok(f.html.includes('data-testid="tab-medical-not-found"'));
+  assert.ok(!f.html.includes('data-testid="tab-medical-no-foud"'));
+  assert.equal(f.editor[0].tabs[0].name, "Not Found");
+  assert.equal(f.editor[0].tabs[0].id, 3);
+  f.controls.get("button-export-medical-csv").onClick();
+  const csv = f.downloads[0][0] as string;
+  assert.ok(csv.includes('"Not Found","No Foud"'));
 });
 
 test("full-data search finds a record beyond the rendered first page and exports all filtered matches", () => {

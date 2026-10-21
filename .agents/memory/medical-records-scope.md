@@ -3,7 +3,7 @@ name: Medical Records Request scope
 description: Workbook fidelity and reusable-contact decisions for the medical request tracker.
 ---
 
-Keep the original workbook's tab structure, including non-clinic groupings and original labels such as “URGENT” and “No Foud.” Do not silently merge tabs or rename them to match the general clinic list.
+Keep the original workbook's tab structure, including non-clinic groupings such as “URGENT.” The user explicitly renamed the displayed “No Foud” tab to “Not Found”; retain the original spelling only in workbook provenance. Do not silently merge tabs or rename them to match the general clinic list.
 
 **Why:** The user explicitly requested the workbook as the page template and said to keep its clinic-tab structure while importing its historical requests.
 

@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, FileSpreadsheet, Plus, RefreshCw, Search, Pencil, Trash2, ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
 
 const QUERY_KEY = ["/api/medical-records"];
-const WORKBOOK_TABS = ["URGENT", "HW", "GC", "MV", "AN", "CA", "RH", "EL", "SB", "MA", "QB", "HA", "JA", "No Foud", "BX", "AA", "AKNY", "FM"];
+const WORKBOOK_TABS = ["URGENT", "HW", "GC", "MV", "AN", "CA", "RH", "EL", "SB", "MA", "QB", "HA", "JA", "Not Found", "BX", "AA", "AKNY", "FM"];
 const PAGE_SIZE = 50;
 
 type MedicalRecordsResponse = {
@@ -55,7 +55,7 @@ export default function MedicalRecordsRequestPage() {
   const records = recordsQuery.data?.requests || [];
   const tabs = useMemo(() => {
     const serverTabs = recordsQuery.data?.tabs || [];
-    return [...serverTabs].sort((a, b) => {
+    return serverTabs.map(tab => ({ ...tab, name: tab.name === "No Foud" ? "Not Found" : tab.name })).sort((a, b) => {
       const aOrder = WORKBOOK_TABS.indexOf(a.name);
       const bOrder = WORKBOOK_TABS.indexOf(b.name);
       if (aOrder !== -1 && bOrder !== -1) return aOrder - bOrder;
