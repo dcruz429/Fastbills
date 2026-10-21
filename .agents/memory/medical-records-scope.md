@@ -20,3 +20,9 @@ Contact selection should fill all contact fields while allowing new text; distin
 **Why:** The user wants dropdown autofill and the ability to enter new information. Existing organizations have inconsistent or alternate phone/email/fax details, so name-only merging can combine unrelated contact destinations.
 
 **How to apply:** Treat saved request contact details as historical snapshots. Reusing or adding a contact must not retroactively rewrite other requests. Clear absent fields when selecting a different contact to avoid leaving another person's details in the form.
+
+Keep saved-contact searching and selection inside the request editor's modal interaction boundary.
+
+**Why:** The user reported the contact details picker was not working while creating requests. An external popup adds conflicting modal focus/scroll behavior; the in-form dropdown avoids that interaction and keeps free-text entry available.
+
+**How to apply:** Preserve keyboard selection without submitting the request. Escape from an open contact dropdown must close that dropdown, not discard the request editor; the parent modal's capture-phase Escape handler must allow for this.

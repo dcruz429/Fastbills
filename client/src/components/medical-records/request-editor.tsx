@@ -66,7 +66,12 @@ export function MedicalRequestEditor({
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!saving) onOpenChange(next); }}>
       <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-4xl" data-testid="dialog-medical-record-editor"
-        onEscapeKeyDown={(event) => { if (saving) event.preventDefault(); }}
+        onEscapeKeyDown={(event) => {
+          // Radix handles Escape in the capture phase, before the picker's
+          // own key handler. Let that handler close the dropdown, not the form.
+          const target = event.target as HTMLElement | null;
+          if (saving || target?.closest?.("[data-medical-contact-picker-open]")) event.preventDefault();
+        }}
         onInteractOutside={(event) => { if (saving) event.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle>{request ? "Edit medical records request" : "New medical records request"}</DialogTitle>
