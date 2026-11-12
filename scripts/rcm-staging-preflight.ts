@@ -11,8 +11,8 @@ async function main() {
   const value = process.env.DATABASE_URL;
   if (!value) throw Error("DATABASE_URL missing");
   const u = new URL(value);
-  if (decodeURIComponent(u.pathname) !== "/fastbills_rcm_restore_test") {
-    throw Error("Expected restored test database only");
+  if (decodeURIComponent(u.pathname) !== "/fastbills_rcm_synthetic_staging") {
+    throw Error("Expected synthetic staging database only");
   }
   if (process.env.RCM_STAGING_SAFE !== "1") throw Error("RCM_STAGING_SAFE must equal 1");
   if (process.env.NODE_ENV !== "production") throw Error("NODE_ENV must equal production for staging");
@@ -26,7 +26,7 @@ async function main() {
     const r=await client.query(
       "SELECT current_database() AS db, (SELECT count(*)::integer FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'rcm_%') AS tables",
     );
-    if (r.rows[0]?.db !== "fastbills_rcm_restore_test" || r.rows[0]?.tables!==10) {
+    if (r.rows[0]?.db !== "fastbills_rcm_synthetic_staging" || r.rows[0]?.tables!==10) {
       throw Error("Staging database identity or schema check failed");
     }
     await client.query("ROLLBACK");
