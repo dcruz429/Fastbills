@@ -42,12 +42,23 @@ export function registerLegacyFinancialWriteBoundary(app:Express){
    try{
     const access=await resolveRcmAccess(req.session.userId);
     if(!access)return res.status(403).json({message:"Access denied"});
-    // Only original system admins can use the non-scoped legacy import and
-    // transfer capabilities while those handlers await redesign.
-    const isAdmin=access.context.isSystemAdmin;
-    if(isAdmin)return next();
     const method=req.method;
     const suffix=req.path;
+    const isCreate=suffix==="/" && method==="POST";
+    const isImport=suffix==="/import-csv";
+    const isDelete=method==="DELETE" || suffix==="/bulk-delete" || suffix==="/remove-duplicates";
+    const isExport=suffix==="/export";
+    const permission=isCreate||isImport?"tasks.create":isDelete?"tasks.close":"tasks.update";
+    // An explicit user-level denial must apply to original system admins too.
+    // System admin bypasses clinic/department scopes, NOT permission denies.
+    if(!permissionAllowed(access.context,permission) ||
+       (family==="checks"&&!permissionAllowed(access.context,"checks.read")) ||
+       (isExport&&!permissionAllowed(access.context,"reports.read"))){
+      return res.status(403).json({message:"Financial operation permission denied"});
+    }
+    // Original system admins retain legacy unscoped operations while their
+    // underlying workflows receive separate review and test coverage.
+    if(access.context.isSystemAdmin)return next();
     if(suffix==="/import-csv" || suffix==="/remove-duplicates" || suffix==="/fix-assigned" || suffix==="/export" ||
        suffix.endsWith("/send-to-arbitration")){
       return res.status(403).json({message:"Legacy import/transfer requires a scoped workflow"});
@@ -58,7 +69,6 @@ export function registerLegacyFinancialWriteBoundary(app:Express){
       return res.status(403).json({message:"Checks permission required"});
     }
     const body=req.body ?? {};
-    const isCreate=req.path==="/" && method==="POST";
     // Creation may specify its own existing, uniquely resolvable clinic,
     // but not a preassigned employee or cross-tracker transfer.
     const prohibited=isCreate?["assignedTo","outcome"]:["clinic","assignedTo","outcome"];
