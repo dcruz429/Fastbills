@@ -20,7 +20,7 @@ const labels: Record<string,string> = {
   unassigned: "Unassigned", assigned:"Assigned", working_on_it:"Working on it",
   verified:"Verified", billed:"Billed", done:"Done", dropped:"Dropped",
 };
-const pretty = (s:string) => labels[s] || s.replaceAll("_"," ");
+const pretty = (s:string) => labels[s] || s.replace(/_/g," ");
 const dateText = (d:string|null) => d ? new Date(d).toLocaleDateString() : "—";
 
 export default function RcmTaskBoardPreview() {
