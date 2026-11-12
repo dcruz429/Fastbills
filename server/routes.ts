@@ -2848,7 +2848,9 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllAnnouncements();
-      const a = all.find(ann => ann.id === parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid announcement id" });
+      const a = all.find(ann => ann.id === id);
       if (!a) return res.status(404).json({ message: "Announcement not found" });
       const isRecipient = a.targetType === "all" ||
         (a.targetType === "role" && a.targetRoles?.includes(user.role)) ||
@@ -2868,7 +2870,9 @@ export async function registerRoutes(
       if (!["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can view read receipts" });
       }
-      const acks = await storage.getAnnouncementAcks(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid announcement id" });
+      const acks = await storage.getAnnouncementAcks(id);
       res.json(acks);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2881,7 +2885,9 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can delete announcements" });
       }
-      await storage.deleteAnnouncement(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid announcement id" });
+      await storage.deleteAnnouncement(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3390,7 +3396,8 @@ export async function registerRoutes(
       if (!user || !CHECKS_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid check id" });
       const existing = await storage.getCheck(id);
       if (!existing) return res.status(404).json({ message: "Check not found" });
       const data: any = { ...req.body };
@@ -3477,7 +3484,8 @@ export async function registerRoutes(
 
   app.post("/api/checks/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid check id" });
       const { note } = req.body;
       if (!note) return res.status(400).json({ message: "Note required" });
       const existing = await storage.getCheck(id);
@@ -3512,7 +3520,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete checks" });
       }
-      await storage.deleteCheck(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid check id" });
+      await storage.deleteCheck(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3697,7 +3707,8 @@ export async function registerRoutes(
 
   app.patch("/api/closed/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid closed record id" });
       const existing = await storage.getClosed(id);
       if (!existing) return res.status(404).json({ message: "Record not found" });
       const data: any = { ...req.body };
@@ -3757,7 +3768,9 @@ export async function registerRoutes(
   });
 
   app.get("/api/closed/:id/activity", requireAuth, async (req, res) => {
-    res.json(await storage.getClosedActivity(parseInt(req.params.id)));
+    const id = parsePositiveRouteId(req.params.id);
+    if (id === null) return res.status(400).json({ message: "Invalid closed record id" });
+    res.json(await storage.getClosedActivity(id));
   });
 
   app.delete("/api/closed/:id", requireAuth, async (req, res) => {
@@ -3766,7 +3779,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete closed records" });
       }
-      await storage.deleteClosed(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid closed record id" });
+      await storage.deleteClosed(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3775,7 +3790,8 @@ export async function registerRoutes(
 
   app.post("/api/closed/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid closed record id" });
       const existing = await storage.getClosed(id);
       if (!existing) return res.status(404).json({ message: "Record not found" });
       const { note } = req.body;
@@ -4380,7 +4396,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const scheduleId = parseInt(req.params.scheduleId);
+      const scheduleId = parsePositiveRouteId(req.params.scheduleId);
+      if (scheduleId === null) return res.status(400).json({ message: "Invalid schedule id" });
       const { dailyStatus } = req.body;
       const VALID_STATUSES = ["Done", "Resolved", "Voicemail", "Wrong #", "Call Back", "Unable", null];
       if (!VALID_STATUSES.includes(dailyStatus)) {
@@ -4401,7 +4418,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const scheduleId = parseInt(req.params.scheduleId);
+      const scheduleId = parsePositiveRouteId(req.params.scheduleId);
+      if (scheduleId === null) return res.status(400).json({ message: "Invalid schedule id" });
       const { notes } = req.body;
       const row = await storage.getPatientScheduleEntry(scheduleId);
       if (!row) return res.status(404).json({ message: "Schedule entry not found" });
@@ -4419,7 +4437,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const scheduleId = parseInt(req.params.scheduleId);
+      const scheduleId = parsePositiveRouteId(req.params.scheduleId);
+      if (scheduleId === null) return res.status(400).json({ message: "Invalid schedule id" });
       const row = await storage.getPatientScheduleEntry(scheduleId);
       if (!row) return res.status(404).json({ message: "Schedule entry not found" });
       if (!ADMIN_ROLES.includes(user.role) && row.userId !== user.id) {
