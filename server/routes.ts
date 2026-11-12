@@ -9,7 +9,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db, pool } from "./db";
-import { fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS, ceoBox, CEO_USERS, DR_AL_NAME } from "@shared/schema";
+import { roleEnum, fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS, ceoBox, CEO_USERS, DR_AL_NAME } from "@shared/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { buildPatientOverview } from "./patient-overview";
 import { searchPatientRecords } from "./patient-overview-query";
@@ -640,6 +640,41 @@ export async function registerRoutes(
   app.get("/api/users", requireAuth, async (_req, res) => {
     const allUsers = await storage.getAllUsers();
     res.json(allUsers.map(({ password: _, ...u }) => u));
+  });
+
+  // Legacy account mutations previously allowed delegated roles to assign the
+  // original admin role or reset an administrator's password. Until a scoped
+  // delegation workflow exists, fail closed for all direct account writes.
+  app.use("/api/users", async (req, res, next) => {
+    if (!["POST", "PATCH", "DELETE"].includes(req.method)) return next();
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (req.session.originalUserId) return res.status(403).json({ message: "Unavailable during impersonation" });
+    try {
+      const access = await resolveRcmAccess(req.session.userId);
+      if (!access || !access.context.isSystemAdmin ||
+          !permissionAllowed(access.context, "users.manage"))
+        return res.status(403).json({ message: "System administrator user-management permission required" });
+
+      // The generic patch endpoint must not modify privilege bits owned by
+      // their dedicated access-control routes, or database-generated fields.
+      if (req.method === "PATCH" && /^\/\d+$/.test(req.path)) {
+        const payload = req.body;
+        if (!payload || typeof payload !== "object" || Array.isArray(payload))
+          return res.status(400).json({ message: "Invalid account update" });
+        const allowedFields = new Set(["username", "fullName", "password", "role", "active"]);
+        if (Object.keys(payload).some(field => !allowedFields.has(field)))
+          return res.status(403).json({ message: "Account field requires a dedicated permission workflow" });
+      }
+      if (req.path === "/" && req.method === "POST" ||
+          /^\/\d+$/.test(req.path) && req.method === "PATCH") {
+        const role = req.body?.role;
+        if (role !== undefined &&
+            (!permissionAllowed(access.context, "roles.manage") ||
+             typeof role !== "string" || !roleEnum.enumValues.some(value => value === role)))
+          return res.status(403).json({ message: "Role management permission required or invalid role" });
+      }
+      next();
+    } catch (error) { next(error); }
   });
 
   const USER_MGMT_ROLES = ["admin", "manager", "account_manager", "case_manager"];
