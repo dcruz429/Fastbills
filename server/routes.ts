@@ -2237,7 +2237,7 @@ export async function registerRoutes(
           if (assignedName) {
             const nameLower = assignedName.toLowerCase().trim();
             const matchedUser = allUsers.find(u =>
-              `${u.firstName} ${u.lastName}`.toLowerCase() === nameLower ||
+              u.fullName.trim().toLowerCase() === nameLower ||
               u.username.toLowerCase() === nameLower
             );
             data.assignedUserId = matchedUser?.id || null;
@@ -2786,7 +2786,7 @@ export async function registerRoutes(
         if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id) || a.authorId === user.id;
         return false;
       });
-      const unread = visible.filter(a => !a.acks.some((ak: any) => ak.userId === user.id));
+      const unread = visible.filter(a => !(a.acks ?? []).some(ak => ak.userId === user.id));
       res.json({ count: unread.length });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2906,7 +2906,9 @@ export async function registerRoutes(
 
   app.get("/api/dropdown-options/:category", requireAuth, async (req, res) => {
     try {
-      const options = await storage.getDropdownOptionsByCategory(req.params.category);
+      const category = req.params.category;
+      if (typeof category !== "string" || !category.trim()) return res.status(400).json({ message: "Invalid category" });
+      const options = await storage.getDropdownOptionsByCategory(category);
       res.json(options);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
