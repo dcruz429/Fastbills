@@ -1095,7 +1095,8 @@ export async function registerRoutes(
 
   app.patch("/api/tasks/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid task id" });
       const existing = await storage.getTask(id);
       if (!existing) return res.status(404).json({ message: "Task not found" });
       if (req.session.originalUserId) return res.status(403).json({ message: "Task changes disabled during impersonation" });
@@ -1246,7 +1247,8 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete tasks" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid task id" });
       const existing = await storage.getTask(id);
       if (!existing) return res.status(404).json({ message: "Task not found" });
       if (req.session.originalUserId || !await mayActOnLegacyTask(req.session.userId!, existing, "tasks.close")) {
@@ -1261,7 +1263,8 @@ export async function registerRoutes(
 
   app.post("/api/tasks/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid task id" });
       const { note } = req.body;
       if (!note) return res.status(400).json({ message: "Note required" });
 
@@ -1334,11 +1337,13 @@ export async function registerRoutes(
   });
 
   app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
-    const notif = await storage.getNotification(parseInt(req.params.id));
+    const id = parsePositiveRouteId(req.params.id);
+    if (id === null) return res.status(400).json({ message: "Invalid notification id" });
+    const notif = await storage.getNotification(id);
     if (!notif || notif.userId !== req.session.userId) {
       return res.status(403).json({ message: "Not authorized" });
     }
-    await storage.markNotificationRead(parseInt(req.params.id));
+    await storage.markNotificationRead(id);
     res.json({ ok: true });
   });
 
