@@ -11,6 +11,7 @@ import { pool } from "./db";
 import { resolveRcmAccess } from "./rcm-access-service";
 import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy";
 import { taskDepartment, canAssignTaskState } from "../shared/rcm-task-assignment-policy";
+import { canAssignLegacyStatus, mustBlockLegacyHighRisk } from "../shared/rcm-legacy-assignment-policy";
 import { allowedBoardDepartments } from "../shared/rcm-taskboard-scope";
 
 const SOURCES = ["tasks", "postings", "collections", "denials", "arbitrations", "checks", "closed"] as const;
@@ -126,11 +127,12 @@ export function registerRcmTaskboardRoutes(app: Express) {
         const department = row.source === "tasks" ? taskDepartment(row.bucket) : null;
         return {
           ...row,
-          canAssign: !req.session.originalUserId &&
-            row.source === "tasks" && row.clinicId != null && !!department &&
-            canAssignTaskState(row.bucket, row.status) &&
-            resourceAllowed(access.context, "tasks.assign", {
-              departmentId: department!,
+          canAssign: !req.session.originalUserId && row.clinicId != null &&
+            (row.source === "tasks"
+              ? !!department && canAssignTaskState(row.bucket, row.status)
+              : canAssignLegacyStatus(row.status) && !mustBlockLegacyHighRisk(row.priority)) &&
+            resourceAllowed(access.context,"tasks.assign",{
+              departmentId: row.source === "tasks" ? department! : row.department,
               clinicId: Number(row.clinicId),
             }),
         };
