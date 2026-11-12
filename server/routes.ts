@@ -30,7 +30,7 @@ import { registerRcmQualityRoutes } from "./rcm-quality-routes";
 import { registerLegacyFinancialWriteBoundary } from "./rcm-legacy-financial-write-boundary";
 import { registerRcmFileDownloadBoundary } from "./rcm-file-download-boundary";
 import { resolveRcmAccess } from "./rcm-access-service";
-import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy";
+import { permissionAllowed, resourceAllowed, legacyMaintenanceAllowed } from "../shared/rcm-access-policy";
 
 // Express 5 route parameters may be arrays. Reject ambiguous or partial IDs.
 function parsePositiveRouteId(value: string | string[] | undefined): number | null {
@@ -521,7 +521,7 @@ export async function registerRoutes(
     if (req.session.originalUserId) return res.status(403).json({ message: "Unavailable during impersonation" });
     try {
       const access = await resolveRcmAccess(req.session.userId);
-      if (!access?.context.isSystemAdmin || !permissionAllowed(access.context, required))
+      if (!access || !legacyMaintenanceAllowed(access.context, required))
         return res.status(403).json({ message: "Administrative maintenance permission denied" });
       next();
     } catch (error) { next(error); }
