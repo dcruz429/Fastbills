@@ -12,6 +12,7 @@ import { pool } from "./db";
 import { resolveRcmAccess } from "./rcm-access-service";
 import { resourceAllowed } from "../shared/rcm-access-policy";
 import { taskDepartment, canAssignTaskState } from "../shared/rcm-task-assignment-policy";
+import { requiresAssignmentApproval } from "../shared/rcm-risk-approval-policy";
 
 const numericId = z.coerce.number().int().positive();
 const assignment = z.object({
@@ -83,7 +84,7 @@ export function registerRcmTaskAssignmentRoutes(app: Express) {
     try {
       await client.query("BEGIN");
       const found=await client.query(
-        "SELECT id, bucket::text AS bucket, status::text AS status, clinic_id AS \"clinicId\", assigned_user_id AS \"assignedUserId\" FROM tasks WHERE id=$1 FOR UPDATE",
+        "SELECT id, bucket::text AS bucket, status::text AS status, priority::text AS priority, clinic_id AS \"clinicId\", assigned_user_id AS \"assignedUserId\" FROM tasks WHERE id=$1 FOR UPDATE",
         [taskId],
       );
       const task=found.rows[0];
@@ -112,6 +113,19 @@ export function registerRcmTaskAssignmentRoutes(app: Express) {
       if(assignedUserId === task.assignedUserId){
         await client.query("COMMIT");return res.json({ok:true,unchanged:true});
       }
+      // Two-person authorization required before a high/critical task can
+      // change assignee. Approval locks the exact proposed old/new IDs.
+      let approvedRequestId: string | number | null = null;
+      if(requiresAssignmentApproval(task.priority)){
+        const approved=await client.query(
+          "SELECT id FROM rcm_task_approvals WHERE task_id=$1 AND requested_by=$2 AND requested_assignee_id IS NOT DISTINCT FROM $3::integer AND expected_assignee_id IS NOT DISTINCT FROM $4::integer AND status='approved' AND risk_level=$5 AND reviewed_at > now() - interval '48 hours' ORDER BY reviewed_at DESC LIMIT 1 FOR UPDATE",
+          [taskId,req.session.userId,assignedUserId,task.assignedUserId,task.priority],
+        );
+        if(!approved.rowCount){
+          await client.query("ROLLBACK");return res.status(428).json({message:"Independent approval required for high/critical risk task",approvalRequired:true});
+        }
+        approvedRequestId=approved.rows[0].id;
+      }
       const newStatus=assignedUserId === null
         ? (task.status === "assigned" ? "unassigned" : task.status)
         : (task.status === "unassigned" ? "assigned" : task.status);
@@ -120,6 +134,9 @@ export function registerRcmTaskAssignmentRoutes(app: Express) {
         "INSERT INTO task_activity(task_id,user_id,action,field,old_value,new_value) VALUES($1,$2,$3,$4,$5,$6)",
         [taskId,req.session.userId,"RCM Task Board assignment changed","assignedUserId",task.assignedUserId===null?null:String(task.assignedUserId),assignedUserId===null?null:String(assignedUserId)],
       );
+      if(approvedRequestId!==null){
+        await client.query("UPDATE rcm_task_approvals SET status='consumed',consumed_at=now() WHERE id=$1 AND status='approved'",[approvedRequestId]);
+      }
       if(newStatus !== task.status){
         await client.query(
           "INSERT INTO task_activity(task_id,user_id,action,field,old_value,new_value) VALUES($1,$2,$3,$4,$5,$6)",
