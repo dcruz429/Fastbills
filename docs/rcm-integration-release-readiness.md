@@ -88,3 +88,14 @@ DATABASE_URL="$RCM_TEST_URL" NODE_ENV=production RCM_STAGING_SAFE=1 npx tsx scri
 This command only verifies identity, schema and required environment flags. It does not start Express or modify the database.
 
 **Caution:** Guarded startup does not make the entire legacy app read-only: registering its existing routes initializes session infrastructure, and authorized HTTP routes can still modify records. Session handling, background jobs registered by other modules, and outward-facing integrations have not been fully audited. Restored production-like healthcare data is not an appropriate user acceptance fixture; create a separate sanitized/synthetic staging dataset before opening a browser session. Do not expose the restored test app through a public Replit preview or deploy it.
+
+## Synthetic-only database for browser acceptance
+The full guarded application startup now accepts **only** `fastbills_rcm_synthetic_staging` when `RCM_STAGING_SAFE=1`. Full startup against `fastbills_rcm_restore_test` is explicitly rejected; the synthetic database also refuses ordinary startup with the safe flag omitted.
+
+After schema-only restore and running the three migrations to seed roles and weights, seed controlled fictional records:
+```bash
+DATABASE_URL="$RCM_SYNTHETIC_URL" npx tsx scripts/rcm-seed-synthetic.ts
+```
+The script requires zero users, tasks, and clinics and verifies 12 roles/9 weights. It inserts 2 fictional clinics, 6 fictional users, and 8 tasks (including high/critical risk), and creates `/tmp/fastbills_rcm_synthetic_logins.txt` (mode 0600) with random per-user credentials. Do not upload or commit this file; it is ephemeral. The script deliberately fails on rerun to prevent duplicates.
+
+Then run the read-only preflight using `RCM_SYNTHETIC_URL`, with `RCM_STAGING_SAFE=1` and `NODE_ENV=production`. Browser/app tests still require a security review of legacy routes and session exposure. Never enable public Replit preview with synthetic fixtures or copied patient data.
