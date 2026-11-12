@@ -5,7 +5,7 @@
  */
 export const RCM_PERMISSIONS = [
   "tasks.read", "tasks.create", "tasks.assign", "tasks.update",
-  "tasks.review", "tasks.close", "productivity.read",
+  "tasks.review", "tasks.close", "checks.read", "productivity.read",
   "sla.read", "reports.read", "users.manage",
   "roles.manage", "scopes.manage", "settings.manage",
 ] as const;
@@ -23,8 +23,8 @@ export const RCM_ROLE_DEFAULTS: Record<RcmRole, readonly RcmPermission[]> = {
   verifier: ["tasks.read", "tasks.update", "sla.read"],
   biller: ["tasks.read", "tasks.update", "sla.read"],
   assigner: ["tasks.read", "tasks.create", "tasks.assign", "tasks.update"],
-  payment_specialist: ["tasks.read", "tasks.update", "sla.read"],
-  account_manager: ["tasks.read", "tasks.create", "tasks.assign", "tasks.update", "tasks.review", "productivity.read", "sla.read", "reports.read"],
+  payment_specialist: ["tasks.read", "tasks.update", "checks.read", "sla.read"],
+  account_manager: ["tasks.read", "tasks.create", "tasks.assign", "tasks.update", "tasks.review", "checks.read", "productivity.read", "sla.read", "reports.read"],
   case_manager: ["tasks.read", "tasks.create", "tasks.update", "sla.read", "reports.read"],
   supervisor: ["tasks.read", "tasks.create", "tasks.assign", "tasks.update", "tasks.review", "productivity.read", "sla.read", "reports.read"],
   department_head: ["tasks.read", "tasks.create", "tasks.assign", "tasks.update", "tasks.review", "productivity.read", "sla.read", "reports.read"],
