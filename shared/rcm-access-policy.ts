@@ -64,6 +64,14 @@ export function resourceAllowed(
   return ctx.departmentIds.has(scope.departmentId) && ctx.clinicIds.has(scope.clinicId);
 }
 
+/** Central decision for destructive legacy admin maintenance endpoints. */
+export function legacyMaintenanceAllowed(
+  ctx: AccessContext,
+  permission: "tasks.update" | "tasks.close",
+): boolean {
+  return ctx.isSystemAdmin && permissionAllowed(ctx, permission);
+}
+
 export function defaultRolePermissions(role: string): Set<RcmPermission> {
   return new Set(RCM_ROLE_DEFAULTS[role as RcmRole] ?? []);
 }
