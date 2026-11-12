@@ -159,7 +159,7 @@ export default function RcmAccessSettingsPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {catalog.permissions.map(p => {
-              const current = access.overrides[p] || "inherit";
+              const current: "allow" | "deny" | "inherit" = Object.prototype.hasOwnProperty.call(access.overrides, p) ? access.overrides[p] : "inherit";
               return <div key={p} className="flex items-center justify-between gap-4 border-b py-2">
                 <div><p className="text-sm font-medium">{p}</p>{current !== "inherit" && <Badge variant="secondary">{current}</Badge>}</div>
                 <Select disabled={saving || access.user.role === "admin"} value={current} onValueChange={value => setOverride(p,value === "inherit" ? null : value as "allow"|"deny")}>
