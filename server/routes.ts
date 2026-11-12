@@ -505,6 +505,27 @@ export async function registerRoutes(
   registerLegacyFinancialWriteBoundary(app);
   // Download permission is checked before the historical file serving handler.
   registerRcmFileDownloadBoundary(app);
+  // Administrative maintenance can bypass the normal financial tracker paths.
+  // Require the original active system administrator and explicit RCM permissions
+  // before any of these legacy bulk maintenance handlers can execute.
+  const guardedMaintenancePermissions = new Map<string, "tasks.update" | "tasks.close">([
+    ["/cleanup-legacy-rtp", "tasks.close"],
+    ["/recover-notes", "tasks.update"],
+    ["/backfill-assigned-status", "tasks.update"],
+    ["/rename-kimberly", "tasks.update"],
+  ]);
+  app.use("/api/admin", async (req, res, next) => {
+    const required = req.method === "POST" ? guardedMaintenancePermissions.get(req.path) : undefined;
+    if (!required) return next();
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (req.session.originalUserId) return res.status(403).json({ message: "Unavailable during impersonation" });
+    try {
+      const access = await resolveRcmAccess(req.session.userId);
+      if (!access?.context.isSystemAdmin || !permissionAllowed(access.context, required))
+        return res.status(403).json({ message: "Administrative maintenance permission denied" });
+      next();
+    } catch (error) { next(error); }
+  });
 
   app.post("/api/auth/login", async (req, res) => {
     try {
