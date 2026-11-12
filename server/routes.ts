@@ -506,7 +506,17 @@ export async function registerRoutes(
       }
       req.session.userId = user.id;
       const { password: _, ...safeUser } = user;
-      res.json(safeUser);
+      // Persist the new authenticated session BEFORE returning HTTP 200.
+      // Without an explicit save, a client can issue its next request while
+      // the PostgreSQL session store has not yet made the login available.
+      // Avoid returning a successful login if the session write fails.
+      req.session.save((saveError) => {
+        if (saveError) {
+          console.error("Login session persistence failed:", saveError);
+          return res.status(503).json({ message: "Could not establish session; retry login" });
+        }
+        res.json(safeUser);
+      });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
