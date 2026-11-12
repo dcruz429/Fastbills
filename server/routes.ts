@@ -2608,15 +2608,15 @@ export async function registerRoutes(
       const clinicIds = await legacyClinicNameIds();
       const all = (await storage.getAllPostings()).filter(p => scopedLegacyRecord(access.context, clinicIds, p.clinic, "Posting", "tasks.read"));
       res.setHeader("Cache-Control", "private, no-store");
-      const isWorkload = req.query.workload === "true";
-      if (isWorkload) {
-        res.json(all);
-        return;
-      }
       const canSeePaymentDocs = PAYMENT_DOC_ROLES.includes(user.role);
       const visibleByDocType = canSeePaymentDocs
         ? all
-        : all.filter(p => (p.documentType || "").toLowerCase() !== "payment");
+        : all.filter(p => (p.documentType || "").trim().toLowerCase() !== "payment");
+      const isWorkload = req.query.workload === "true";
+      if (isWorkload) {
+        res.json(visibleByDocType);
+        return;
+      }
       if (ADMIN_ROLES.includes(user.role)) {
         res.json(visibleByDocType);
       } else {
@@ -2771,6 +2771,10 @@ export async function registerRoutes(
       const clinicIds = await legacyClinicNameIds();
       if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Posting", "tasks.read"))
         return res.status(404).json({ message: "Record not found" });
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || (!PAYMENT_DOC_ROLES.includes(user.role) &&
+          (record.documentType || "").trim().toLowerCase() === "payment"))
+        return res.status(404).json({ message: "Record not found" });
       res.setHeader("Cache-Control", "private, no-store");
       res.json(record);
     } catch (error) { next(error); }
@@ -2786,6 +2790,10 @@ export async function registerRoutes(
       if (!record) return res.status(404).json({ message: "Record not found" });
       const clinicIds = await legacyClinicNameIds();
       if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Posting", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || (!PAYMENT_DOC_ROLES.includes(user.role) &&
+          (record.documentType || "").trim().toLowerCase() === "payment"))
         return res.status(404).json({ message: "Record not found" });
       res.setHeader("Cache-Control", "private, no-store");
       res.json(await storage.getPostingActivity(id));
