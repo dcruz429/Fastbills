@@ -57,7 +57,7 @@ async function main(){
   check(Number(t8.clinic)===harbor && t8.bucket==="ready_for_billing" && t8.status==="assigned" &&
     t8.priority==="low" && Number(t8.assignee)===u.get("rcm_demo_other") && t8.outcome===null &&
     typeof t8.notes==="string" &&
-    /^SHOULD NEVER BE SAVED\\n\\n\\[Demo Billing Manager - \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z\\]\\nSHOULD NEVER BE SAVED$/.test(t8.notes) &&
+    /^SHOULD NEVER BE SAVED\n\n\[Demo Billing Manager - \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\]\nSHOULD NEVER BE SAVED$/.test(t8.notes) &&
     t8.notes.length===94,
     "fixture 008 matches known unauthorized note damage");
   check(Number(extra.clinic)===evergreen && extra.bucket==="ready_for_billing" &&
