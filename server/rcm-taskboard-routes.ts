@@ -9,7 +9,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { pool } from "./db";
 import { resolveRcmAccess } from "./rcm-access-service";
-import { permissionAllowed } from "../shared/rcm-access-policy";
+import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy";
+import { taskDepartment, canAssignTaskState } from "../shared/rcm-task-assignment-policy";
 import { allowedBoardDepartments } from "../shared/rcm-taskboard-scope";
 
 const SOURCES = ["tasks", "postings", "collections", "denials", "arbitrations", "checks", "closed"] as const;
@@ -121,7 +122,20 @@ export function registerRcmTaskboardRoutes(app: Express) {
       const rows = await pool.query(UNIFIED_BOARD_QUERY, [
         access.context.isSystemAdmin, clinicIds, departments, canSeeChecks, limit, offset,
       ]);
-      res.json({ tasks: rows.rows, page, pageSize: limit, limitedTo: "Assigned clinic and department scope", sources: SOURCES });
+      const tasks = rows.rows.map(row => {
+        const department = row.source === "tasks" ? taskDepartment(row.bucket) : null;
+        return {
+          ...row,
+          canAssign: !req.session.originalUserId &&
+            row.source === "tasks" && row.clinicId != null && !!department &&
+            canAssignTaskState(row.bucket, row.status) &&
+            resourceAllowed(access.context, "tasks.assign", {
+              departmentId: department!,
+              clinicId: Number(row.clinicId),
+            }),
+        };
+      });
+      res.json({ tasks, page, pageSize: limit, limitedTo: "Assigned clinic and department scope", sources: SOURCES });
     } catch (error) { next(error); }
   });
 }
