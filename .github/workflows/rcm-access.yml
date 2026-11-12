@@ -28,3 +28,4 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npx tsx --test shared/rcm-access-policy.test.ts server/rcm-access-service.test.ts
+        if: always()
