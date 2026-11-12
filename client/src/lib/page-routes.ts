@@ -13,6 +13,7 @@ const imports = {
   "/notifications": () => import("@/pages/notifications"),
   "/settings": () => import("@/pages/settings"),
   "/rcm-access": () => import("@/pages/rcm-access"),
+  "/rcm-role-matrix": () => import("@/pages/rcm-role-matrix"),
   "/reports": () => import("@/pages/reports"),
   "/productivity": () => import("@/pages/productivity"),
   "/denials": () => import("@/pages/denials"),
