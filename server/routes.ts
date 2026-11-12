@@ -23,6 +23,7 @@ import { registerRcmAccessRoutes } from "./rcm-access-routes";
 import { registerRcmTaskboardRoutes } from "./rcm-taskboard-routes";
 import { registerRcmTaskAssignmentRoutes } from "./rcm-task-assignment-routes";
 import { registerRcmApprovalRoutes } from "./rcm-approval-routes";
+import { registerRcmProductivityRoutes } from "./rcm-productivity-routes";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -482,6 +483,7 @@ export async function registerRoutes(
   registerRcmTaskboardRoutes(app);
   registerRcmTaskAssignmentRoutes(app);
   registerRcmApprovalRoutes(app);
+  registerRcmProductivityRoutes(app);
 
   app.post("/api/auth/login", async (req, res) => {
     try {
