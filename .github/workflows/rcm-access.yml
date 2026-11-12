@@ -3,7 +3,9 @@ on:
   pull_request:
     paths:
       - "shared/rcm-access-*"
+      - "shared/rcm-taskboard-*"
       - "server/rcm-access-*"
+      - "server/rcm-taskboard-*"
       - "client/src/pages/rcm-*"
       - "client/src/lib/page-routes.ts"
       - "client/src/components/app-sidebar.tsx"
@@ -27,5 +29,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: npx tsx --test shared/rcm-access-policy.test.ts server/rcm-access-service.test.ts
+      - run: npx tsx --test shared/rcm-access-policy.test.ts server/rcm-access-service.test.ts shared/rcm-taskboard-scope.test.ts
         if: always()
