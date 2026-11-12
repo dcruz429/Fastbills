@@ -53,3 +53,13 @@
 
 ## Rollback
 Before deployment, close the draft PR. If new tables are added in staging, revert application code but preserve permission and audit tables until an authorized retention decision.
+
+## Read-only restored-database smoke test (Replit)
+The staging SQL smoke test does not boot the FastbillsPH server, seed users, backfill data, open a listening port, or run mutations. It executes the real unified board, SLA and productivity SELECT queries using an explicit PostgreSQL READ ONLY transaction with empty clinic scope, prints only PASS/FAIL, and requires the exact database name fastbills_rcm_restore_test.
+
+1. Verify RCM_TEST_URL remains set in the current Shell.
+2. Fetch the latest feature branch to Replit, with a clean worktree and fast-forward merge.
+3. Run: DATABASE_URL="$RCM_TEST_URL" npx tsx scripts/rcm-staging-smoke.ts
+4. Stop and report any SQL error. Do not change the regular DATABASE_URL or launch npm run dev/start against the restored database.
+
+This is not an authentication/UI/e2e test. Separate startup protections, data-minimized staging fixtures and database access control are still necessary before starting an HTTP server with restored data.
