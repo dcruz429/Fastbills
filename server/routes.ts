@@ -28,7 +28,7 @@ import { registerRcmLegacyAssignmentRoutes } from "./rcm-legacy-assignment-route
 import { registerRcmSlaRoutes } from "./rcm-sla-routes";
 import { registerRcmQualityRoutes } from "./rcm-quality-routes";
 import { resolveRcmAccess } from "./rcm-access-service";
-import { resourceAllowed } from "../shared/rcm-access-policy";
+import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -977,6 +977,25 @@ export async function registerRoutes(
     return !!access && resourceAllowed(access.context, permission, scope);
   }
 
+  // Legacy Denials/Checks clinic names are text. Resolve only a unique,
+  // normalized clinic name to an existing clinic ID, then enforce department
+  // and record-level permissions. Ambiguous/unknown names fail closed.
+  async function legacyClinicNameIds() {
+    const rows = await pool.query(
+      "SELECT lower(btrim(name)) AS name, min(id)::int AS id FROM clinics GROUP BY lower(btrim(name)) HAVING count(*)=1"
+    );
+    return new Map<string,number>(rows.rows.map(row => [String(row.name),Number(row.id)]));
+  }
+  function scopedLegacyRecord(
+    context: NonNullable<Awaited<ReturnType<typeof resolveRcmAccess>>>["context"],
+    clinicIds: Map<string,number>, clinic: string | null | undefined,
+    department: "Denials" | "Checks", permission: "tasks.read" | "checks.read"
+  ) {
+    const key = typeof clinic === "string" ? clinic.trim().toLowerCase() : "";
+    const clinicId = key ? clinicIds.get(key) : undefined;
+    return clinicId !== undefined && resourceAllowed(context,permission,{clinicId,departmentId:department});
+  }
+
   const createTaskSchema = z.object({
     patientName: z.string().min(1, "Patient name is required"),
     chartNumber: z.string().nullable().optional(),
@@ -1307,20 +1326,22 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
-  app.get("/api/denials", requireAuth, async (req, res) => {
+  app.get("/api/denials", requireAuth, async (req, res, next) => {
     try {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const all = await storage.getAllDenials();
-      const isWorkload = req.query.workload === "true";
-      if (isWorkload || ADMIN_ROLES.includes(user.role)) {
-        res.json(all);
-      } else {
-        res.json(all.filter(d => d.assignedTo === user.fullName));
-      }
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
+      const access=await resolveRcmAccess(req.session.userId!);
+      const user=await storage.getUser(req.session.userId!);
+      if (!access || !user) return res.status(403).json({ message:"Denials access denied" });
+      const clinicIds=await legacyClinicNameIds();
+      const all=await storage.getAllDenials();
+      const permitted=all.filter(d=>scopedLegacyRecord(access.context,clinicIds,d.clinic,"Denials","tasks.read"));
+      // Preserve existing assignee filtering within authorized scope.
+      // The workload query flag cannot widen clinic or department access.
+      const isWorkload=req.query.workload==="true";
+      const visible=!isWorkload && !ADMIN_ROLES.includes(user.role)
+        ? permitted.filter(d=>d.assignedTo===user.fullName) : permitted;
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(visible);
+    } catch (error) { next(error); }
   });
 
   const denialFieldLabels: Record<string, string> = {
@@ -1480,15 +1501,36 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/denials/:id", requireAuth, async (req, res) => {
-    const record = await storage.getDenial(parseInt(req.params.id));
-    if (!record) return res.status(404).json({ message: "Denial not found" });
-    res.json(record);
+  app.get("/api/denials/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id=Number(req.params.id);
+      if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({message:"Invalid Denial ID"});
+      const access=await resolveRcmAccess(req.session.userId!);
+      if(!access)return res.status(403).json({message:"Denials access denied"});
+      const record=await storage.getDenial(id);
+      if(!record)return res.status(404).json({message:"Denial not found"});
+      const clinicIds=await legacyClinicNameIds();
+      if(!scopedLegacyRecord(access.context,clinicIds,record.clinic,"Denials","tasks.read"))
+        return res.status(404).json({message:"Denial not found"});
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(record);
+    }catch(error){next(error);}
   });
 
-  app.get("/api/denials/:id/activity", requireAuth, async (req, res) => {
-    const denialId = parseInt(req.params.id);
-    res.json(await storage.getDenialActivity(denialId));
+  app.get("/api/denials/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id=Number(req.params.id);
+      if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({message:"Invalid Denial ID"});
+      const access=await resolveRcmAccess(req.session.userId!);
+      if(!access)return res.status(403).json({message:"Denials access denied"});
+      const record=await storage.getDenial(id);
+      if(!record)return res.status(404).json({message:"Denial not found"});
+      const clinicIds=await legacyClinicNameIds();
+      if(!scopedLegacyRecord(access.context,clinicIds,record.clinic,"Denials","tasks.read"))
+        return res.status(404).json({message:"Denial not found"});
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(await storage.getDenialActivity(id));
+    }catch(error){next(error);}
   });
 
   app.post("/api/denials/:id/send-to-arbitration", requireAuth, async (req, res) => {
@@ -3172,19 +3214,21 @@ export async function registerRoutes(
 
   const CHECKS_ROLES = ["admin", "payment_specialist", "account_manager"];
 
-  app.get("/api/checks", requireAuth, async (req, res) => {
+  app.get("/api/checks", requireAuth, async (req, res, next) => {
     try {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const isWorkload = req.query.workload === "true";
-      if (!isWorkload && !CHECKS_ROLES.includes(user.role)) {
-        return res.status(403).json({ message: "Access denied" });
+      const user=await storage.getUser(req.session.userId!);
+      const access=await resolveRcmAccess(req.session.userId!);
+      // Workload mode is never an authorization bypass.
+      if(!user||!access||!CHECKS_ROLES.includes(user.role)||
+         !permissionAllowed(access.context,"checks.read")){
+        return res.status(403).json({message:"Checks access denied"});
       }
-      const all = await storage.getAllChecks();
-      res.json(all);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
+      const clinicIds=await legacyClinicNameIds();
+      const all=await storage.getAllChecks();
+      const visible=all.filter(c=>scopedLegacyRecord(access.context,clinicIds,c.clinic,"Checks","checks.read"));
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(visible);
+    }catch(error){next(error);}
   });
 
   app.post("/api/checks", requireAuth, async (req, res) => {
@@ -3331,15 +3375,42 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/checks/:id", requireAuth, async (req, res) => {
-    const record = await storage.getCheck(parseInt(req.params.id));
-    if (!record) return res.status(404).json({ message: "Check not found" });
-    res.json(record);
+  app.get("/api/checks/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id=Number(req.params.id);
+      if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({message:"Invalid Check ID"});
+      const user=await storage.getUser(req.session.userId!);
+      const access=await resolveRcmAccess(req.session.userId!);
+      if(!user||!access||!CHECKS_ROLES.includes(user.role)||
+         !permissionAllowed(access.context,"checks.read"))
+        return res.status(403).json({message:"Checks access denied"});
+      const record=await storage.getCheck(id);
+      if(!record)return res.status(404).json({message:"Check not found"});
+      const clinicIds=await legacyClinicNameIds();
+      if(!scopedLegacyRecord(access.context,clinicIds,record.clinic,"Checks","checks.read"))
+        return res.status(404).json({message:"Check not found"});
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(record);
+    }catch(error){next(error);}
   });
 
-  app.get("/api/checks/:id/activity", requireAuth, async (req, res) => {
-    const activity = await storage.getCheckActivity(parseInt(req.params.id));
-    res.json(activity);
+  app.get("/api/checks/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id=Number(req.params.id);
+      if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({message:"Invalid Check ID"});
+      const user=await storage.getUser(req.session.userId!);
+      const access=await resolveRcmAccess(req.session.userId!);
+      if(!user||!access||!CHECKS_ROLES.includes(user.role)||
+         !permissionAllowed(access.context,"checks.read"))
+        return res.status(403).json({message:"Checks access denied"});
+      const record=await storage.getCheck(id);
+      if(!record)return res.status(404).json({message:"Check not found"});
+      const clinicIds=await legacyClinicNameIds();
+      if(!scopedLegacyRecord(access.context,clinicIds,record.clinic,"Checks","checks.read"))
+        return res.status(404).json({message:"Check not found"});
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(await storage.getCheckActivity(id));
+    }catch(error){next(error);}
   });
 
   app.post("/api/checks/:id/notes", requireAuth, async (req, res) => {
