@@ -32,16 +32,16 @@ async function main() {
   const identity = await pool.query("SELECT current_database() AS name");
   verify(identity.rows[0]?.name === EXPECTED, "restore-test PostgreSQL database confirmed");
   const employees = await pool.query(
-    "SELECT id FROM users WHERE active=true AND role::text IN ('biller','verifier','manager') ORDER BY id LIMIT 1",
+    "SELECT id FROM users WHERE active=true AND role::text IN ('manager','account_manager') ORDER BY id LIMIT 1",
   );
-  if (!employees.rowCount) throw new Error("No eligible active non-admin identity for no-scope test");
+  if (!employees.rowCount) throw new Error("No active non-admin manager identity for no-scope test");
   const employeeId = Number(employees.rows[0].id);
   const existingAssignments = await pool.query(
     "SELECT (SELECT count(*)::integer FROM rcm_user_clinics WHERE user_id=$1) AS clinics, (SELECT count(*)::integer FROM rcm_user_departments WHERE user_id=$1) AS departments",
     [employeeId],
   );
   verify(existingAssignments.rows[0].clinics===0 && existingAssignments.rows[0].departments===0,
-    "selected non-admin has no clinic or department assignments");
+    "selected manager has no clinic or department assignments");
 
   // Never import server/index.ts or register all FastbillsPH routes.
   // Synthetic session is an internal harness-only identity, not a login bypass
