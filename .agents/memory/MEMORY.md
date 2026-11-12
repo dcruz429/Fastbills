@@ -4,6 +4,7 @@
 - [Verification-to-billing continuity](task-transfer-contract.md) — an outcome transfer must retain insurance and the current deadline, including edits made in the same save.
 - [Patient Overview scope](patient-overview-scope.md) — all roles may search across trackers, including other assignees and Done records; original edit permissions remain unchanged.
 - [UI rendering checks](jsx-test-runtime.md) — match Vite’s automatic JSX runtime; verify generated table headers and record cells, not just column metadata.
+- [Lazy page recovery](page-load-recovery.md) — React.lazy caches loader failures; bounded download retries must finish before its promise rejects.
 - [PAID marker meaning](paid-marker-meaning.md) — PAID is reversible and independent of workflow status, outcomes, and tracked-amount summaries.
 - [Productivity transfer counts](productivity-transfer-counts.md) — count original outcome-transfer events credited to the actor, separate from completions and copied history.
 - [Tracker pagination scope](tracker-pagination-scope.md) — pagination limits rendering, not search coverage, financial totals, exports or bulk-selection scope.
