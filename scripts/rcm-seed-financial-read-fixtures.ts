@@ -50,8 +50,9 @@ async function main(){
   for(const table of TABLES){
    for(const clinic of CLINICS){
     const patient=`TEST SECURITY ${table.toUpperCase()} ${clinic.startsWith("Evergreen")?"EVERGREEN":"HARBOR"}`;
+    const patientColumn=table==="postings"?"posting_patient_name":"patient_name";
     await client.query(
-      `INSERT INTO ${table} (patient_name,clinic) VALUES ($1,$2)`,
+      `INSERT INTO ${table} (${patientColumn},clinic) VALUES ($1,$2)`,
       [patient,clinic]
     );
    }
