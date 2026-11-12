@@ -32,6 +32,13 @@ import { registerRcmFileDownloadBoundary } from "./rcm-file-download-boundary";
 import { resolveRcmAccess } from "./rcm-access-service";
 import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy";
 
+// Express 5 route parameters may be arrays. Reject ambiguous or partial IDs.
+function parsePositiveRouteId(value: string | string[] | undefined): number | null {
+  if (typeof value !== "string" || !/^[1-9]\\d*$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
 const upload = multer({
@@ -575,8 +582,8 @@ export async function registerRoutes(
       if (!admin || admin.role !== "admin") {
         return res.status(403).json({ message: "Only admins can impersonate users" });
       }
-      const targetId = parseInt(req.params.userId);
-      if (isNaN(targetId)) return res.status(400).json({ message: "Invalid user id" });
+      const targetId = parsePositiveRouteId(req.params.userId);
+      if (targetId === null) return res.status(400).json({ message: "Invalid user id" });
       const target = await storage.getUser(targetId);
       if (!target) return res.status(404).json({ message: "User not found" });
       if (target.id === admin.id) return res.status(400).json({ message: "Cannot impersonate yourself" });
@@ -646,7 +653,8 @@ export async function registerRoutes(
       if (!requestingUser || !USER_MGMT_ROLES.includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid user id" });
       const updateData = { ...req.body };
       if (Object.hasOwn(updateData, "guidelineModuleAccess")) {
         return res.status(403).json({ message: "Use the admin-only module editor access control to change this permission" });
@@ -677,8 +685,9 @@ export async function registerRoutes(
       if (!requestingUser || !USER_MGMT_ROLES.includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const id = parseInt(req.params.id);
-      const currentUser = (req as any).session?.userId;
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid user id" });
+      const currentUser = req.session.userId;
       if (id === currentUser) {
         return res.status(400).json({ message: "Cannot delete yourself" });
       }
