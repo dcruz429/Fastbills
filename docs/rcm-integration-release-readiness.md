@@ -77,3 +77,14 @@ Run this only against the restored test database, with a clean working tree:
 DATABASE_URL="$RCM_TEST_URL" npx tsx scripts/rcm-http-write-integration.ts
 ```
 The test mounts only the existing assignment and approval handlers, uses synthetic identities rather than real authentication, and binds to 127.0.0.1 on an ephemeral port. A dedicated PostgreSQL transaction contains synthetic users, a clinic, and tasks; intercepted route-level BEGIN/COMMIT operations use SAVEPOINTs so the outer transaction is **always rolled back**, including on errors. Tests include anonymous 401, out-of-scope 403, eligible assignment, stale 409, high-risk 428, independent approval, single-use consumption, and activity/notification/audit writes. This deliberately tests **route semantics, not production login/session, the full server lifecycle, or browser UI**. Do not run the full server against the restored database yet.
+
+## Guarded staging startup (development branch only)
+The Express entrypoint now recognizes `RCM_STAGING_SAFE=1` and rejects use of any database except `fastbills_rcm_restore_test`. It also requires `NODE_ENV=production` (so no Vite development middleware), a configured non-default `SESSION_SECRET`, and binds only to `127.0.0.1`. In this mode it skips automatic seeding, completion activity backfills, due-date backfills, and schedule cleanup. The normal app startup behavior is unchanged when the flag is absent.
+
+Before launching any second process, run the **read-only preflight**:
+```bash
+DATABASE_URL="$RCM_TEST_URL" NODE_ENV=production RCM_STAGING_SAFE=1 npx tsx scripts/rcm-staging-preflight.ts
+```
+This command only verifies identity, schema and required environment flags. It does not start Express or modify the database.
+
+**Caution:** Guarded startup does not make the entire legacy app read-only: registering its existing routes initializes session infrastructure, and authorized HTTP routes can still modify records. Session handling, background jobs registered by other modules, and outward-facing integrations have not been fully audited. Restored production-like healthcare data is not an appropriate user acceptance fixture; create a separate sanitized/synthetic staging dataset before opening a browser session. Do not expose the restored test app through a public Replit preview or deploy it.
