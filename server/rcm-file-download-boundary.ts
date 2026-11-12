@@ -8,7 +8,8 @@
  * exactly one module and no other parent. Tickets and ticket-comment files
  * require an active administrator and a single eligible parent reference.
  * Announcements require their intended audience or the author (for
- * targeted messages), with a unique attachment parent. CEO Box still fails closed.
+ * targeted messages), with a unique attachment parent. CEO Box downloads
+ * enforce the same access flag and confidentiality rule as its record list.
  *
  * Must be registered BEFORE legacy /api/files/:id route.
  */
@@ -52,7 +53,14 @@ export function registerRcmFileDownloadBoundary(app:Express){
               OR (p.target_type='role' AND (SELECT role::text FROM users WHERE id=$2)=ANY(p.target_roles)))
        ) AS allowed_announcement_references,
        (SELECT count(*)::int FROM ceo_box p
-          WHERE EXISTS (SELECT 1 FROM unnest(p.attachments) a WHERE split_part(a,'|',1)=$1)) AS other_references`,
+          WHERE EXISTS (SELECT 1 FROM unnest(p.attachments) a WHERE split_part(a,'|',1)=$1)) AS ceo_references,
+       (SELECT count(*)::int FROM ceo_box p
+          WHERE EXISTS (SELECT 1 FROM unnest(p.attachments) a WHERE split_part(a,'|',1)=$1)
+            AND EXISTS (
+              SELECT 1 FROM users u WHERE u.id=$2 AND u.active=true AND u.ceo_box_access=true
+                AND (p.confidential=false OR u.full_name='Dr. Al Manjoorsa')
+            )
+       ) AS allowed_ceo_references`,
     [reference,req.session.userId],
    );
    const row=result.rows[0];
@@ -63,19 +71,21 @@ export function registerRcmFileDownloadBoundary(app:Express){
    const ticketCount=Number(row.ticket_references);
    const commentCount=Number(row.ticket_comment_references);
    const announcementCount=Number(row.announcement_references);
-   const otherCount=Number(row.other_references);
+   const ceoCount=Number(row.ceo_references);
    const privateDmAllowed=dmCount===1 && Number(row.allowed_dm_references)===1 &&
-     guidelineCount===0 && ticketCount===0 && commentCount===0 && announcementCount===0 && otherCount===0;
+     guidelineCount===0 && ticketCount===0 && commentCount===0 && announcementCount===0 && ceoCount===0;
    const guidelineAllowed=guidelineCount===1 && dmCount===0 &&
-     ticketCount===0 && commentCount===0 && announcementCount===0 && otherCount===0;
+     ticketCount===0 && commentCount===0 && announcementCount===0 && ceoCount===0;
    // Ticket and ticket-comment parent routes are currently admin-only.
    // A reference in both tables, even within the same ticket, is ambiguous.
    const ticketAllowed=row.actor_role==="admin" && dmCount===0 && guidelineCount===0 &&
-     announcementCount===0 && otherCount===0 && ticketCount+commentCount===1;
+     announcementCount===0 && ceoCount===0 && ticketCount+commentCount===1;
    const announcementAllowed=announcementCount===1 && Number(row.allowed_announcement_references)===1 &&
-     dmCount===0 && guidelineCount===0 && ticketCount===0 && commentCount===0 && otherCount===0;
+     dmCount===0 && guidelineCount===0 && ticketCount===0 && commentCount===0 && ceoCount===0;
+   const ceoAllowed=ceoCount===1 && Number(row.allowed_ceo_references)===1 &&
+     dmCount===0 && guidelineCount===0 && ticketCount===0 && commentCount===0 && announcementCount===0;
    // Never accept orphan files or links shared between different modules.
-   if(!privateDmAllowed && !guidelineAllowed && !ticketAllowed && !announcementAllowed){
+   if(!privateDmAllowed && !guidelineAllowed && !ticketAllowed && !announcementAllowed && !ceoAllowed){
     return res.status(404).json({message:"File not found"});
    }
    res.setHeader("Cache-Control","private, no-store");
