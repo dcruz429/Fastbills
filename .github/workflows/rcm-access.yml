@@ -23,6 +23,8 @@ on:
       - "client/src/lib/page-routes.ts"
       - "client/src/components/app-sidebar.tsx"
       - "server/routes.ts"
+      - "server/index.ts"
+      - "scripts/rcm-*"
       - "package.json"
       - ".github/workflows/rcm-access.yml"
   push:
