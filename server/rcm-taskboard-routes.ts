@@ -19,8 +19,8 @@ export function registerRcmTaskboardRoutes(app: Express) {
         return res.status(403).json({ message: "RCM task access denied" });
       }
       const isAdmin = access.context.isSystemAdmin;
-      const departments = [...access.context.departmentIds].filter(x => x === "Verification" || x === "Billing");
-      const clinicIds = [...access.context.clinicIds];
+      const departments = Array.from(access.context.departmentIds).filter(x => x === "Verification" || x === "Billing");
+      const clinicIds = Array.from(access.context.clinicIds);
       if (!isAdmin && (departments.length === 0 || clinicIds.length === 0)) {
         return res.json({ tasks: [], total: 0, limitedTo: "Verification and Billing" });
       }
