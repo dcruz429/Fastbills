@@ -1,0 +1,30 @@
+name: RCM Access Phase 1 checks
+on:
+  pull_request:
+    paths:
+      - "shared/rcm-access-*"
+      - "server/rcm-access-*"
+      - "client/src/pages/rcm-*"
+      - "client/src/lib/page-routes.ts"
+      - "client/src/components/app-sidebar.tsx"
+      - "server/routes.ts"
+      - "package.json"
+      - ".github/workflows/rcm-access.yml"
+  push:
+    branches:
+      - "feature/rcm-task-management"
+permissions:
+  contents: read
+jobs:
+  typecheck-and-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npx tsx --test shared/rcm-access-policy.test.ts server/rcm-access-service.test.ts
