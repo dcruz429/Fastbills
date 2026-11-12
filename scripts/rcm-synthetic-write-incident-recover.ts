@@ -69,7 +69,7 @@ async function main(){
   );
   const act=(taskId:number,field:string|null,action:string)=>
    details.rows.find(r=>Number(r.task_id)===taskId && r.field===field && r.action===action)?.count ?? 0;
-  check(details.rows.length===7 && act(t1.id,"clinicId","Updated Clinic")===1 &&
+  check(details.rows.length===8 && act(extra.id,null,"Task created")===1 && act(t1.id,"clinicId","Updated Clinic")===1 &&
    act(t1.id,"bucket","Updated Bucket")===1 && act(t1.id,"outcome","Updated Outcome")===1 &&
    act(t1.id,"status","Updated Status")===1 &&
    act(t3.id,"assignedUserId","Updated Assigned To")===1 &&
