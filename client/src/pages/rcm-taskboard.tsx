@@ -15,7 +15,7 @@ type Task = {
   createdAt: string; dueDate: string | null;
 };
 type ApiResult = { tasks: Task[]; page: number; pageSize: number; limitedTo: string };
-const stages = ["unassigned", "assigned", "working_on_it", "verified", "billed", "done", "dropped"] as const;
+const stages = ["unassigned", "assigned", "working_on_it", "verified", "billed", "done", "dropped", "on_hold", "pending", "closed"] as const;
 const departments = ["Verification", "Billing", "Posting", "Collections", "Denials", "Arbitration", "Checks", "Case Management / RTP", "Closed"] as const;
 const labels: Record<string,string> = {
   unassigned: "Unassigned", assigned:"Assigned", working_on_it:"Working on it",
@@ -117,7 +117,7 @@ export default function RcmTaskBoardPreview() {
           <thead className="bg-muted/40"><tr className="text-left">
             {["Task","Patient","Department","Clinic","Assigned","Status","Priority","Due"].map(label=><th key={label} className="px-3 py-3 font-medium">{label}</th>)}
           </tr></thead>
-          <tbody>{tasks.map(task=><tr key={task.id} className="border-t">
+          <tbody>{tasks.map(task=><tr key={task.itemKey} className="border-t">
             <td className="px-3 py-2">{task.itemKey}</td>
             <td className="px-3 py-2">{task.patientName||"—"}</td>
             <td className="px-3 py-2">{task.department}</td>
