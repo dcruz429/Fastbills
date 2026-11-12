@@ -130,24 +130,26 @@ async function main(){
     if(managerContext)await managerContext.close().catch(()=>{});
     if(reviewerContext)await reviewerContext.close().catch(()=>{});
     if(browser)await browser.close().catch(()=>{});
+    const cleanupClient=await pool.connect();
     try{
       if(taskIds.length){
-        await pool.query("BEGIN");
-        await pool.query(
+        await cleanupClient.query("BEGIN");
+        await cleanupClient.query(
           "DELETE FROM rcm_access_audit WHERE payload->>'taskId'=ANY($1::text[]) OR payload->>'recordId'=ANY($1::text[])",
           [taskIds.map(String)],
         );
-        await pool.query("DELETE FROM notifications WHERE task_id=ANY($1::int[])",[taskIds]);
-        await pool.query("DELETE FROM task_activity WHERE task_id=ANY($1::int[])",[taskIds]);
-        await pool.query("DELETE FROM tasks WHERE id=ANY($1::int[])",[taskIds]);
-        await pool.query("COMMIT");
+        await cleanupClient.query("DELETE FROM notifications WHERE task_id=ANY($1::int[])",[taskIds]);
+        await cleanupClient.query("DELETE FROM task_activity WHERE task_id=ANY($1::int[])",[taskIds]);
+        await cleanupClient.query("DELETE FROM tasks WHERE id=ANY($1::int[])",[taskIds]);
+        await cleanupClient.query("COMMIT");
         console.log("PASS: temporary fictional records and related test audit/history cleared");
       }
     }catch(cleanup){
-      await pool.query("ROLLBACK").catch(()=>{});
+      await cleanupClient.query("ROLLBACK").catch(()=>{});
       console.error("WARNING: cleanup failed; inspect synthetic staging fixtures before re-running");
       throw cleanup;
     }finally{
+      cleanupClient.release();
       await pool.end();
     }
   }
