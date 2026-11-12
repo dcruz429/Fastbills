@@ -68,8 +68,8 @@ app.use((req, res, next) => {
   const stagingSafe = process.env.RCM_STAGING_SAFE === "1";
   if (stagingSafe) {
     const url = process.env.DATABASE_URL;
-    if (!url || decodeURIComponent(new URL(url).pathname) !== "/fastbills_rcm_restore_test") {
-      throw new Error("RCM staging mode requires the exact restore-test database");
+    if (!url || decodeURIComponent(new URL(url).pathname) !== "/fastbills_rcm_synthetic_staging") {
+      throw new Error("RCM staging mode requires the exact synthetic staging database");
     }
     if (process.env.NODE_ENV !== "production") {
       throw new Error("RCM staging mode requires NODE_ENV=production to disable Vite dev middleware");
@@ -79,7 +79,7 @@ app.use((req, res, next) => {
     }
     const { pool } = await import("./db");
     const identity = await pool.query("SELECT current_database() AS name");
-    if (identity.rows[0]?.name !== "fastbills_rcm_restore_test") {
+    if (identity.rows[0]?.name !== "fastbills_rcm_synthetic_staging") {
       throw new Error("RCM staging mode connected to unexpected database");
     }
     log("RCM staging mode: startup seeding, backfills and schedule cleanup disabled");
