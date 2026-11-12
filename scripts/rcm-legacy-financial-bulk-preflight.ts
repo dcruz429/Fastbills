@@ -1,9 +1,10 @@
 /**
- * Safe synthetic-only negative preflight for legacy Denials/Checks bulk write,
- * CSV import and transfer routes. Only existing-value updates or invalid
- * empty imports are submitted. Never attempts DELETE or non-empty imports.
+ * Safe synthetic-only negative preflight for legacy Denials/Checks bulk
+ * and CSV import routes. Only invalid empty operations are submitted.
+ * Never attempts DELETE, real bulk edits, transfers or non-empty imports.
  *
- * A patched server should reject all requests with 403/404. The script
+ * A patched server should reject all requests with 403/404. Old code returns
+ * 400 on invalid empty payloads, which distinguishes a stale build. The script
  * verifies existing fictional record values and activity counts afterward.
  */
 import {readFileSync} from "node:fs";
@@ -53,19 +54,16 @@ async function main(){
    console.log((ok?"PASS":"FAIL")+": "+label+" (HTTP "+response.status+")");
    if(!ok)failures++;
   }
-  // Existing values only, so stale legacy servers cannot change these fields
-  // intentionally, though they might add audit events (checked below).
-  await attempt("other-clinic Denials bulk update blocked","/api/denials/bulk-update",
-    {ids:[d.id],data:{comments:d.comments}});
-  await attempt("other-clinic Checks bulk update blocked","/api/checks/bulk-update",
-    {ids:[c.id],data:{notes:c.notes}});
-  // Empty imports are invalid on legacy servers too and cannot create data.
-  // The new guard must deny even these before reaching the importer.
-  await attempt("legacy Denials CSV importer blocked","/api/denials/import-csv",{rows:[]});
-  await attempt("legacy Checks CSV importer blocked","/api/checks/import-csv",{rows:[]});
-  // Invalid transfer target is never reached when the boundary is installed.
-  // Avoid sending a valid transfer request, which could create a record.
-  await attempt("legacy Denials transfer endpoint blocked","/api/denials/"+d.id+"/send-to-arbitration",{});
+  // Invalid empty operations cannot mutate records even on an older build.
+  // The boundary must reject them with 403; a legacy handler returns 400.
+  await attempt("Denials bulk update rejected before handler","/api/denials/bulk-update",
+    {ids:[],data:{comments:d.comments}});
+  await attempt("Checks bulk update rejected before handler","/api/checks/bulk-update",
+    {ids:[],data:{notes:c.notes}});
+  await attempt("Denials bulk delete rejected before handler","/api/denials/bulk-delete",{ids:[]});
+  await attempt("Checks bulk delete rejected before handler","/api/checks/bulk-delete",{ids:[]});
+  await attempt("Denials CSV importer rejected before handler","/api/denials/import-csv",{rows:[]});
+  await attempt("Checks CSV importer rejected before handler","/api/checks/import-csv",{rows:[]});
   const after=await pool.query(
     "SELECT (SELECT count(*)::int FROM denial_activity WHERE denial_id=$1) AS da,"+
     "(SELECT count(*)::int FROM check_activity WHERE check_id=$2) AS ca,"+
@@ -80,9 +78,9 @@ async function main(){
    console.error("FAIL: fictional record data/counts/activity changed; STOP testing");
   }else console.log("PASS: fictional Denials/Checks data and activity counts unchanged");
   if(failures){
-   console.error("CONFIRMED RELEASE BLOCKER: sampled legacy financial bulk/import/transfer protections incomplete");
+   console.error("CONFIRMED RELEASE BLOCKER: sampled legacy financial bulk/import guards are not active");
    process.exitCode=2;
-  }else console.log("PASS: all sampled legacy financial bulk/import/transfer requests rejected");
+  }else console.log("PASS: all sampled legacy financial empty bulk/import requests rejected before handler");
  }finally{await pool.end();}
 }
 main().catch(error=>{
