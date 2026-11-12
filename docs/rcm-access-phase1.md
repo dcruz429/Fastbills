@@ -8,8 +8,8 @@
 - Adds system-administrator-only APIs under `/api/rcm/access/*`.
 - Adds admin UI pages: `/rcm-access` and `/rcm-role-matrix`.
 - Adds backend access-service helpers and policy tests.
-- Adds a **read-only** `/api/rcm/taskboard` endpoint against existing task records, filtered by both clinic and department for non-admins, with 100-row pagination.
-- Adds `/rcm-taskboard`, a synchronized Kanban/Table preview of the same results. No record edits, approvals or assignments are enabled.
+- Adds a **read-only** `/api/rcm/taskboard` endpoint across existing Verification/Billing tasks, Posting, Collections, Denials, Arbitration, Checks, and Closed/RTP records, filtered by both clinic and department for non-admins, with 100-row pagination.
+- Adds `/rcm-taskboard`, a synchronized Kanban/Table preview of the same results. Each record retains a composite source ID (such as `postings:42`). No record edits, approvals or assignments are enabled.
 
 **Important limitation:** The current Billing, Verification, Posting, Collections, Denials, Arbitration, Checks, and RTP routes have **not** been switched to this new access policy. Their existing role checks remain in effect. Scope restrictions are enforced by the new policy helpers, not yet by every legacy tracker endpoint. Do not treat Phase 1 as completed tenant isolation.
 
@@ -30,12 +30,16 @@
 7. Confirm a user without clinic/department assignments cannot access new scoped resource routes once wired.
 8. Verify the existing login, tasks, tracker pages, reports, and other RCM modules still operate as before.
 9. Verify `rcm_access_audit` receives a record when scopes, roles, or overrides change.
-10. Visit `/rcm-taskboard` as an assigned user. Confirm the same task list appears in Kanban and Table; confirm out-of-scope clinic and department records do not appear in either view or the API response. Test with synthetic records only.
+10. Visit `/rcm-taskboard` as an assigned user. Confirm the same task list appears in Kanban and Table; confirm out-of-scope clinic and department records do not appear in either view or the API response. Test all seven tracker sources with synthetic records only.
 11. Verify unassigned users see no task records, and a role with `tasks.read` denied receives 403.
 12. Verify pagination, status filtering, browser navigation, and session expiry. The client-side filters apply only to the currently loaded page.
+13. Test missing and ambiguously named clinics in legacy text-based trackers: these records must not become visible to a non-admin.
+14. Test Checks separately: a user with tasks.read and a matching clinic/department but without checks.read must not see check records.
+15. Test that closed.source values matching RTP routing appear under Case Management / RTP without creating duplicate Closed entries.
+16. Confirm original tracker record IDs remain distinct across source types, e.g. tasks:1 and postings:1.
 
 ## Rollout plan
-- **Phase 1A (this PR):** Additive tables, backend policy, admin UI, tests, and scoped read-only Task Board preview. No legacy route behavior change.
+- **Phase 1A (this PR):** Additive tables, backend policy, admin UI, tests, and scoped read-only Task Board preview across existing trackers. No legacy route behavior change.
 - **Phase 1B:** Implement resolved policy checks on each existing server tracker endpoint, including list and item reads, exports, bulk updates, transfers, notifications, and financial dashboards. Filter at SQL query boundaries and verify each clinic/department pair.
 - **Phase 1C:** Extend the page navigation to use effective permissions; retain backend checks as the authority. Review module exceptions, CEO Box privileges, messages, and impersonation carefully.
 - **Phase 2:** Extend the synchronized Kanban/Table preview into a validated editing workflow (manual assignment, approvals, existing tracker adapters), weighted productivity, TAT, risk approvals, and audit ledger.
@@ -54,3 +58,11 @@ After a staging migration: revert the application commits; leave the additive RC
 
 ## Current CI note
 The first dedicated RCM policy test run passed all 10 tests. The whole-project `npm run check` is currently failing on pre-existing TypeScript errors in unrelated files; a clean baseline comparison and full staging test are required before merging. New file errors reported by the first run were corrected in the development branch.
+
+## Legacy tracker mapping cautions
+- Verification/Billing are sourced from the existing tasks table. The legacy done bucket is presented as Billing, as no reliable original-department field exists on that record.
+- Posting, Collections, Denials, Arbitration, Checks, and Closed/RTP are read from their existing tables without modifications. The source-specific record ID is preserved.
+- Legacy clinic-name fields are matched to clinics.name case-insensitively only when the normalized name resolves to a unique clinic. Missing or ambiguous matches fail closed for non-admins.
+- RTP classification currently uses closed.source starting with RTP. Validate historical records before enabling the preview on staging.
+- Check records require the separate checks.read permission in addition to tasks.read.
+- Document Center and other modules are not covered by this read-only adapter yet.
