@@ -10,11 +10,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { pool } from "./db";
 import { resolveRcmAccess } from "./rcm-access-service";
 import { permissionAllowed } from "../shared/rcm-access-policy";
-
-const DEPARTMENTS = [
-  "Verification", "Billing", "Posting", "Collections", "Denials",
-  "Arbitration", "Checks", "Closed", "Case Management / RTP",
-] as const;
+import { allowedBoardDepartments } from "../shared/rcm-taskboard-scope";
 
 const SOURCES = ["tasks", "postings", "collections", "denials", "arbitrations", "checks", "closed"] as const;
 
@@ -113,9 +109,7 @@ export function registerRcmTaskboardRoutes(app: Express) {
         return res.status(403).json({ message: "RCM task access denied" });
       }
       const canSeeChecks = permissionAllowed(access.context, "checks.read");
-      const departments = access.context.isSystemAdmin
-        ? DEPARTMENTS.filter(name => name !== "Checks" || canSeeChecks)
-        : DEPARTMENTS.filter(name => access.context.departmentIds.has(name) && (name !== "Checks" || canSeeChecks));
+      const departments = allowedBoardDepartments(access.context);
       const clinicIds = Array.from(access.context.clinicIds);
       const page = pageNumber(req.query.page);
       const limit = 100;
