@@ -1,7 +1,16 @@
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, integer, timestamp, boolean, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
+import type { AnyPgTable } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// drizzle-zod 0.7.1 can lose the inferred object keys for Drizzle 0.39 tables.
+// Restore only the known table column names for Zod's .omit() type checking.
+// The generated Zod object and its runtime validation remain unchanged.
+function createInsertSchemaCompat<T extends AnyPgTable>(table: T) {
+  type ColumnName = Extract<keyof T["$inferSelect"], string>;
+  return createInsertSchema(table) as z.ZodObject<Record<ColumnName, z.ZodTypeAny>>;
+}
 
 export const roleEnum = pgEnum("role", ["admin", "verifier", "biller", "assigner", "manager", "payment_specialist", "account_manager", "case_manager"]);
 export const bucketEnum = pgEnum("bucket", ["for_verification", "ready_for_billing", "done"]);
@@ -488,8 +497,8 @@ export const directMessages = pgTable("direct_messages", {
   index("direct_messages_sender_id_idx").on(t.senderId),
 ]);
 
-export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
-export const insertDirectMessageSchema = createInsertSchema(directMessages).omit({ id: true, createdAt: true, readAt: true });
+export const insertAnnouncementSchema = createInsertSchemaCompat(announcements).omit({ id: true, createdAt: true });
+export const insertDirectMessageSchema = createInsertSchemaCompat(directMessages).omit({ id: true, createdAt: true, readAt: true });
 
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertAnnouncement = Omit<typeof announcements.$inferInsert, "id" | "createdAt">;
@@ -509,21 +518,21 @@ export type DirectMessageWithUser = DirectMessage & {
   recipient?: User | null;
 };
 
-export const insertUserSchema = createInsertSchema(users).omit({ id: true });
-export const insertClinicSchema = createInsertSchema(clinics).omit({ id: true });
-export const insertInsuranceSchema = createInsertSchema(insurances).omit({ id: true });
-export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, inputDate: true });
-export const insertTaskActivitySchema = createInsertSchema(taskActivity).omit({ id: true, timestamp: true });
-export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
-export const insertDenialSchema = createInsertSchema(denials).omit({ id: true, createdAt: true });
-export const insertDenialActivitySchema = createInsertSchema(denialActivity).omit({ id: true, timestamp: true });
-export const insertArbitrationSchema = createInsertSchema(arbitrations).omit({ id: true, createdAt: true });
-export const insertArbitrationActivitySchema = createInsertSchema(arbitrationActivity).omit({ id: true, timestamp: true });
-export const insertCollectionSchema = createInsertSchema(collections).omit({ id: true, createdAt: true });
-export const insertCollectionActivitySchema = createInsertSchema(collectionActivity).omit({ id: true, timestamp: true });
-export const insertTicketSchema = createInsertSchema(tickets).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
-export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true });
-export const insertTicketActivitySchema = createInsertSchema(ticketActivity).omit({ id: true, timestamp: true });
+export const insertUserSchema = createInsertSchemaCompat(users).omit({ id: true });
+export const insertClinicSchema = createInsertSchemaCompat(clinics).omit({ id: true });
+export const insertInsuranceSchema = createInsertSchemaCompat(insurances).omit({ id: true });
+export const insertTaskSchema = createInsertSchemaCompat(tasks).omit({ id: true, createdAt: true, inputDate: true });
+export const insertTaskActivitySchema = createInsertSchemaCompat(taskActivity).omit({ id: true, timestamp: true });
+export const insertNotificationSchema = createInsertSchemaCompat(notifications).omit({ id: true, createdAt: true });
+export const insertDenialSchema = createInsertSchemaCompat(denials).omit({ id: true, createdAt: true });
+export const insertDenialActivitySchema = createInsertSchemaCompat(denialActivity).omit({ id: true, timestamp: true });
+export const insertArbitrationSchema = createInsertSchemaCompat(arbitrations).omit({ id: true, createdAt: true });
+export const insertArbitrationActivitySchema = createInsertSchemaCompat(arbitrationActivity).omit({ id: true, timestamp: true });
+export const insertCollectionSchema = createInsertSchemaCompat(collections).omit({ id: true, createdAt: true });
+export const insertCollectionActivitySchema = createInsertSchemaCompat(collectionActivity).omit({ id: true, timestamp: true });
+export const insertTicketSchema = createInsertSchemaCompat(tickets).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
+export const insertTicketCommentSchema = createInsertSchemaCompat(ticketComments).omit({ id: true, createdAt: true });
+export const insertTicketActivitySchema = createInsertSchemaCompat(ticketActivity).omit({ id: true, timestamp: true });
 
 export type InsertUser = Omit<typeof users.$inferInsert, "id">;
 export type User = typeof users.$inferSelect;
@@ -639,7 +648,7 @@ export const dropdownCategoryInitializations = pgTable("dropdown_category_initia
   initializedAt: timestamp("initialized_at").notNull().defaultNow(),
 });
 
-export const insertDropdownOptionSchema = createInsertSchema(dropdownOptions).omit({ id: true });
+export const insertDropdownOptionSchema = createInsertSchemaCompat(dropdownOptions).omit({ id: true });
 export type DropdownOption = typeof dropdownOptions.$inferSelect;
 export type InsertDropdownOption = Omit<typeof dropdownOptions.$inferInsert, "id">;
 
@@ -683,8 +692,8 @@ export const postingActivity = pgTable("posting_activity", {
   index("posting_activity_posting_id_idx").on(t.postingId),
 ]);
 
-export const insertPostingSchema = createInsertSchema(postings).omit({ id: true, createdAt: true });
-export const insertPostingActivitySchema = createInsertSchema(postingActivity).omit({ id: true, timestamp: true });
+export const insertPostingSchema = createInsertSchemaCompat(postings).omit({ id: true, createdAt: true });
+export const insertPostingActivitySchema = createInsertSchemaCompat(postingActivity).omit({ id: true, timestamp: true });
 export type InsertPosting = Omit<typeof postings.$inferInsert, "id" | "createdAt">;
 export type Posting = typeof postings.$inferSelect;
 export type InsertPostingActivity = Omit<typeof postingActivity.$inferInsert, "id" | "timestamp">;
@@ -730,8 +739,8 @@ export const checkActivity = pgTable("check_activity", {
   index("check_activity_check_id_idx").on(t.checkId),
 ]);
 
-export const insertCheckSchema = createInsertSchema(checks).omit({ id: true, createdAt: true });
-export const insertCheckActivitySchema = createInsertSchema(checkActivity).omit({ id: true, timestamp: true });
+export const insertCheckSchema = createInsertSchemaCompat(checks).omit({ id: true, createdAt: true });
+export const insertCheckActivitySchema = createInsertSchemaCompat(checkActivity).omit({ id: true, timestamp: true });
 export type InsertCheck = Omit<typeof checks.$inferInsert, "id" | "createdAt">;
 export type Check = typeof checks.$inferSelect;
 export type InsertCheckActivity = Omit<typeof checkActivity.$inferInsert, "id" | "timestamp">;
@@ -790,8 +799,8 @@ export const closedActivity = pgTable("closed_activity", {
   index("closed_activity_closed_id_idx").on(t.closedId),
 ]);
 
-export const insertClosedSchema = createInsertSchema(closed).omit({ id: true, createdAt: true });
-export const insertClosedActivitySchema = createInsertSchema(closedActivity).omit({ id: true, timestamp: true });
+export const insertClosedSchema = createInsertSchemaCompat(closed).omit({ id: true, createdAt: true });
+export const insertClosedActivitySchema = createInsertSchemaCompat(closedActivity).omit({ id: true, timestamp: true });
 export type InsertClosed = Omit<typeof closed.$inferInsert, "id" | "createdAt">;
 export type Closed = typeof closed.$inferSelect;
 export type InsertClosedActivity = Omit<typeof closedActivity.$inferInsert, "id" | "timestamp">;
@@ -829,7 +838,7 @@ export const ceoBox = pgTable("ceo_box", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const insertCeoBoxSchema = createInsertSchema(ceoBox).omit({ id: true, createdAt: true, updatedAt: true, createdById: true });
+export const insertCeoBoxSchema = createInsertSchemaCompat(ceoBox).omit({ id: true, createdAt: true, updatedAt: true, createdById: true });
 export type InsertCeoBox = Omit<typeof ceoBox.$inferInsert, "id" | "createdAt" | "updatedAt" | "createdById">;
 export type CeoBox = typeof ceoBox.$inferSelect;
 
@@ -970,9 +979,9 @@ export const patientCallAudit = pgTable("patient_call_audit", {
 export type PatientCallSchedule = typeof patientCallSchedule.$inferSelect;
 export type PatientCallAudit = typeof patientCallAudit.$inferSelect;
 
-export const insertScheduledCallSchema = createInsertSchema(scheduledCalls).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertCallAttemptSchema = createInsertSchema(callAttempts).omit({ id: true, createdAt: true });
-export const insertCallActivitySchema = createInsertSchema(callActivity).omit({ id: true, createdAt: true });
+export const insertScheduledCallSchema = createInsertSchemaCompat(scheduledCalls).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCallAttemptSchema = createInsertSchemaCompat(callAttempts).omit({ id: true, createdAt: true });
+export const insertCallActivitySchema = createInsertSchemaCompat(callActivity).omit({ id: true, createdAt: true });
 
 export type ScheduledCall = typeof scheduledCalls.$inferSelect;
 export type InsertScheduledCall = Omit<typeof scheduledCalls.$inferInsert, "id" | "createdAt" | "updatedAt">;
@@ -992,8 +1001,8 @@ export const userTeams = pgTable("user_teams", {
   userId: integer("user_id").notNull().references(() => users.id),
 });
 
-export const insertTeamSchema = createInsertSchema(teams).omit({ id: true });
-export const insertUserTeamSchema = createInsertSchema(userTeams).omit({ id: true });
+export const insertTeamSchema = createInsertSchemaCompat(teams).omit({ id: true });
+export const insertUserTeamSchema = createInsertSchemaCompat(userTeams).omit({ id: true });
 
 export type Team = typeof teams.$inferSelect;
 export type InsertTeam = Omit<typeof teams.$inferInsert, "id">;
