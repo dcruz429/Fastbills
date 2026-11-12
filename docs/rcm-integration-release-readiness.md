@@ -70,3 +70,10 @@ Run only after the restored test database has passed the 10-table schema and rol
 DATABASE_URL="$RCM_TEST_URL" npx tsx scripts/rcm-assignment-integration.ts
 ```
 The script requires the exact `fastbills_rcm_restore_test` database name. It creates synthetic users, a clinic, and task records inside a single transaction, verifies RCM scoped permission resolution, original task assignment SQL, task activity, notifications, audit ledger, high-risk approval and single-use consumption, and rolls back everything. No HTTP server or external integrations are launched. **This does not yet prove that the actual HTTP endpoints, login sessions, browser UI or cross-process concurrency are correct.** Continue with isolated E2E tests before deployment.
+
+## Loopback-only assignment and high-risk approval HTTP integration
+Run this only against the restored test database, with a clean working tree:
+```bash
+DATABASE_URL="$RCM_TEST_URL" npx tsx scripts/rcm-http-write-integration.ts
+```
+The test mounts only the existing assignment and approval handlers, uses synthetic identities rather than real authentication, and binds to 127.0.0.1 on an ephemeral port. A dedicated PostgreSQL transaction contains synthetic users, a clinic, and tasks; intercepted route-level BEGIN/COMMIT operations use SAVEPOINTs so the outer transaction is **always rolled back**, including on errors. Tests include anonymous 401, out-of-scope 403, eligible assignment, stale 409, high-risk 428, independent approval, single-use consumption, and activity/notification/audit writes. This deliberately tests **route semantics, not production login/session, the full server lifecycle, or browser UI**. Do not run the full server against the restored database yet.
