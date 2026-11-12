@@ -151,7 +151,17 @@ export function registerRcmProductivityRoutes(app:Express){
       ]);
       const weights={...DEFAULT_RCM_WEIGHTS,...Object.fromEntries(weightsRows.rows.map(r=>[r.department_key,Number(r.weight)]))};
       const truncated=eventsRows.rows.length>20000;
-      const events=eventsRows.rows.slice(0,20000) as Array<CompletionEvent & {employeeName:string}>;
+      // node-postgres decodes PostgreSQL timestamps to Date objects.
+      // Convert them before deterministic timestamp ordering in the scoring engine.
+      const events = eventsRows.rows.slice(0,20000).map(row=>({
+        source:String(row.source),
+        recordId:Number(row.recordId),
+        employeeId:Number(row.employeeId),
+        department:String(row.department),
+        employeeName:String(row.employeeName),
+        completedAt: row.completedAt instanceof Date
+          ? row.completedAt.toISOString() : new Date(row.completedAt).toISOString(),
+      })) as Array<CompletionEvent & {employeeName:string}>;
       const summary=scoreCompletions(events,weights);
       const groups=new Map<number,{id:number;name:string;events:CompletionEvent[]}>();
       for(const event of events){
