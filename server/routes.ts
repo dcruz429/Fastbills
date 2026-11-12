@@ -2941,12 +2941,14 @@ export async function registerRoutes(
       if (!value || typeof value !== "string") {
         return res.status(400).json({ message: "value is required" });
       }
-      const existingOption = (await storage.getAllDropdownOptions()).find(option => option.id === Number(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid dropdown option id" });
+      const existingOption = (await storage.getAllDropdownOptions()).find(option => option.id === id);
       if (existingOption && ["posting_document_type", "guideline_module_type"].includes(existingOption.category)
         && (!value.trim() || value.trim().length > 200)) {
         return res.status(400).json({ message: "Type names must be between 1 and 200 characters" });
       }
-      const opt = await storage.updateDropdownOption(parseInt(req.params.id), { value: value.trim() });
+      const opt = await storage.updateDropdownOption(id, { value: value.trim() });
       res.json(opt);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2959,7 +2961,9 @@ export async function registerRoutes(
       if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can manage dropdown options" });
       }
-      await storage.deleteDropdownOption(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid dropdown option id" });
+      await storage.deleteDropdownOption(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
