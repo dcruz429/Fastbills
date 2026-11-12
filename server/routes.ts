@@ -724,7 +724,9 @@ export async function registerRoutes(
       }
       const { name } = req.body;
       if (!name) return res.status(400).json({ message: "Name required" });
-      const clinic = await storage.updateClinic(parseInt(req.params.id), { name });
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid clinic id" });
+      const clinic = await storage.updateClinic(id, { name });
       if (!clinic) return res.status(404).json({ message: "Clinic not found" });
       res.json(clinic);
     } catch (e: any) {
@@ -738,7 +740,9 @@ export async function registerRoutes(
       if (!requestingUser || !["admin", "manager", "account_manager", "case_manager"].includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      await storage.deleteClinic(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid clinic id" });
+      await storage.deleteClinic(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -771,7 +775,9 @@ export async function registerRoutes(
       }
       const { name } = req.body;
       if (!name) return res.status(400).json({ message: "Name required" });
-      const ins = await storage.updateInsurance(parseInt(req.params.id), { name });
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid insurance id" });
+      const ins = await storage.updateInsurance(id, { name });
       if (!ins) return res.status(404).json({ message: "Insurance not found" });
       res.json(ins);
     } catch (e: any) {
@@ -785,7 +791,9 @@ export async function registerRoutes(
       if (!requestingUser || !["admin", "manager", "account_manager", "case_manager"].includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      await storage.deleteInsurance(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid insurance id" });
+      await storage.deleteInsurance(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
