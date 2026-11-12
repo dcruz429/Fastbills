@@ -2750,17 +2750,17 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllAnnouncements();
+      // Managers must not bypass targeted-announcement privacy by reading
+      // every message. This matches the file-download audience policy.
       const visible = all.filter(a => {
+        if (a.authorId === user.id) return true;
         if (a.targetType === "all") return true;
         if (a.targetType === "role" && a.targetRoles) return a.targetRoles.includes(user.role);
-        if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id) || a.authorId === user.id;
+        if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id);
         return false;
       });
-      if (["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
-        res.json(all);
-      } else {
-        res.json(visible);
-      }
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(visible);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
