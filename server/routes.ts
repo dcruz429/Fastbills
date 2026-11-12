@@ -1423,7 +1423,8 @@ export async function registerRoutes(
 
   app.patch("/api/denials/:id", requireAuth, validatePaidFlag, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Denial id" });
       const existing = await storage.getDenial(id);
       if (!existing) return res.status(404).json({ message: "Denial not found" });
       const data: any = { ...req.body };
@@ -1563,7 +1564,9 @@ export async function registerRoutes(
 
   app.post("/api/denials/:id/send-to-arbitration", requireAuth, async (req, res) => {
     try {
-      const denial = await storage.getDenial(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Denial id" });
+      const denial = await storage.getDenial(id);
       if (!denial) return res.status(404).json({ message: "Denial not found" });
       const arbData = {
         paid: denial.paid,
@@ -1613,7 +1616,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete denials" });
       }
-      await storage.deleteDenial(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Denial id" });
+      await storage.deleteDenial(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1709,7 +1714,8 @@ export async function registerRoutes(
 
   app.patch("/api/arbitrations/:id", requireAuth, validatePaidFlag, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Arbitration id" });
       const existing = await storage.getArbitration(id);
       if (!existing) return res.status(404).json({ message: "Arbitration not found" });
       const data: any = { ...req.body };
@@ -1817,13 +1823,16 @@ export async function registerRoutes(
   });
 
   app.get("/api/arbitrations/:id", requireAuth, async (req, res) => {
-    const record = await storage.getArbitration(parseInt(req.params.id));
+    const id = parsePositiveRouteId(req.params.id);
+    if (id === null) return res.status(400).json({ message: "Invalid Arbitration id" });
+    const record = await storage.getArbitration(id);
     if (!record) return res.status(404).json({ message: "Arbitration not found" });
     res.json(record);
   });
 
   app.get("/api/arbitrations/:id/activity", requireAuth, async (req, res) => {
-    const arbId = parseInt(req.params.id);
+    const arbId = parsePositiveRouteId(req.params.id);
+    if (arbId === null) return res.status(400).json({ message: "Invalid Arbitration id" });
     res.json(await storage.getArbitrationActivity(arbId));
   });
 
@@ -1833,7 +1842,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete arbitrations" });
       }
-      await storage.deleteArbitration(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Arbitration id" });
+      await storage.deleteArbitration(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
