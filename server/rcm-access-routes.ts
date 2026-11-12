@@ -12,7 +12,6 @@ const DEPARTMENTS = ["Document Center", "Verification", "Billing", "Posting", "C
 const MANAGE_ROLES = new Set(["admin"]);
 const idSchema = z.coerce.number().int().positive();
 const roleSlugSchema = z.string().regex(/^[a-z][a-z0-9_]{1,49}$/);
-const permissions = new Set<string>(RCM_PERMISSIONS);
 const assignmentSchema = z.object({
   departments: z.array(z.enum(DEPARTMENTS)).max(DEPARTMENTS.length),
   clinicIds: z.array(z.number().int().positive()).max(500),
@@ -20,6 +19,7 @@ const assignmentSchema = z.object({
 });
 const overrideSchema = z.object({ permission: z.enum(RCM_PERMISSIONS), effect: z.enum(["allow", "deny"]).nullable() });
 const rolePermissionSchema = z.object({ role: roleSlugSchema, permission: z.enum(RCM_PERMISSIONS), effect: z.enum(["allow", "deny"]).nullable() });
+const customRoleSchema = z.object({ slug: roleSlugSchema, label: z.string().trim().min(2).max(100) });
 
 async function onlyAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
@@ -37,8 +37,8 @@ async function onlyAdmin(req: Request, res: Response, next: NextFunction) {
 export function registerRcmAccessRoutes(app: Express) {
   app.get("/api/rcm/access/catalog", onlyAdmin, async (_req, res, next) => {
     try {
-      const clinics = await pool.query("SELECT id, name FROM clinics ORDER BY name");
-      res.json({ departments: DEPARTMENTS, permissions: RCM_PERMISSIONS, defaults: RCM_ROLE_DEFAULTS, clinics: clinics.rows });
+      const [clinics, roles] = await Promise.all([pool.query("SELECT id, name FROM clinics ORDER BY name"), pool.query("SELECT slug, label, is_system FROM rcm_roles ORDER BY label")]);
+      res.json({ departments: DEPARTMENTS, permissions: RCM_PERMISSIONS, defaults: RCM_ROLE_DEFAULTS, clinics: clinics.rows, roles: roles.rows });
     } catch (error) { next(error); }
   });
 
@@ -131,6 +131,38 @@ export function registerRcmAccessRoutes(app: Express) {
       );
       await client.query("COMMIT");
       res.json({ ok: true, permission, effect });
+    } catch (error) { await client.query("ROLLBACK"); next(error); }
+    finally { client.release(); }
+  });
+
+  app.get("/api/rcm/access/roles", onlyAdmin, async (_req, res, next) => {
+    try {
+      const [roles, grants] = await Promise.all([
+        pool.query("SELECT slug, label, is_system FROM rcm_roles ORDER BY label"),
+        pool.query("SELECT role_slug, permission_key, effect FROM rcm_role_permissions ORDER BY role_slug,permission_key"),
+      ]);
+      res.json({ roles: roles.rows, grants: grants.rows, defaults: RCM_ROLE_DEFAULTS, permissions: RCM_PERMISSIONS });
+    } catch (error) { next(error); }
+  });
+
+  app.post("/api/rcm/access/roles", onlyAdmin, async (req, res, next) => {
+    const parsed = customRoleSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid custom role" });
+    const { slug, label } = parsed.data;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const created = await client.query(
+        "INSERT INTO rcm_roles(slug,label,is_system) VALUES($1,$2,false) ON CONFLICT DO NOTHING RETURNING slug,label,is_system",
+        [slug,label],
+      );
+      if (!created.rowCount) { await client.query("ROLLBACK"); return res.status(409).json({ message: "Role already exists" }); }
+      await client.query(
+        "INSERT INTO rcm_access_audit(actor_user_id,event_type,payload) VALUES($1,$2,$3::jsonb)",
+        [req.session.userId,"role.created",JSON.stringify({slug,label})],
+      );
+      await client.query("COMMIT");
+      res.status(201).json(created.rows[0]);
     } catch (error) { await client.query("ROLLBACK"); next(error); }
     finally { client.release(); }
   });
