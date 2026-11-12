@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type BoardTask = {
-  id:number; itemKey:string; department:string; clinicName:string|null;
+  id:number; itemKey:string; source:string; department:string; clinicName:string|null;
   assignedUserId:number|null; assigneeName:string|null; priority:string|null;
 };
 type Assignee = {id:number;fullName:string};
@@ -26,15 +26,15 @@ export function RcmAssignTaskDialog({
   useEffect(()=>{
     if(!task){setAssignees([]);setError("");return;}
     const controller=new AbortController();
-    setSelection(task.assignedUserId===null?"unassigned":String(task.assignedUserId));
+    setSelection(task.source==="tasks" && task.assignedUserId!==null ? String(task.assignedUserId) : "unassigned");
     setError("");setNotice("");setLoading(true);setAssignees([]);
-    fetch(`/api/rcm/taskboard/tasks/${task.id}/assignees`,{credentials:"same-origin",cache:"no-store",signal:controller.signal})
+    fetch(task.source==="tasks" ? `/api/rcm/taskboard/tasks/${task.id}/assignees` : `/api/rcm/taskboard/legacy/${task.source}/${task.id}/assignees`,{credentials:"same-origin",cache:"no-store",signal:controller.signal})
       .then(async response=>{
         const payload=await response.json();
         if(!response.ok)throw new Error(payload.message||"Unable to load assignees");
         return payload as {users:Assignee[]};
       })
-      .then(data=>{if(!controller.signal.aborted)setAssignees(data.users);})
+      .then(data=>{if(!controller.signal.aborted){setAssignees(data.users); if(task.source!=="tasks"&&task.assigneeName){const selected=data.users.find(u=>u.fullName===task.assigneeName);if(selected)setSelection(String(selected.id));}}})
       .catch(e=>{if(!controller.signal.aborted)setError((e as Error).message);})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();
@@ -48,9 +48,15 @@ export function RcmAssignTaskDialog({
     }
     setSaving(true);setError("");setNotice("");
     try{
-      const response=await fetch(`/api/rcm/taskboard/tasks/${task.id}/assignee`,{
+      const path=task.source==="tasks"
+        ? `/api/rcm/taskboard/tasks/${task.id}/assignee`
+        : `/api/rcm/taskboard/legacy/${task.source}/${task.id}/assignee`;
+      const body=task.source==="tasks"
+        ? {assignedUserId,expectedAssignedUserId:task.assignedUserId}
+        : {assignedUserId,expectedAssignedName:task.assigneeName};
+      const response=await fetch(path,{
         method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({assignedUserId,expectedAssignedUserId:task.assignedUserId}),
+        body:JSON.stringify(body),
       });
       const payload=await response.json();
       if(!response.ok)throw new Error(payload.message||"Unable to save assignment");
@@ -79,13 +85,13 @@ export function RcmAssignTaskDialog({
     finally{setSaving(false);}
   }
 
-  const riskApprovalRequired=task?.priority==="high"||task?.priority==="critical";
+  const riskApprovalRequired=task?.source==="tasks" && (task.priority==="high"||task.priority==="critical");
   const taskIsOpen=!!task;
   return <Dialog open={taskIsOpen} onOpenChange={open=>{if(!open&&!saving)onClose();}}>
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Assign existing task</DialogTitle>
-        <DialogDescription>Assignment updates the original Verification/Billing record and writes an audit entry. Only employees authorized for this clinic and department are eligible.</DialogDescription>
+        <DialogDescription>Assignment updates the original tracker record and writes an audit entry. Only employees authorized for the record’s clinic and department are eligible.</DialogDescription>
       </DialogHeader>
       {task&&<div className="space-y-3">
         <p className="text-sm text-muted-foreground">{task.itemKey} · {task.department} · {task.clinicName||"Clinic not recorded"}</p>
@@ -99,10 +105,11 @@ export function RcmAssignTaskDialog({
             </SelectContent>
           </Select>
         </div>
-        {task.assignedUserId!==null&&!assignees.some(u=>u.id===task.assignedUserId)&&
+        {task.source==="tasks"&&task.assignedUserId!==null&&!assignees.some(u=>u.id===task.assignedUserId)&&
           <p className="text-xs text-muted-foreground">Current assignee is no longer eligible for this scope. Choose an eligible employee or Unassigned.</p>}
         {riskApprovalRequired&&<p className="text-sm text-amber-700">High-risk assignment: request independent review, then save this exact assignment after approval.</p>}
         {notice&&<p role="status" className="text-sm text-green-700">{notice}</p>}
+        {task.source!=="tasks" && !!task.assigneeName && !assignees.some(u=>u.fullName===task.assigneeName) && !loading && <p className="text-xs text-amber-700">The existing legacy assignee could not be matched to an eligible unique account. Select an employee explicitly before saving.</p>}
         {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>}
       <DialogFooter>
