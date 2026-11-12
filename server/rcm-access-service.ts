@@ -21,7 +21,7 @@ export async function resolveRcmAccess(userId: number): Promise<ResolvedAccess |
     pool.query("SELECT role_slug FROM rcm_user_roles WHERE user_id=$1", [userId]),
     pool.query("SELECT department_key FROM rcm_user_departments WHERE user_id=$1", [userId]),
     pool.query("SELECT clinic_id FROM rcm_user_clinics WHERE user_id=$1", [userId]),
-    pool.query("SELECT role_slug, permission_key, effect FROM rcm_role_permissions WHERE role_slug IN (SELECT role FROM users WHERE id=$1 UNION SELECT role_slug FROM rcm_user_roles WHERE user_id=$1)", [userId]),
+    pool.query("SELECT role_slug, permission_key, effect FROM rcm_role_permissions WHERE role_slug IN (SELECT role::text AS role_slug FROM users WHERE id=$1 UNION SELECT role_slug FROM rcm_user_roles WHERE user_id=$1)", [userId]),
     pool.query("SELECT permission_key, effect FROM rcm_user_permission_overrides WHERE user_id=$1", [userId]),
   ]);
   const user = identity.rows[0];
