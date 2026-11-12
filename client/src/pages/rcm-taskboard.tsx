@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LayoutGrid, List, RefreshCw } from "lucide-react";
+import { RcmAssignTaskDialog } from "@/components/rcm-assign-task-dialog";
 
 type Task = {
-  id: number; itemKey: string; source: string; patientName: string | null; department: string;
+  id: number; itemKey: string; canAssign: boolean; source: string; patientName: string | null; department: string;
   clinicId: number | null; clinicName: string | null;
   assigneeName: string | null; assignedUserId: number | null;
   status: string | null; bucket: string | null; priority: string | null;
@@ -35,6 +36,7 @@ export default function RcmTaskBoardPreview() {
   const [stage,setStage] = useState("all");
   const [page,setPage] = useState(1);
   const [generation,setGeneration] = useState(0);
+  const [assignmentTask,setAssignmentTask] = useState<Task|null>(null);
 
   useEffect(()=>{
     if(!user)return;
@@ -107,6 +109,7 @@ export default function RcmTaskBoardPreview() {
               <p className="text-xs">Assigned: {task.assigneeName||"Unassigned"}</p>
               <p className="text-xs">Due: {dateText(task.dueDate)}</p>
               <Badge variant="outline">{pretty(task.priority)}</Badge>
+              {task.canAssign && <Button size="sm" variant="outline" className="w-full" onClick={()=>setAssignmentTask(task)}>Assign</Button>}
             </CardContent>
           </Card>)}
         </section>)}
@@ -115,7 +118,7 @@ export default function RcmTaskBoardPreview() {
       <div className="overflow-x-auto rounded-lg border" data-testid="rcm-taskboard-table">
         <table className="w-full text-sm">
           <thead className="bg-muted/40"><tr className="text-left">
-            {["Task","Patient","Department","Clinic","Assigned","Status","Priority","Due"].map(label=><th key={label} className="px-3 py-3 font-medium">{label}</th>)}
+            {["Task","Patient","Department","Clinic","Assigned","Status","Priority","Due","Action"].map(label=><th key={label} className="px-3 py-3 font-medium">{label}</th>)}
           </tr></thead>
           <tbody>{tasks.map(task=><tr key={task.itemKey} className="border-t">
             <td className="px-3 py-2">{task.itemKey}</td>
@@ -126,17 +129,19 @@ export default function RcmTaskBoardPreview() {
             <td className="px-3 py-2">{pretty(task.status)}</td>
             <td className="px-3 py-2">{pretty(task.priority)}</td>
             <td className="px-3 py-2">{dateText(task.dueDate)}</td>
+            <td className="px-3 py-2">{task.canAssign?<Button size="sm" variant="outline" onClick={()=>setAssignmentTask(task)}>Assign</Button>:"—"}</td>
           </tr>)}</tbody>
         </table>
         {tasks.length===0&&<p className="p-4 text-sm text-muted-foreground">No tasks match the current filters on this page.</p>}
       </div>
     )}
     {!loading&&!error&&<div className="flex items-center justify-between">
-      <p className="text-xs text-muted-foreground">Showing at most {result?.pageSize||100} records per page. Filtering is within the current page. This preview does not edit or reassign tasks.</p>
+      <p className="text-xs text-muted-foreground">Showing at most {result?.pageSize||100} records per page. Filtering is within the current page. Only eligible Verification/Billing records support manager assignment. All other tracker records remain read-only.</p>
       <div className="flex gap-2">
         <Button variant="outline" disabled={page===1} onClick={()=>setPage(n=>Math.max(1,n-1))}>Previous</Button>
         <Button variant="outline" disabled={(result?.tasks.length||0)<(result?.pageSize||100)} onClick={()=>setPage(n=>n+1)}>Next</Button>
       </div>
     </div>}
+    <RcmAssignTaskDialog task={assignmentTask} onClose={()=>setAssignmentTask(null)} onAssigned={()=>setGeneration(n=>n+1)}/>
   </main>;
 }
