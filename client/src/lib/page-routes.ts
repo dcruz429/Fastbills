@@ -17,6 +17,7 @@ const imports = {
   "/rcm-taskboard": () => import("@/pages/rcm-taskboard"),
   "/rcm-approvals": () => import("@/pages/rcm-approvals"),
   "/rcm-productivity": () => import("@/pages/rcm-productivity"),
+  "/rcm-sla": () => import("@/pages/rcm-sla"),
   "/reports": () => import("@/pages/reports"),
   "/productivity": () => import("@/pages/productivity"),
   "/denials": () => import("@/pages/denials"),
