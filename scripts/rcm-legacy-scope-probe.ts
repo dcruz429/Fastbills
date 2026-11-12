@@ -58,12 +58,15 @@ async function main(){
  const detailExposed=detail.status===200 && Number(detail.body?.clinicId)===otherClinicId;
  console.log("Legacy GET /api/tasks/:taskId HTTP status:",detail.status);
  console.log("Legacy task detail returned another clinic:",detailExposed?"YES":"NO");
+ const activity=await get("/api/tasks/"+otherTaskId+"/activity");
+ console.log("Legacy other-clinic task activity HTTP status:",activity.status);
+ const activityExposed=activity.status===200;
  const list=await get("/api/tasks?workload=true");
  const listExposure=list.status===200 && Array.isArray(list.body) &&
    list.body.some((t:any)=>Number(t.clinicId)===otherClinicId);
  console.log("Legacy GET /api/tasks?workload=true HTTP status:",list.status);
  console.log("Legacy workload list contains another clinic:",listExposure?"YES":"NO");
- if(detailExposed || listExposure){
+ if(detailExposed || listExposure || activityExposed){
    console.log("CONFIRMED RELEASE BLOCKER: authenticated legacy routes bypass new clinic scoping");
    process.exitCode=2;
  }else{
