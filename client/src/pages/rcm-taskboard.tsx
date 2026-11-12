@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LayoutGrid, List, RefreshCw } from "lucide-react";
 import { RcmAssignTaskDialog } from "@/components/rcm-assign-task-dialog";
+import { taskSla } from "@shared/rcm-sla-policy";
 
 type Task = {
   id: number; itemKey: string; canAssign: boolean; source: string; patientName: string | null; department: string;
@@ -37,6 +38,7 @@ export default function RcmTaskBoardPreview() {
   const [page,setPage] = useState(1);
   const [generation,setGeneration] = useState(0);
   const [assignmentTask,setAssignmentTask] = useState<Task|null>(null);
+  const [slaReference,setSlaReference] = useState(()=>new Date());
 
   useEffect(()=>{
     if(!user)return;
@@ -53,6 +55,8 @@ export default function RcmTaskBoardPreview() {
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();
   },[user?.id,page,generation]);
+
+  useEffect(()=>{setSlaReference(new Date());},[generation,page]);
 
   const tasks = useMemo(()=>{
     const needle = search.trim().toLowerCase();
@@ -108,6 +112,7 @@ export default function RcmTaskBoardPreview() {
               <p className="text-xs text-muted-foreground"># {task.itemKey} · {task.department} · {task.clinicName||"Unspecified clinic"}</p>
               <p className="text-xs">Assigned: {task.assigneeName||"Unassigned"}</p>
               <p className="text-xs">Due: {dateText(task.dueDate)}</p>
+              {task.dueDate && <Badge variant={taskSla(task.dueDate,slaReference).state==="overdue"?"destructive":"secondary"}>{taskSla(task.dueDate,slaReference).state.replace(/_/g," ")}</Badge>}
               <Badge variant="outline">{pretty(task.priority)}</Badge>
               {task.canAssign && <Button size="sm" variant="outline" className="w-full" onClick={()=>setAssignmentTask(task)}>Assign</Button>}
             </CardContent>
@@ -128,7 +133,7 @@ export default function RcmTaskBoardPreview() {
             <td className="px-3 py-2">{task.assigneeName||"Unassigned"}</td>
             <td className="px-3 py-2">{pretty(task.status)}</td>
             <td className="px-3 py-2">{pretty(task.priority)}</td>
-            <td className="px-3 py-2">{dateText(task.dueDate)}</td>
+            <td className="px-3 py-2">{dateText(task.dueDate)}{task.dueDate&&<span className="block text-xs text-muted-foreground">{taskSla(task.dueDate,slaReference).state.replace(/_/g," ")}</span>}</td>
             <td className="px-3 py-2">{task.canAssign?<Button size="sm" variant="outline" onClick={()=>setAssignmentTask(task)}>Assign</Button>:"—"}</td>
           </tr>)}</tbody>
         </table>
