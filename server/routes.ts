@@ -655,9 +655,13 @@ export async function registerRoutes(
           !permissionAllowed(access.context, "users.manage"))
         return res.status(403).json({ message: "System administrator user-management permission required" });
 
+      // Express accepts optional trailing slashes on legacy routes. Normalize
+      // before applying privilege checks so /:id and /:id/ are identical.
+      const accountPath = req.path.replace(/\/+$/, "") || "/";
+      const isAccountPatch = req.method === "PATCH" && /^\/\d+$/.test(accountPath);
       // The generic patch endpoint must not modify privilege bits owned by
       // their dedicated access-control routes, or database-generated fields.
-      if (req.method === "PATCH" && /^\/\d+$/.test(req.path)) {
+      if (isAccountPatch) {
         const payload = req.body;
         if (!payload || typeof payload !== "object" || Array.isArray(payload))
           return res.status(400).json({ message: "Invalid account update" });
@@ -665,8 +669,7 @@ export async function registerRoutes(
         if (Object.keys(payload).some(field => !allowedFields.has(field)))
           return res.status(403).json({ message: "Account field requires a dedicated permission workflow" });
       }
-      if (req.path === "/" && req.method === "POST" ||
-          /^\/\d+$/.test(req.path) && req.method === "PATCH") {
+      if ((accountPath === "/" && req.method === "POST") || isAccountPatch) {
         const role = req.body?.role;
         if (role !== undefined &&
             (!permissionAllowed(access.context, "roles.manage") ||
