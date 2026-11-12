@@ -92,8 +92,18 @@ async function main(){
    collections.rows[0].notes.includes(BASE_NOTE),
    "exactly one known fictional transfer-created collection");
   const collectionId=Number(collections.rows[0].id);
-  const collectionActivity=await client.query("SELECT count(*)::int AS n FROM collection_activity WHERE collection_id=$1",[collectionId]);
-  check(collectionActivity.rows[0].n===0,"transfer-created collection has no activity");
+  const collectionActivity=await client.query(
+   "SELECT field,action,count(*)::int AS n FROM collection_activity WHERE collection_id=$1 GROUP BY field,action",
+   [collectionId],
+  );
+  // At transfer time the source task had exactly two prior edits: clinic and
+  // bucket. Fastbills copies those two events plus one transfer-source event.
+  const copied=new Map(collectionActivity.rows.map(r=>[String(r.field)+"|"+r.action,Number(r.n)]));
+  check(collectionActivity.rows.length===3 &&
+    copied.get("source|Transferred from Verification/Billing")===1 &&
+    copied.get("clinicId|[Verification/Billing] Updated Clinic")===1 &&
+    copied.get("bucket|[Verification/Billing] Updated Bucket")===1,
+    "collection activity consists of exactly one transfer and two copied fictional events");
   const potentialDependencies=await client.query(
    "SELECT (SELECT count(*)::int FROM rcm_task_approvals WHERE task_id=ANY($1::int[])) AS approvals,(SELECT count(*)::int FROM rcm_quality_reviews WHERE source='tasks' AND record_id=ANY($1::int[])) AS qa",
    [[t1.id,t3.id,t8.id,extra.id]],
@@ -109,6 +119,7 @@ async function main(){
   );
   await client.query("UPDATE tasks SET assigned_user_id=NULL,status='unassigned' WHERE id=$1",[t3.id]);
   await client.query("UPDATE tasks SET notes=$2 WHERE id=$1",[t8.id,BASE_NOTE]);
+  await client.query("DELETE FROM collection_activity WHERE collection_id=$1",[collectionId]);
   await client.query("DELETE FROM collections WHERE id=$1",[collectionId]);
   await client.query("DELETE FROM tasks WHERE id=$1",[extra.id]);
   const counts=await client.query(
