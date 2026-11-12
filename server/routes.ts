@@ -2288,7 +2288,8 @@ export async function registerRoutes(
       if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can edit collections" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Collection id" });
       const existing = await storage.getCollection(id);
       if (!existing) return res.status(404).json({ message: "Collection not found" });
       const data: any = { ...req.body };
@@ -2394,19 +2395,23 @@ export async function registerRoutes(
   });
 
   app.get("/api/collections/:id", requireAuth, async (req, res) => {
-    const record = await storage.getCollection(parseInt(req.params.id));
+    const id = parsePositiveRouteId(req.params.id);
+    if (id === null) return res.status(400).json({ message: "Invalid Collection id" });
+    const record = await storage.getCollection(id);
     if (!record) return res.status(404).json({ message: "Collection not found" });
     res.json(record);
   });
 
   app.get("/api/collections/:id/activity", requireAuth, async (req, res) => {
-    const collectionId = parseInt(req.params.id);
+    const collectionId = parsePositiveRouteId(req.params.id);
+    if (collectionId === null) return res.status(400).json({ message: "Invalid Collection id" });
     res.json(await storage.getCollectionActivity(collectionId));
   });
 
   app.post("/api/collections/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Collection id" });
       const { note } = req.body;
       if (!note) return res.status(400).json({ message: "Note required" });
       const existing = await storage.getCollection(id);
@@ -2496,7 +2501,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete collections" });
       }
-      await storage.deleteCollection(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Collection id" });
+      await storage.deleteCollection(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
