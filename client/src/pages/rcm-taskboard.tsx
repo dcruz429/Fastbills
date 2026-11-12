@@ -8,19 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LayoutGrid, List, RefreshCw } from "lucide-react";
 
 type Task = {
-  id: number; patientName: string; department: "Verification" | "Billing";
+  id: number; itemKey: string; source: string; patientName: string | null; department: string;
   clinicId: number | null; clinicName: string | null;
   assigneeName: string | null; assignedUserId: number | null;
-  status: string; bucket: string; priority: string;
+  status: string | null; bucket: string | null; priority: string | null;
   createdAt: string; dueDate: string | null;
 };
 type ApiResult = { tasks: Task[]; page: number; pageSize: number; limitedTo: string };
 const stages = ["unassigned", "assigned", "working_on_it", "verified", "billed", "done", "dropped"] as const;
+const departments = ["Verification", "Billing", "Posting", "Collections", "Denials", "Arbitration", "Checks", "Case Management / RTP", "Closed"] as const;
 const labels: Record<string,string> = {
   unassigned: "Unassigned", assigned:"Assigned", working_on_it:"Working on it",
   verified:"Verified", billed:"Billed", done:"Done", dropped:"Dropped",
 };
-const pretty = (s:string) => labels[s] || s.replace(/_/g," ");
+const pretty = (s:string|null) => labels[s || ""] || (s || "Unassigned").replace(/_/g," ");
 const dateText = (d:string|null) => d ? new Date(d).toLocaleDateString() : "—";
 
 export default function RcmTaskBoardPreview() {
@@ -55,20 +56,25 @@ export default function RcmTaskBoardPreview() {
     const needle = search.trim().toLowerCase();
     return (result?.tasks||[]).filter(t=>
       (department==="all"||department===t.department) &&
-      (stage==="all"||stage===t.status) &&
+      (stage==="all"||stage===(t.status||"unassigned").trim().toLowerCase().replace(/\s+/g,"_")) &&
       (!needle || [
-        t.patientName,String(t.id),t.clinicName||"",t.assigneeName||"",
+        t.patientName||"",String(t.id),t.source,t.clinicName||"",t.assigneeName||"",
       ].some(value=>value.toLowerCase().includes(needle)))
     );
   },[result,search,department,stage]);
 
-  const columns = useMemo(()=>stages.map(s=>({status:s,tasks:tasks.filter(t=>t.status===s)}))
-    .filter(column=>column.tasks.length>0||stage===column.status),[tasks,stage]);
+  const columns = useMemo(()=>{
+    // Legacy trackers use display statuses (for example "Working on it").
+    // Group case-insensitively so the Kanban agrees with Table.
+    const normalize = (status: string | null) => (status || "unassigned").trim().toLowerCase().replace(/\s+/g, "_");
+    return Array.from(new Set(tasks.map(t=>normalize(t.status)))).sort()
+      .map(status=>({status,tasks:tasks.filter(t=>normalize(t.status)===status)}));
+  },[tasks]);
   return <main className="p-4 md:p-6 space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 className="text-2xl font-semibold">RCM Task Board</h1>
-        <p className="text-sm text-muted-foreground">Read-only preview of existing Verification and Billing tasks. Kanban and Table use the same filtered records.</p>
+        <p className="text-sm text-muted-foreground">Read-only preview of existing RCM tracker records. Kanban and Table use the same filtered records; task ID is shown with its originating tracker.</p>
       </div>
       <div className="flex items-center gap-2">
         <Button variant={view==="kanban"?"default":"outline"} onClick={()=>setView("kanban")}><LayoutGrid className="h-4 w-4 mr-1"/> Kanban</Button>
@@ -80,7 +86,7 @@ export default function RcmTaskBoardPreview() {
       <Input aria-label="Search tasks" className="w-full sm:w-56" placeholder="Search this page of tasks" value={search} onChange={e=>setSearch(e.target.value)}/>
       <Select value={department} onValueChange={setDepartment}>
         <SelectTrigger className="w-44" aria-label="Filter department"><SelectValue/></SelectTrigger>
-        <SelectContent><SelectItem value="all">All departments</SelectItem><SelectItem value="Verification">Verification</SelectItem><SelectItem value="Billing">Billing</SelectItem></SelectContent>
+        <SelectContent><SelectItem value="all">All departments</SelectItem>{departments.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={stage} onValueChange={setStage}>
         <SelectTrigger className="w-44" aria-label="Filter status"><SelectValue/></SelectTrigger>
@@ -94,10 +100,10 @@ export default function RcmTaskBoardPreview() {
       <div className="flex gap-3 overflow-x-auto pb-4" data-testid="rcm-taskboard-kanban">
         {columns.map(column=><section key={column.status} className="min-w-64 w-72 shrink-0 rounded-lg border bg-muted/20 p-3 space-y-3">
           <div className="flex justify-between items-center"><h2 className="font-medium text-sm">{pretty(column.status)}</h2><Badge variant="secondary">{column.tasks.length}</Badge></div>
-          {column.tasks.map(task=><Card key={task.id}>
-            <CardHeader className="p-3 pb-1"><CardTitle className="text-sm break-words">{task.patientName}</CardTitle></CardHeader>
+          {column.tasks.map(task=><Card key={task.itemKey}>
+            <CardHeader className="p-3 pb-1"><CardTitle className="text-sm break-words">{task.patientName||"Patient not recorded"}</CardTitle></CardHeader>
             <CardContent className="p-3 pt-1 space-y-1">
-              <p className="text-xs text-muted-foreground">#{task.id} · {task.department} · {task.clinicName||"Unspecified clinic"}</p>
+              <p className="text-xs text-muted-foreground"># {task.itemKey} · {task.department} · {task.clinicName||"Unspecified clinic"}</p>
               <p className="text-xs">Assigned: {task.assigneeName||"Unassigned"}</p>
               <p className="text-xs">Due: {dateText(task.dueDate)}</p>
               <Badge variant="outline">{pretty(task.priority)}</Badge>
@@ -112,8 +118,8 @@ export default function RcmTaskBoardPreview() {
             {["Task","Patient","Department","Clinic","Assigned","Status","Priority","Due"].map(label=><th key={label} className="px-3 py-3 font-medium">{label}</th>)}
           </tr></thead>
           <tbody>{tasks.map(task=><tr key={task.id} className="border-t">
-            <td className="px-3 py-2">{task.id}</td>
-            <td className="px-3 py-2">{task.patientName}</td>
+            <td className="px-3 py-2">{task.itemKey}</td>
+            <td className="px-3 py-2">{task.patientName||"—"}</td>
             <td className="px-3 py-2">{task.department}</td>
             <td className="px-3 py-2">{task.clinicName||"—"}</td>
             <td className="px-3 py-2">{task.assigneeName||"Unassigned"}</td>
