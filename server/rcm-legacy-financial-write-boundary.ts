@@ -9,7 +9,7 @@
 import type {Express,Request,Response,NextFunction} from "express";
 import { pool } from "./db";
 import { resolveRcmAccess } from "./rcm-access-service";
-import { resourceAllowed } from "../shared/rcm-access-policy";
+import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy";
 
 const FAMILIES={
  denials:{table:"denials",permission:"tasks.update",department:"Denials"},
@@ -48,17 +48,16 @@ export function registerLegacyFinancialWriteBoundary(app:Express){
     }
     // Checks require their own permission as well as the department scope.
     if(family==="checks"){
-     const checkScope=access.context;
-     if(!checkScope.rolePermissions.has("checks.read") && checkScope.userOverrides.get("checks.read")!=="allow")
-      return res.status(403).json({message:"Checks permission required"});
-     if(checkScope.userOverrides.get("checks.read")==="deny")
+     if(!permissionAllowed(access.context,"checks.read"))
       return res.status(403).json({message:"Checks permission required"});
     }
     const body=req.body ?? {};
-    // Existing legacy mutation endpoints do not guarantee independently
-    // authorized target assignment, clinic transfers, or financial transfers.
-    if(["clinic","assignedTo","outcome"].some(field=>Object.prototype.hasOwnProperty.call(body,field)) ||
-       (body.data&&["clinic","assignedTo","outcome"].some(field=>Object.prototype.hasOwnProperty.call(body.data,field)))){
+    const isCreate=req.path==="/" && method==="POST";
+    // Creation may specify its own existing, uniquely resolvable clinic,
+    // but not a preassigned employee or cross-tracker transfer.
+    const prohibited=isCreate?["assignedTo","outcome"]:["clinic","assignedTo","outcome"];
+    if(prohibited.some(field=>Object.prototype.hasOwnProperty.call(body,field)) ||
+       (body.data&&prohibited.some(field=>Object.prototype.hasOwnProperty.call(body.data,field)))){
       return res.status(403).json({message:"Clinic, assignee and transfer changes require a scoped workflow"});
     }
     const aliases=await clinicAliases();
