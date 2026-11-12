@@ -58,7 +58,7 @@ export function registerRcmLegacyAssignmentRoutes(app:Express){
  app.get("/api/rcm/taskboard/legacy/:source/:recordId/assignees",async(req:Request,res:Response,next:NextFunction)=>{
   if(!req.session.userId)return res.status(401).json({message:"Not authenticated"});
   if(req.session.originalUserId)return res.status(403).json({message:"Unavailable during impersonation"});
-  const source=resolveSource(req.params.source);
+  const source=resolveSource(String(req.params.source));
   if(!source)return res.status(400).json({message:"Invalid tracker source"});
   let id:number;try{id=idSchema.parse(req.params.recordId);}catch{return res.status(400).json({message:"Invalid record ID"});}
   try{
@@ -88,7 +88,7 @@ export function registerRcmLegacyAssignmentRoutes(app:Express){
  app.patch("/api/rcm/taskboard/legacy/:source/:recordId/assignee",async(req:Request,res:Response,next:NextFunction)=>{
   if(!req.session.userId)return res.status(401).json({message:"Not authenticated"});
   if(req.session.originalUserId||!sameOriginJson(req))return res.status(403).json({message:"Not permitted"});
-  const source=resolveSource(req.params.source);
+  const source=resolveSource(String(req.params.source));
   if(!source)return res.status(400).json({message:"Invalid tracker source"});
   let id:number;try{id=idSchema.parse(req.params.recordId);}catch{return res.status(400).json({message:"Invalid record ID"});}
   const parsed=bodySchema.safeParse(req.body);
