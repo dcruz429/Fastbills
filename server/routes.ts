@@ -28,6 +28,7 @@ import { registerRcmLegacyAssignmentRoutes } from "./rcm-legacy-assignment-route
 import { registerRcmSlaRoutes } from "./rcm-sla-routes";
 import { registerRcmQualityRoutes } from "./rcm-quality-routes";
 import { registerLegacyFinancialWriteBoundary } from "./rcm-legacy-financial-write-boundary";
+import { registerRcmFileDownloadBoundary } from "./rcm-file-download-boundary";
 import { resolveRcmAccess } from "./rcm-access-service";
 import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy";
 
@@ -495,6 +496,8 @@ export async function registerRoutes(
   registerRcmQualityRoutes(app);
   // Guard all legacy financial tracker mutations before route registration.
   registerLegacyFinancialWriteBoundary(app);
+  // Download permission is checked before the historical file serving handler.
+  registerRcmFileDownloadBoundary(app);
 
   app.post("/api/auth/login", async (req, res) => {
     try {
