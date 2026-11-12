@@ -63,6 +63,7 @@ const navItems = [
   { title: "RCM Task Board", url: "/rcm-taskboard", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "RCM Approvals", url: "/rcm-approvals", icon: ShieldCheck, roles: ["admin", "manager", "account_manager", "case_manager"] },
   { title: "RCM Weighted Productivity", url: "/rcm-productivity", icon: TrendingUp, roles: ["admin", "manager", "account_manager", "case_manager"] },
+  { title: "RCM SLA", url: "/rcm-sla", icon: CalendarClock, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "My Tasks", url: "/my-tasks", icon: UserIcon, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Call Calendar", url: "/call-calendar", icon: CalendarClock, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"], vcTeamOnly: true },
   { title: "Patient Overview", url: "/patient-overview", icon: Search, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
