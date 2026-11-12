@@ -19,6 +19,7 @@ import { registerGuidelineBoardRoutes } from "./guideline-board";
 import { registerMedicalRecordsRoutes } from "./medical-records-routes";
 import { medicalRecordsRepository, ensureMedicalRecordsHistory } from "./medical-records-repository";
 import { getProductivityTransfers } from "./productivity-transfers";
+import { registerRcmAccessRoutes } from "./rcm-access-routes";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -472,6 +473,9 @@ export async function registerRoutes(
       },
     })
   );
+
+  // New additive RCM administration endpoints; existing sessions remain authoritative.
+  registerRcmAccessRoutes(app);
 
   app.post("/api/auth/login", async (req, res) => {
     try {
