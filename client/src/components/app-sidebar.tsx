@@ -85,6 +85,7 @@ const navItems = [
 
 const adminItems = [
   { title: "Settings", url: "/settings", icon: Settings },
+  { title: "RCM Access", url: "/rcm-access", icon: ShieldCheck },
 ];
 
 function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -258,7 +259,7 @@ export function AppSidebar() {
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminItems.map((item) => (
+                {adminItems.filter(item => item.url !== "/rcm-access" || user?.role === "admin").map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       data-testid={`nav-${item.title.toLowerCase()}`}
