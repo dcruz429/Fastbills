@@ -3,9 +3,9 @@
  *
  * file_uploads has no owner_id/parent_id; references are stored as text
  * "/api/files/<id>|<original-name>" in parent attachments arrays.
- * Only direct-message attachments can currently be authorized with strong
- * sender/recipient ownership semantics. All other module attachments
- * deliberately return 404 until module-specific policies are implemented.
+ * Direct-message attachments require sender/recipient ownership. Guidelines
+ * attachments are readable by active signed-in users, provided they belong to
+ * exactly one module and no other parent. Other modules still fail closed.
  *
  * Must be registered BEFORE legacy /api/files/:id route.
  */
@@ -26,14 +26,16 @@ export function registerRcmFileDownloadBoundary(app:Express){
   try{
    const result=await pool.query(
     `SELECT
+       (SELECT active FROM users WHERE id=$2) AS active,
        (SELECT count(*)::int FROM direct_messages m
           WHERE EXISTS (SELECT 1 FROM unnest(m.attachments) a WHERE split_part(a,'|',1)=$1)) AS dm_references,
        (SELECT count(*)::int FROM direct_messages m
           WHERE (m.sender_id=$2 OR m.recipient_id=$2)
             AND EXISTS (SELECT 1 FROM unnest(m.attachments) a WHERE split_part(a,'|',1)=$1)) AS allowed_dm_references,
+       (SELECT count(*)::int FROM guideline_modules g
+          WHERE EXISTS (SELECT 1 FROM unnest(g.attachments) a WHERE split_part(a,'|',1)=$1)) AS guideline_references,
        (
          (SELECT count(*) FROM announcements p WHERE EXISTS (SELECT 1 FROM unnest(p.attachments) a WHERE split_part(a,'|',1)=$1))
-        +(SELECT count(*) FROM guideline_modules p WHERE EXISTS (SELECT 1 FROM unnest(p.attachments) a WHERE split_part(a,'|',1)=$1))
         +(SELECT count(*) FROM tickets p WHERE EXISTS (SELECT 1 FROM unnest(p.attachments) a WHERE split_part(a,'|',1)=$1))
         +(SELECT count(*) FROM ticket_comments p WHERE EXISTS (SELECT 1 FROM unnest(p.attachments) a WHERE split_part(a,'|',1)=$1))
         +(SELECT count(*) FROM ceo_box p WHERE EXISTS (SELECT 1 FROM unnest(p.attachments) a WHERE split_part(a,'|',1)=$1))
@@ -41,10 +43,16 @@ export function registerRcmFileDownloadBoundary(app:Express){
     [reference,req.session.userId],
    );
    const row=result.rows[0];
-   // A file linked to another person's DM or to an unreviewed module is
-   // blocked, even if that same file is also linked to an allowed DM.
-   if(!row || Number(row.dm_references)!==1 || Number(row.allowed_dm_references)!==1 ||
-      Number(row.other_references)!==0){
+   // Even stale sessions must not grant file access to inactive accounts.
+   if(!row || row.active!==true)return res.status(403).json({message:"File access denied"});
+   const dmCount=Number(row.dm_references);
+   const guidelineCount=Number(row.guideline_references);
+   const otherCount=Number(row.other_references);
+   const privateDmAllowed=dmCount===1 && Number(row.allowed_dm_references)===1 &&
+     guidelineCount===0 && otherCount===0;
+   const guidelineAllowed=guidelineCount===1 && dmCount===0 && otherCount===0;
+   // Never accept orphan files or links shared between different modules.
+   if(!privateDmAllowed && !guidelineAllowed){
     return res.status(404).json({message:"File not found"});
    }
    res.setHeader("Cache-Control","private, no-store");
