@@ -2594,7 +2594,8 @@ export async function registerRoutes(
       if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can edit postings" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
       const existing = await storage.getPosting(id);
       if (!existing) return res.status(404).json({ message: "Posting not found" });
       const data: any = { ...req.body };
@@ -2691,19 +2692,24 @@ export async function registerRoutes(
   });
 
   app.get("/api/postings/:id", requireAuth, async (req, res) => {
-    const record = await storage.getPosting(parseInt(req.params.id));
+    const id = parsePositiveRouteId(req.params.id);
+    if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
+    const record = await storage.getPosting(id);
     if (!record) return res.status(404).json({ message: "Posting not found" });
     res.json(record);
   });
 
   app.get("/api/postings/:id/activity", requireAuth, async (req, res) => {
-    const activity = await storage.getPostingActivity(parseInt(req.params.id));
+    const id = parsePositiveRouteId(req.params.id);
+    if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
+    const activity = await storage.getPostingActivity(id);
     res.json(activity);
   });
 
   app.post("/api/postings/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
       const { note } = req.body;
       if (!note) return res.status(400).json({ message: "Note required" });
       const existing = await storage.getPosting(id);
@@ -2735,7 +2741,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete postings" });
       }
-      await storage.deletePosting(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
+      await storage.deletePosting(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
