@@ -2991,7 +2991,9 @@ export async function registerRoutes(
 
   app.get("/api/messages/:userId", requireAuth, async (req, res) => {
     try {
-      const messages = await storage.getDirectMessages(req.session.userId!, parseInt(req.params.userId));
+      const userId = parsePositiveRouteId(req.params.userId);
+      if (userId === null) return res.status(400).json({ message: "Invalid conversation user id" });
+      const messages = await storage.getDirectMessages(req.session.userId!, userId);
       res.json(messages);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3021,7 +3023,9 @@ export async function registerRoutes(
 
   app.post("/api/messages/:userId/read", requireAuth, async (req, res) => {
     try {
-      await storage.markMessagesRead(req.session.userId!, parseInt(req.params.userId));
+      const userId = parsePositiveRouteId(req.params.userId);
+      if (userId === null) return res.status(400).json({ message: "Invalid conversation user id" });
+      await storage.markMessagesRead(req.session.userId!, userId);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
