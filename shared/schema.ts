@@ -492,10 +492,10 @@ export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
 export const insertDirectMessageSchema = createInsertSchema(directMessages).omit({ id: true, createdAt: true, readAt: true });
 
 export type Announcement = typeof announcements.$inferSelect;
-export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type InsertAnnouncement = Omit<typeof announcements.$inferInsert, "id" | "createdAt">;
 export type AnnouncementAck = typeof announcementAcks.$inferSelect;
 export type DirectMessage = typeof directMessages.$inferSelect;
-export type InsertDirectMessage = z.infer<typeof insertDirectMessageSchema>;
+export type InsertDirectMessage = Omit<typeof directMessages.$inferInsert, "id" | "createdAt" | "readAt">;
 
 export type AnnouncementWithRelations = Announcement & {
   author?: User | null;
@@ -525,35 +525,35 @@ export const insertTicketSchema = createInsertSchema(tickets).omit({ id: true, c
 export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true });
 export const insertTicketActivitySchema = createInsertSchema(ticketActivity).omit({ id: true, timestamp: true });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertUser = Omit<typeof users.$inferInsert, "id">;
 export type User = typeof users.$inferSelect;
-export type InsertClinic = z.infer<typeof insertClinicSchema>;
+export type InsertClinic = Omit<typeof clinics.$inferInsert, "id">;
 export type Clinic = typeof clinics.$inferSelect;
-export type InsertInsurance = z.infer<typeof insertInsuranceSchema>;
+export type InsertInsurance = Omit<typeof insurances.$inferInsert, "id">;
 export type Insurance = typeof insurances.$inferSelect;
-export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type InsertTask = Omit<typeof tasks.$inferInsert, "id" | "createdAt" | "inputDate">;
 export type Task = typeof tasks.$inferSelect;
-export type InsertTaskActivity = z.infer<typeof insertTaskActivitySchema>;
+export type InsertTaskActivity = Omit<typeof taskActivity.$inferInsert, "id" | "timestamp">;
 export type TaskActivity = typeof taskActivity.$inferSelect;
-export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type InsertNotification = Omit<typeof notifications.$inferInsert, "id" | "createdAt">;
 export type Notification = typeof notifications.$inferSelect;
-export type InsertDenial = z.infer<typeof insertDenialSchema>;
+export type InsertDenial = Omit<typeof denials.$inferInsert, "id" | "createdAt">;
 export type Denial = typeof denials.$inferSelect;
-export type InsertDenialActivity = z.infer<typeof insertDenialActivitySchema>;
+export type InsertDenialActivity = Omit<typeof denialActivity.$inferInsert, "id" | "timestamp">;
 export type DenialActivity = typeof denialActivity.$inferSelect;
-export type InsertArbitration = z.infer<typeof insertArbitrationSchema>;
+export type InsertArbitration = Omit<typeof arbitrations.$inferInsert, "id" | "createdAt">;
 export type Arbitration = typeof arbitrations.$inferSelect;
-export type InsertArbitrationActivity = z.infer<typeof insertArbitrationActivitySchema>;
+export type InsertArbitrationActivity = Omit<typeof arbitrationActivity.$inferInsert, "id" | "timestamp">;
 export type ArbitrationActivity = typeof arbitrationActivity.$inferSelect;
-export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type InsertCollection = Omit<typeof collections.$inferInsert, "id" | "createdAt">;
 export type Collection = typeof collections.$inferSelect;
-export type InsertCollectionActivity = z.infer<typeof insertCollectionActivitySchema>;
+export type InsertCollectionActivity = Omit<typeof collectionActivity.$inferInsert, "id" | "timestamp">;
 export type CollectionActivity = typeof collectionActivity.$inferSelect;
-export type InsertTicket = z.infer<typeof insertTicketSchema>;
+export type InsertTicket = Omit<typeof tickets.$inferInsert, "id" | "createdAt" | "updatedAt" | "completedAt">;
 export type Ticket = typeof tickets.$inferSelect;
-export type InsertTicketComment = z.infer<typeof insertTicketCommentSchema>;
+export type InsertTicketComment = Omit<typeof ticketComments.$inferInsert, "id" | "createdAt">;
 export type TicketComment = typeof ticketComments.$inferSelect;
-export type InsertTicketActivity = z.infer<typeof insertTicketActivitySchema>;
+export type InsertTicketActivity = Omit<typeof ticketActivity.$inferInsert, "id" | "timestamp">;
 export type TicketActivity = typeof ticketActivity.$inferSelect;
 
 export type TicketActivityWithUser = TicketActivity & {
@@ -641,7 +641,7 @@ export const dropdownCategoryInitializations = pgTable("dropdown_category_initia
 
 export const insertDropdownOptionSchema = createInsertSchema(dropdownOptions).omit({ id: true });
 export type DropdownOption = typeof dropdownOptions.$inferSelect;
-export type InsertDropdownOption = z.infer<typeof insertDropdownOptionSchema>;
+export type InsertDropdownOption = Omit<typeof dropdownOptions.$inferInsert, "id">;
 
 export const POSTING_DOCUMENT_TYPES = ["Payment", "Denials", "NP Forms", "MD Rx", "Med Records"];
 export const POSTING_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
@@ -685,9 +685,9 @@ export const postingActivity = pgTable("posting_activity", {
 
 export const insertPostingSchema = createInsertSchema(postings).omit({ id: true, createdAt: true });
 export const insertPostingActivitySchema = createInsertSchema(postingActivity).omit({ id: true, timestamp: true });
-export type InsertPosting = z.infer<typeof insertPostingSchema>;
+export type InsertPosting = Omit<typeof postings.$inferInsert, "id" | "createdAt">;
 export type Posting = typeof postings.$inferSelect;
-export type InsertPostingActivity = z.infer<typeof insertPostingActivitySchema>;
+export type InsertPostingActivity = Omit<typeof postingActivity.$inferInsert, "id" | "timestamp">;
 export type PostingActivity = typeof postingActivity.$inferSelect;
 
 export const CHECKS_TYPE_OPTIONS = ["Regular Check", "EFT", "Lien", "Arbitration", "Rent", "Medical Records"];
@@ -732,9 +732,9 @@ export const checkActivity = pgTable("check_activity", {
 
 export const insertCheckSchema = createInsertSchema(checks).omit({ id: true, createdAt: true });
 export const insertCheckActivitySchema = createInsertSchema(checkActivity).omit({ id: true, timestamp: true });
-export type InsertCheck = z.infer<typeof insertCheckSchema>;
+export type InsertCheck = Omit<typeof checks.$inferInsert, "id" | "createdAt">;
 export type Check = typeof checks.$inferSelect;
-export type InsertCheckActivity = z.infer<typeof insertCheckActivitySchema>;
+export type InsertCheckActivity = Omit<typeof checkActivity.$inferInsert, "id" | "timestamp">;
 export type CheckActivity = typeof checkActivity.$inferSelect;
 
 export const OUTCOME_OPTIONS = [
@@ -792,9 +792,9 @@ export const closedActivity = pgTable("closed_activity", {
 
 export const insertClosedSchema = createInsertSchema(closed).omit({ id: true, createdAt: true });
 export const insertClosedActivitySchema = createInsertSchema(closedActivity).omit({ id: true, timestamp: true });
-export type InsertClosed = z.infer<typeof insertClosedSchema>;
+export type InsertClosed = Omit<typeof closed.$inferInsert, "id" | "createdAt">;
 export type Closed = typeof closed.$inferSelect;
-export type InsertClosedActivity = z.infer<typeof insertClosedActivitySchema>;
+export type InsertClosedActivity = Omit<typeof closedActivity.$inferInsert, "id" | "timestamp">;
 export type ClosedActivity = typeof closedActivity.$inferSelect;
 
 export const CLOSED_STATUS_OPTIONS = ["Unassigned", "Assigned", "Working on it", "Done"];
@@ -830,7 +830,7 @@ export const ceoBox = pgTable("ceo_box", {
 });
 
 export const insertCeoBoxSchema = createInsertSchema(ceoBox).omit({ id: true, createdAt: true, updatedAt: true, createdById: true });
-export type InsertCeoBox = z.infer<typeof insertCeoBoxSchema>;
+export type InsertCeoBox = Omit<typeof ceoBox.$inferInsert, "id" | "createdAt" | "updatedAt" | "createdById">;
 export type CeoBox = typeof ceoBox.$inferSelect;
 
 export const CEO_USERS = ["Maria Serrano", "Dr. Al Manjoorsa", "David Cruz"] as const;
@@ -975,11 +975,11 @@ export const insertCallAttemptSchema = createInsertSchema(callAttempts).omit({ i
 export const insertCallActivitySchema = createInsertSchema(callActivity).omit({ id: true, createdAt: true });
 
 export type ScheduledCall = typeof scheduledCalls.$inferSelect;
-export type InsertScheduledCall = z.infer<typeof insertScheduledCallSchema>;
+export type InsertScheduledCall = Omit<typeof scheduledCalls.$inferInsert, "id" | "createdAt" | "updatedAt">;
 export type CallAttempt = typeof callAttempts.$inferSelect;
-export type InsertCallAttempt = z.infer<typeof insertCallAttemptSchema>;
+export type InsertCallAttempt = Omit<typeof callAttempts.$inferInsert, "id" | "createdAt">;
 export type CallActivityRecord = typeof callActivity.$inferSelect;
-export type InsertCallActivity = z.infer<typeof insertCallActivitySchema>;
+export type InsertCallActivity = Omit<typeof callActivity.$inferInsert, "id" | "createdAt">;
 
 export const teams = pgTable("teams", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -996,9 +996,9 @@ export const insertTeamSchema = createInsertSchema(teams).omit({ id: true });
 export const insertUserTeamSchema = createInsertSchema(userTeams).omit({ id: true });
 
 export type Team = typeof teams.$inferSelect;
-export type InsertTeam = z.infer<typeof insertTeamSchema>;
+export type InsertTeam = Omit<typeof teams.$inferInsert, "id">;
 export type UserTeam = typeof userTeams.$inferSelect;
-export type InsertUserTeam = z.infer<typeof insertUserTeamSchema>;
+export type InsertUserTeam = Omit<typeof userTeams.$inferInsert, "id">;
 export type TeamWithMembers = Team & { members: Pick<User, "id" | "fullName" | "role">[] };
 
 export const DROPDOWN_CATEGORIES = [
