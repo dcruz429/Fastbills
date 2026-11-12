@@ -79,8 +79,10 @@ async function main(){
   const extraAct=await client.query("SELECT count(*)::int AS n FROM task_activity WHERE task_id=$1",[extra.id]);
   check(extraAct.rows[0].n===1,"new unauthorized task has exactly one creation activity");
   const notices=await client.query("SELECT task_id,count(*)::int AS n FROM notifications WHERE task_id=ANY($1::int[]) GROUP BY task_id",[[t1.id,t3.id,t8.id,extra.id]]);
-  check(notices.rows.length===1 && Number(notices.rows[0].task_id)===Number(t3.id) && notices.rows[0].n===1,
-   "exactly one unauthorized assignment notification exists");
+  const countsByTask = new Map(notices.rows.map(row=>[Number(row.task_id),Number(row.n)]));
+  check(notices.rows.length===2 && countsByTask.get(Number(t3.id))===1 &&
+    countsByTask.get(Number(extra.id))===1,
+   "exactly one unauthorized assignment notification and one created-task notification exist");
   const collections=await client.query(
    "SELECT id,clinic,notes,collection_status AS status FROM collections WHERE patient_name='TEST PATIENT 001' AND notes LIKE '[Transferred from Verification/Billing - %' FOR UPDATE",
   );
@@ -99,7 +101,7 @@ async function main(){
   check(potentialDependencies.rows[0].approvals===0 && potentialDependencies.rows[0].qa===0,
    "no approval or QA records depend on affected fixtures");
   // All checks above must pass before a single restoration statement runs.
-  await client.query("DELETE FROM notifications WHERE task_id=$1",[t3.id]);
+  await client.query("DELETE FROM notifications WHERE task_id=ANY($1::int[])",[[t3.id,extra.id]]);
   await client.query("DELETE FROM task_activity WHERE task_id=ANY($1::int[])",[[t1.id,t3.id,t8.id,extra.id]]);
   await client.query(
    "UPDATE tasks SET clinic_id=$2,bucket='ready_for_billing',status='unassigned',task_outcome=NULL WHERE id=$1",
