@@ -2926,7 +2926,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "category and value are required strings" });
       }
       const validCategories = DROPDOWN_CATEGORIES.map(c => c.key);
-      if (!validCategories.includes(category)) {
+      if (!DROPDOWN_CATEGORIES.some(c => c.key === category)) {
         return res.status(400).json({ message: `Invalid category. Must be one of: ${validCategories.join(", ")}` });
       }
       if (["posting_document_type", "guideline_module_type"].includes(category) && (!value.trim() || value.trim().length > 200)) {
