@@ -28,7 +28,7 @@ export async function resolveRcmAccess(userId: number): Promise<ResolvedAccess |
   if (!user?.active) return null;
   const roles = [user.role, ...extras.rows.map(x=>x.role_slug)];
   const rolePermissions = new Set<RcmPermission>();
-  for (const role of roles) for (const permission of defaultRolePermissions(role)) rolePermissions.add(permission);
+  for (const role of roles) defaultRolePermissions(role).forEach(permission => rolePermissions.add(permission));
   for (const row of rolePolicy.rows) {
     if (row.effect === "allow") rolePermissions.add(row.permission_key as RcmPermission);
   }
