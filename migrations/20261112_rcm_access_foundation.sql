@@ -49,4 +49,21 @@ CREATE TABLE IF NOT EXISTS rcm_access_audit (
 CREATE INDEX IF NOT EXISTS rcm_access_audit_subject_idx ON rcm_access_audit(subject_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS rcm_user_departments_key_idx ON rcm_user_departments(department_key, user_id);
 CREATE INDEX IF NOT EXISTS rcm_user_clinics_id_idx ON rcm_user_clinics(clinic_id, user_id);
+
+-- The old users.role enum remains untouched. Secondary roles live in rcm_user_roles.
+INSERT INTO rcm_roles(slug,label,is_system) VALUES
+('admin','System Administrator',true),
+('manager','Manager',false),
+('verifier','Verifier',false),
+('biller','Biller',false),
+('assigner','Case Coordinator (Legacy)',false),
+('payment_specialist','Payment Specialist',false),
+('account_manager','Account Manager',false),
+('case_manager','Case Manager',false),
+('supervisor','Supervisor',false),
+('department_head','Department Head',false),
+('case_coordinator','Case Coordinator',false),
+('quality_reviewer','Quality Reviewer',false)
+ON CONFLICT (slug) DO NOTHING;
+
 COMMIT;
