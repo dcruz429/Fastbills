@@ -12,6 +12,7 @@ const imports = {
   "/billing-queue": () => import("@/pages/billing-queue"),
   "/notifications": () => import("@/pages/notifications"),
   "/settings": () => import("@/pages/settings"),
+  "/rcm-access": () => import("@/pages/rcm-access"),
   "/reports": () => import("@/pages/reports"),
   "/productivity": () => import("@/pages/productivity"),
   "/denials": () => import("@/pages/denials"),
