@@ -510,7 +510,7 @@ export default function PostingPage() {
           <SelectTrigger className="w-[140px]" data-testid="filter-posting-assigned-to"><SelectValue placeholder="All Assigned" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Assigned</SelectItem>
-            {[...new Map([...(postingList || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
+            {[...new Map([...(postingList || []).map(d => d.assignedTo).filter((name): name is string => typeof name === "string" && name.trim().length > 0), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
               <SelectItem key={name} value={name}>{name}</SelectItem>
             ))}
           </SelectContent>
