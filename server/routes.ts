@@ -3040,7 +3040,8 @@ export async function registerRoutes(
 
   app.get("/api/files/:id", requireAuth, async (req, res) => {
     try {
-      const fileId = parseInt(req.params.id);
+      const fileId = parsePositiveRouteId(req.params.id);
+      if (fileId === null) return res.status(400).json({ message: "Invalid file id" });
       const [file] = await db.select().from(fileUploads).where(eq(fileUploads.id, fileId));
       if (!file) return res.status(404).json({ message: "File not found" });
       const buffer = Buffer.from(file.data, "base64");
@@ -3103,7 +3104,9 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const ticketToCheck = await storage.getTicket(parseInt(req.params.id));
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      const ticketToCheck = await storage.getTicket(ticketId);
       if (!ticketToCheck) return res.status(404).json({ message: "Ticket not found" });
       const isAdmin = ["admin", "manager", "account_manager", "case_manager"].includes(user.role);
       const isCreator = ticketToCheck.createdById === user.id;
@@ -3145,7 +3148,7 @@ export async function registerRoutes(
           });
         }
       }
-      const ticket = await storage.updateTicket(parseInt(req.params.id), data);
+      const ticket = await storage.updateTicket(ticketId, data);
       res.json(ticket);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3158,7 +3161,8 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can upload files" });
       }
-      const ticketId = parseInt(req.params.id);
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
       const existing = await storage.getTicket(ticketId);
       if (!existing) return res.status(404).json({ message: "Ticket not found" });
       const files = (req.files as Express.Multer.File[]) || [];
@@ -3186,8 +3190,11 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can delete attachments" });
       }
-      const ticketId = parseInt(req.params.id);
-      const fileIndex = parseInt(req.params.fileIndex);
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      const rawFileIndex = req.params.fileIndex;
+      const fileIndex = typeof rawFileIndex === "string" && /^(0|[1-9]\d*)$/.test(rawFileIndex) && Number.isSafeInteger(Number(rawFileIndex)) ? Number(rawFileIndex) : null;
+      if (fileIndex === null) return res.status(400).json({ message: "Invalid file index" });
       const existing = await storage.getTicket(ticketId);
       if (!existing) return res.status(404).json({ message: "Ticket not found" });
       const attachments = existing.attachments || [];
@@ -3218,7 +3225,9 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can delete tickets" });
       }
-      await storage.deleteTicket(parseInt(req.params.id));
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      await storage.deleteTicket(ticketId);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3231,7 +3240,9 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can access ticket comments" });
       }
-      res.json(await storage.getTicketComments(parseInt(req.params.id)));
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      res.json(await storage.getTicketComments(ticketId));
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -3246,16 +3257,18 @@ export async function registerRoutes(
       if (!req.body.content || !req.body.content.trim()) {
         return res.status(400).json({ message: "Comment content is required" });
       }
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
       const files = (req.files as Express.Multer.File[]) || [];
       const attachments = await saveUploadedFiles(files);
       const comment = await storage.createTicketComment({
-        ticketId: parseInt(req.params.id),
+        ticketId,
         userId: req.session.userId!,
         content: req.body.content.trim(),
         attachments: attachments.length > 0 ? attachments : null,
       });
       await storage.createTicketActivity({
-        ticketId: parseInt(req.params.id),
+        ticketId,
         userId: req.session.userId!,
         action: "Added comment",
         field: null,
@@ -3274,7 +3287,9 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can access ticket activity" });
       }
-      res.json(await storage.getTicketActivity(parseInt(req.params.id)));
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      res.json(await storage.getTicketActivity(ticketId));
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -3870,7 +3885,8 @@ export async function registerRoutes(
       if (!requestingUser || requestingUser.role !== "admin") {
         return res.status(403).json({ message: "Only admins can manage CEO Box access" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid user id" });
       const { ceoBoxAccess } = req.body;
       const updated = await storage.updateUser(id, { ceoBoxAccess: Boolean(ceoBoxAccess) });
       if (!updated) return res.status(404).json({ message: "User not found" });
@@ -3971,7 +3987,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid CEO Box record id" });
       const existing = await storage.getCeoBoxRecord(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       const files = req.files as Express.Multer.File[];
@@ -4003,7 +4020,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid CEO Box record id" });
       const existing = await storage.getCeoBoxRecord(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       const { note } = req.body;
@@ -4023,7 +4041,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid CEO Box record id" });
       const existing = await storage.getCeoBoxRecord(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       if (existing.createdById !== user.id) {
@@ -4038,11 +4057,15 @@ export async function registerRoutes(
 
   app.delete("/api/ceo-box/:id/attachments/:index", requireCeoAccess, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const idx = parseInt(req.params.index);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid CEO Box record id" });
+      const rawIndex = req.params.index;
+      const idx = typeof rawIndex === "string" && /^(0|[1-9]\d*)$/.test(rawIndex) && Number.isSafeInteger(Number(rawIndex)) ? Number(rawIndex) : null;
+      if (idx === null) return res.status(400).json({ message: "Invalid attachment index" });
       const existing = await storage.getCeoBoxRecord(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       const atts = [...(existing.attachments || [])];
+      if (idx >= atts.length) return res.status(400).json({ message: "Invalid attachment index" });
       atts.splice(idx, 1);
       const updated = await storage.updateCeoBoxRecord(id, { attachments: atts });
       res.json(updated);
