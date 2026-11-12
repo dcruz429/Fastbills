@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 
 type UserRecord = { id: number; username: string; fullName: string; role: string; active: boolean };
 type ClinicRecord = { id: number; name: string };
-type Catalog = { departments: string[]; clinics: ClinicRecord[]; permissions: string[]; defaults: Record<string, string[]> };
+type Catalog = { departments: string[]; clinics: ClinicRecord[]; permissions: string[]; defaults: Record<string, string[]>; roles: {slug:string; label:string; is_system:boolean}[] };
 type Access = {
   user: { id: number; username: string; full_name: string; role: string; active: boolean };
   departments: string[];
@@ -28,12 +28,6 @@ async function request<T>(path: string, method = "GET", body?: object): Promise<
   return data as T;
 }
 
-const extraRoleOptions = [
-  ["supervisor", "Supervisor"], ["department_head", "Department Head"],
-  ["case_coordinator", "Case Coordinator"], ["quality_reviewer", "Quality Reviewer"],
-  ["account_manager", "Accounts Manager"], ["payment_specialist", "Payment Specialist"],
-  ["case_manager", "Case Manager"],
-] as const;
 
 /** Phase 1 scoped administration. No direct patient data is loaded here. */
 export default function RcmAccessSettingsPage() {
@@ -146,7 +140,7 @@ export default function RcmAccessSettingsPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Additional RCM roles</CardTitle></CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            {extraRoleOptions.map(([key,label]) =>
+            {catalog.roles.filter(r => !r.is_system && r.slug !== access.user.role).map(({slug:key,label}) =>
               <label key={key} className="flex gap-2 items-center text-sm border rounded-md px-3 py-2">
                 <Checkbox disabled={saving || access.user.role === "admin"} checked={extraRoles.includes(key)}
                   onCheckedChange={value => setExtraRoles(old => toggle(old,key,value===true))} />
