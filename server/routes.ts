@@ -101,7 +101,7 @@ function autoAssignTaskStatus(data: any, existing?: any): any {
 async function handleOutcomeTransfer(
   outcome: string,
   source: string,
-  record: { patientName?: string; clinic?: string; insurance?: string; amount?: string | null; notes?: string | null; comments?: string | null; activityHistory?: { field: string; oldValue: string | null; newValue: string | null; action: string; timestamp: Date }[]; [key: string]: any },
+  record: { patientName?: string | null; clinic?: string | null; insurance?: string | null; amount?: string | null; notes?: string | null; comments?: string | null; activityHistory?: { field: string; oldValue: string | null; newValue: string | null; action: string; timestamp: Date }[]; [key: string]: any },
   userId: number
 ) {
   // ── Core identity fields ──────────────────────────────────────────────────
