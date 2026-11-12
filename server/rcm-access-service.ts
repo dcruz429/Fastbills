@@ -1,4 +1,5 @@
 import { pool } from "./db";
+import type { PoolClient } from "pg";
 import {
   defaultRolePermissions, permissionAllowed, resourceAllowed,
   type AccessContext, type RcmPermission, type ResourceScope,
@@ -15,14 +16,17 @@ export interface ResolvedAccess {
  * User-specific allow/deny wins over role policy. No scopes => no access.
  * Only the original admin role bypasses department and clinic scoping.
  */
-export async function resolveRcmAccess(userId: number): Promise<ResolvedAccess | null> {
+export async function resolveRcmAccess(
+  userId: number,
+  executor: Pick<PoolClient, "query"> = pool,
+): Promise<ResolvedAccess | null> {
   const [identity, extras, departmentRows, clinicRows, rolePolicy, userOverrides] = await Promise.all([
-    pool.query("SELECT id, role, active FROM users WHERE id=$1", [userId]),
-    pool.query("SELECT role_slug FROM rcm_user_roles WHERE user_id=$1", [userId]),
-    pool.query("SELECT department_key FROM rcm_user_departments WHERE user_id=$1", [userId]),
-    pool.query("SELECT clinic_id FROM rcm_user_clinics WHERE user_id=$1", [userId]),
-    pool.query("SELECT role_slug, permission_key, effect FROM rcm_role_permissions WHERE role_slug IN (SELECT role::text AS role_slug FROM users WHERE id=$1 UNION SELECT role_slug FROM rcm_user_roles WHERE user_id=$1)", [userId]),
-    pool.query("SELECT permission_key, effect FROM rcm_user_permission_overrides WHERE user_id=$1", [userId]),
+    executor.query("SELECT id, role, active FROM users WHERE id=$1", [userId]),
+    executor.query("SELECT role_slug FROM rcm_user_roles WHERE user_id=$1", [userId]),
+    executor.query("SELECT department_key FROM rcm_user_departments WHERE user_id=$1", [userId]),
+    executor.query("SELECT clinic_id FROM rcm_user_clinics WHERE user_id=$1", [userId]),
+    executor.query("SELECT role_slug, permission_key, effect FROM rcm_role_permissions WHERE role_slug IN (SELECT role::text AS role_slug FROM users WHERE id=$1 UNION SELECT role_slug FROM rcm_user_roles WHERE user_id=$1)", [userId]),
+    executor.query("SELECT permission_key, effect FROM rcm_user_permission_overrides WHERE user_id=$1", [userId]),
   ]);
   const user = identity.rows[0];
   if (!user?.active) return null;
