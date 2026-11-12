@@ -967,6 +967,16 @@ export async function registerRoutes(
     } catch (error) { next(error); }
   });
 
+  // These legacy mutations share the same clinic/department boundary as
+  // the new RCM APIs. All assignment changes must use the independent
+  // approval-gated RCM assignment endpoint, never these legacy handlers.
+  async function mayActOnLegacyTask(userId: number, task: { clinicId: number | null; bucket: string | null }, permission: "tasks.create" | "tasks.update" | "tasks.close") {
+    const scope = legacyTaskScope(task);
+    if (!scope) return false;
+    const access = await resolveRcmAccess(userId);
+    return !!access && resourceAllowed(access.context, permission, scope);
+  }
+
   const createTaskSchema = z.object({
     patientName: z.string().min(1, "Patient name is required"),
     chartNumber: z.string().nullable().optional(),
@@ -991,6 +1001,12 @@ export async function registerRoutes(
       const parsed = createTaskSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
+      }
+      // No implicit broadening via missing clinic, or direct assignee writes.
+      if (req.session.originalUserId) return res.status(403).json({ message: "Task changes disabled during impersonation" });
+      if (parsed.data.assignedUserId != null) return res.status(403).json({ message: "Use the authorized RCM task assignment workflow" });
+      if (!await mayActOnLegacyTask(req.session.userId!, parsed.data as { clinicId: number | null; bucket: string | null }, "tasks.create")) {
+        return res.status(403).json({ message: "Not authorized for this clinic and department" });
       }
       const data: any = { ...parsed.data };
       data.uploaderId = req.session.userId;
@@ -1040,6 +1056,17 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const existing = await storage.getTask(id);
       if (!existing) return res.status(404).json({ message: "Task not found" });
+      if (req.session.originalUserId) return res.status(403).json({ message: "Task changes disabled during impersonation" });
+      if (!await mayActOnLegacyTask(req.session.userId!, existing, "tasks.update")) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      // Disallow clinic/bucket/assignee moves through the unreviewed legacy
+      // update path. The scoped RCM endpoint validates eligible assignees,
+      // optimistic concurrency and independent high-risk approval.
+      if (Object.hasOwn(req.body ?? {}, "assignedUserId") || Object.hasOwn(req.body ?? {}, "clinicId") ||
+          Object.hasOwn(req.body ?? {}, "bucket") || Object.hasOwn(req.body ?? {}, "outcome")) {
+        return res.status(403).json({ message: "Assignment, clinic, bucket and outcome transfers require a scoped workflow" });
+      }
 
       const updates = { ...req.body };
       const editor = await storage.getUser(req.session.userId!);
@@ -1180,6 +1207,9 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const existing = await storage.getTask(id);
       if (!existing) return res.status(404).json({ message: "Task not found" });
+      if (req.session.originalUserId || !await mayActOnLegacyTask(req.session.userId!, existing, "tasks.close")) {
+        return res.status(404).json({ message: "Task not found" });
+      }
       await storage.deleteTask(id);
       res.json({ ok: true });
     } catch (e: any) {
@@ -1195,6 +1225,9 @@ export async function registerRoutes(
 
       const existing = await storage.getTask(id);
       if (!existing) return res.status(404).json({ message: "Task not found" });
+      if (req.session.originalUserId || !await mayActOnLegacyTask(req.session.userId!, existing, "tasks.update")) {
+        return res.status(404).json({ message: "Task not found" });
+      }
 
       const existingNotes = existing.notes || "";
       const user = await storage.getUser(req.session.userId!);
