@@ -34,7 +34,7 @@ import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy"
 
 // Express 5 route parameters may be arrays. Reject ambiguous or partial IDs.
 function parsePositiveRouteId(value: string | string[] | undefined): number | null {
-  if (typeof value !== "string" || !/^[1-9]\\d*$/.test(value)) return null;
+  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return null;
   const id = Number(value);
   return Number.isSafeInteger(id) ? id : null;
 }
