@@ -16,6 +16,7 @@ const imports = {
   "/rcm-role-matrix": () => import("@/pages/rcm-role-matrix"),
   "/rcm-taskboard": () => import("@/pages/rcm-taskboard"),
   "/rcm-approvals": () => import("@/pages/rcm-approvals"),
+  "/rcm-productivity": () => import("@/pages/rcm-productivity"),
   "/reports": () => import("@/pages/reports"),
   "/productivity": () => import("@/pages/productivity"),
   "/denials": () => import("@/pages/denials"),
