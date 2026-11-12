@@ -63,6 +63,28 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Opt-in staging safety mode. Never allow this mode to target any
+  // development or production DB, or to listen on a public interface.
+  const stagingSafe = process.env.RCM_STAGING_SAFE === "1";
+  if (stagingSafe) {
+    const url = process.env.DATABASE_URL;
+    if (!url || decodeURIComponent(new URL(url).pathname) !== "/fastbills_rcm_restore_test") {
+      throw new Error("RCM staging mode requires the exact restore-test database");
+    }
+    if (process.env.NODE_ENV !== "production") {
+      throw new Error("RCM staging mode requires NODE_ENV=production to disable Vite dev middleware");
+    }
+    if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === "workflow-secret-key") {
+      throw new Error("RCM staging mode requires a unique SESSION_SECRET");
+    }
+    const { pool } = await import("./db");
+    const identity = await pool.query("SELECT current_database() AS name");
+    if (identity.rows[0]?.name !== "fastbills_rcm_restore_test") {
+      throw new Error("RCM staging mode connected to unexpected database");
+    }
+    log("RCM staging mode: startup seeding, backfills and schedule cleanup disabled");
+  }
+  if (!stagingSafe) {
   const { seed } = await import("./seed");
   await seed().catch((e) => console.error("Seed error:", e));
 
@@ -133,6 +155,8 @@ app.use((req, res, next) => {
     console.error("Schedule cleanup error:", e);
   }
 
+  } // End of production/development startup maintenance block.
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -163,14 +187,15 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  const host = stagingSafe ? "127.0.0.1" : "0.0.0.0";
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
-      reusePort: true,
+      host,
+      reusePort: !stagingSafe,
     },
     () => {
-      log(`serving on port ${port}`);
+      log(`serving on ${host}:${port}`);
     },
   );
 })();
