@@ -1,10 +1,12 @@
 /**
- * Central write boundary for historical Denials and Checks API routes.
+ * Central write boundary for historical financial tracker API routes.
  * Registered BEFORE any legacy handlers. Reads are not intercepted.
  *
  * Fail-closed on unknown/bulk CSV formats for non-admins; legacy transfer,
  * assignee and clinic editing paths are not considered scoped workflows.
  * A system admin can retain existing legacy functionality but must be active.
+ * Admin bypass is still a release-review item; this guard does not claim to
+ * authorize every legacy administrative mutation or export.
  */
 import type {Express,Request,Response,NextFunction} from "express";
 import { pool } from "./db";
@@ -12,8 +14,12 @@ import { resolveRcmAccess } from "./rcm-access-service";
 import { permissionAllowed, resourceAllowed } from "../shared/rcm-access-policy";
 
 const FAMILIES={
- denials:{table:"denials",permission:"tasks.update",department:"Denials"},
- checks:{table:"checks",permission:"tasks.update",department:"Checks"},
+ denials:{table:"denials",department:"Denials"},
+ checks:{table:"checks",department:"Checks"},
+ arbitrations:{table:"arbitrations",department:"Arbitration"},
+ collections:{table:"collections",department:"Collections"},
+ postings:{table:"postings",department:"Posting"},
+ closed:{table:"closed",department:"RTP"},
 } as const;
 
 function recordId(raw:unknown):number|null{
@@ -27,7 +33,7 @@ async function clinicAliases(){
  return new Map<string,number>(r.rows.map(row=>[String(row.name),Number(row.id)]));
 }
 export function registerLegacyFinancialWriteBoundary(app:Express){
- for(const family of ["denials","checks"] as const){
+ for(const family of ["denials","checks","arbitrations","collections","postings","closed"] as const){
   const config=FAMILIES[family];
   app.use("/api/"+family,async(req:Request,res:Response,next:NextFunction)=>{
    if(!["POST","PATCH","PUT","DELETE"].includes(req.method))return next();
@@ -42,7 +48,7 @@ export function registerLegacyFinancialWriteBoundary(app:Express){
     if(isAdmin)return next();
     const method=req.method;
     const suffix=req.path;
-    if(suffix==="/import-csv" || suffix==="/remove-duplicates" || suffix==="/fix-assigned" ||
+    if(suffix==="/import-csv" || suffix==="/remove-duplicates" || suffix==="/fix-assigned" || suffix==="/export" ||
        suffix.endsWith("/send-to-arbitration")){
       return res.status(403).json({message:"Legacy import/transfer requires a scoped workflow"});
     }
