@@ -1651,7 +1651,11 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const all = await storage.getAllArbitrations();
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
+      const all = (await storage.getAllArbitrations()).filter(a => scopedLegacyRecord(access.context, clinicIds, a.clinic, "Arbitration", "tasks.read"));
+      res.setHeader("Cache-Control", "private, no-store");
       const isWorkload = req.query.workload === "true";
       if (isWorkload || ADMIN_ROLES.includes(user.role)) {
         res.json(all);
@@ -1822,18 +1826,36 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/arbitrations/:id", requireAuth, async (req, res) => {
-    const id = parsePositiveRouteId(req.params.id);
-    if (id === null) return res.status(400).json({ message: "Invalid Arbitration id" });
-    const record = await storage.getArbitration(id);
-    if (!record) return res.status(404).json({ message: "Arbitration not found" });
-    res.json(record);
+  app.get("/api/arbitrations/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getArbitration(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Arbitration", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(record);
+    } catch (error) { next(error); }
   });
 
-  app.get("/api/arbitrations/:id/activity", requireAuth, async (req, res) => {
-    const arbId = parsePositiveRouteId(req.params.id);
-    if (arbId === null) return res.status(400).json({ message: "Invalid Arbitration id" });
-    res.json(await storage.getArbitrationActivity(arbId));
+  app.get("/api/arbitrations/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getArbitration(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Arbitration", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getArbitrationActivity(id));
+    } catch (error) { next(error); }
   });
 
   app.delete("/api/arbitrations/:id", requireAuth, async (req, res) => {
@@ -1877,7 +1899,11 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const all = await storage.getAllCollections();
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
+      const all = (await storage.getAllCollections()).filter(c => scopedLegacyRecord(access.context, clinicIds, c.clinic, "Collections", "tasks.read"));
+      res.setHeader("Cache-Control", "private, no-store");
       const isWorkload = req.query.workload === "true";
       if (isWorkload || ADMIN_ROLES.includes(user.role)) {
         res.json(all);
@@ -2394,18 +2420,36 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/collections/:id", requireAuth, async (req, res) => {
-    const id = parsePositiveRouteId(req.params.id);
-    if (id === null) return res.status(400).json({ message: "Invalid Collection id" });
-    const record = await storage.getCollection(id);
-    if (!record) return res.status(404).json({ message: "Collection not found" });
-    res.json(record);
+  app.get("/api/collections/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getCollection(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Collections", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(record);
+    } catch (error) { next(error); }
   });
 
-  app.get("/api/collections/:id/activity", requireAuth, async (req, res) => {
-    const collectionId = parsePositiveRouteId(req.params.id);
-    if (collectionId === null) return res.status(400).json({ message: "Invalid Collection id" });
-    res.json(await storage.getCollectionActivity(collectionId));
+  app.get("/api/collections/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getCollection(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Collections", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getCollectionActivity(id));
+    } catch (error) { next(error); }
   });
 
   app.post("/api/collections/:id/notes", requireAuth, async (req, res) => {
@@ -2538,7 +2582,11 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const all = await storage.getAllPostings();
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
+      const all = (await storage.getAllPostings()).filter(p => scopedLegacyRecord(access.context, clinicIds, p.clinic, "Posting", "tasks.read"));
+      res.setHeader("Cache-Control", "private, no-store");
       const isWorkload = req.query.workload === "true";
       if (isWorkload) {
         res.json(all);
@@ -2691,19 +2739,36 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/postings/:id", requireAuth, async (req, res) => {
-    const id = parsePositiveRouteId(req.params.id);
-    if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
-    const record = await storage.getPosting(id);
-    if (!record) return res.status(404).json({ message: "Posting not found" });
-    res.json(record);
+  app.get("/api/postings/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getPosting(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Posting", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(record);
+    } catch (error) { next(error); }
   });
 
-  app.get("/api/postings/:id/activity", requireAuth, async (req, res) => {
-    const id = parsePositiveRouteId(req.params.id);
-    if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
-    const activity = await storage.getPostingActivity(id);
-    res.json(activity);
+  app.get("/api/postings/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getPosting(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Posting", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getPostingActivity(id));
+    } catch (error) { next(error); }
   });
 
   app.post("/api/postings/:id/notes", requireAuth, async (req, res) => {
@@ -3569,7 +3634,13 @@ export async function registerRoutes(
 
   app.get("/api/closed", requireAuth, async (req, res) => {
     try {
-      res.json(await storage.getAllClosed());
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
+      const visible = (await storage.getAllClosed()).filter(c =>
+        scopedLegacyRecord(access.context, clinicIds, c.clinic, "RTP", "tasks.read"));
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(visible);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -3784,10 +3855,20 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/closed/:id/activity", requireAuth, async (req, res) => {
-    const id = parsePositiveRouteId(req.params.id);
-    if (id === null) return res.status(400).json({ message: "Invalid closed record id" });
-    res.json(await storage.getClosedActivity(id));
+  app.get("/api/closed/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getClosed(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "RTP", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getClosedActivity(id));
+    } catch (error) { next(error); }
   });
 
   app.delete("/api/closed/:id", requireAuth, async (req, res) => {
