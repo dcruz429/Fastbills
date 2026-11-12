@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type BoardTask = {
   id:number; itemKey:string; department:string; clinicName:string|null;
-  assignedUserId:number|null; assigneeName:string|null;
+  assignedUserId:number|null; assigneeName:string|null; priority:string|null;
 };
 type Assignee = {id:number;fullName:string};
 
@@ -22,11 +22,12 @@ export function RcmAssignTaskDialog({
   const [loading,setLoading]=useState(false);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
+  const [notice,setNotice]=useState("");
   useEffect(()=>{
     if(!task){setAssignees([]);setError("");return;}
     const controller=new AbortController();
     setSelection(task.assignedUserId===null?"unassigned":String(task.assignedUserId));
-    setError("");setLoading(true);setAssignees([]);
+    setError("");setNotice("");setLoading(true);setAssignees([]);
     fetch(`/api/rcm/taskboard/tasks/${task.id}/assignees`,{credentials:"same-origin",cache:"no-store",signal:controller.signal})
       .then(async response=>{
         const payload=await response.json();
@@ -45,7 +46,7 @@ export function RcmAssignTaskDialog({
     if(assignedUserId!==null&&!assignees.some(x=>x.id===assignedUserId)){
       setError("Select an eligible employee or Unassigned.");return;
     }
-    setSaving(true);setError("");
+    setSaving(true);setError("");setNotice("");
     try{
       const response=await fetch(`/api/rcm/taskboard/tasks/${task.id}/assignee`,{
         method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},
@@ -59,6 +60,26 @@ export function RcmAssignTaskDialog({
     finally{setSaving(false);}
   }
 
+  async function requestApproval(){
+    if(!task)return;
+    const requestedAssigneeId=selection==="unassigned"?null:Number(selection);
+    if(requestedAssigneeId!==null&&!assignees.some(x=>x.id===requestedAssigneeId)){
+      setError("Select an eligible employee or Unassigned.");return;
+    }
+    setSaving(true);setError("");setNotice("");
+    try{
+      const response=await fetch(`/api/rcm/taskboard/tasks/${task.id}/approval-request`,{
+        method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({requestedAssigneeId,expectedAssigneeId:task.assignedUserId}),
+      });
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.message||"Unable to request approval");
+      setNotice("Approval requested. A separate reviewer must approve it before you can save the assignment.");
+    }catch(e){setError((e as Error).message);}
+    finally{setSaving(false);}
+  }
+
+  const riskApprovalRequired=task?.priority==="high"||task?.priority==="critical";
   const taskIsOpen=!!task;
   return <Dialog open={taskIsOpen} onOpenChange={open=>{if(!open&&!saving)onClose();}}>
     <DialogContent>
@@ -80,11 +101,14 @@ export function RcmAssignTaskDialog({
         </div>
         {task.assignedUserId!==null&&!assignees.some(u=>u.id===task.assignedUserId)&&
           <p className="text-xs text-muted-foreground">Current assignee is no longer eligible for this scope. Choose an eligible employee or Unassigned.</p>}
+        {riskApprovalRequired&&<p className="text-sm text-amber-700">High-risk assignment: request independent review, then save this exact assignment after approval.</p>}
+        {notice&&<p role="status" className="text-sm text-green-700">{notice}</p>}
         {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>}
       <DialogFooter>
         <Button variant="outline" disabled={saving} onClick={onClose}>Cancel</Button>
-        <Button disabled={loading||saving||!!error&&assignees.length===0} onClick={save}>{saving?"Assigning…":"Save assignment"}</Button>
+        {riskApprovalRequired && <Button variant="outline" disabled={loading||saving||!!error&&assignees.length===0} onClick={requestApproval}>Request review</Button>}
+        <Button disabled={loading||saving||!!error&&assignees.length===0} onClick={save}>{saving?"Assigning…":riskApprovalRequired?"Apply approved assignment":"Save assignment"}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>;
