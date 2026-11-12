@@ -63,3 +63,10 @@ The staging SQL smoke test does not boot the FastbillsPH server, seed users, bac
 4. Stop and report any SQL error. Do not change the regular DATABASE_URL or launch npm run dev/start against the restored database.
 
 This is not an authentication/UI/e2e test. Separate startup protections, data-minimized staging fixtures and database access control are still necessary before starting an HTTP server with restored data.
+
+## Rollback-only transactional assignment/approval SQL probe
+Run only after the restored test database has passed the 10-table schema and role seed checks:
+```bash
+DATABASE_URL="$RCM_TEST_URL" npx tsx scripts/rcm-assignment-integration.ts
+```
+The script requires the exact `fastbills_rcm_restore_test` database name. It creates synthetic users, a clinic, and task records inside a single transaction, verifies RCM scoped permission resolution, original task assignment SQL, task activity, notifications, audit ledger, high-risk approval and single-use consumption, and rolls back everything. No HTTP server or external integrations are launched. **This does not yet prove that the actual HTTP endpoints, login sessions, browser UI or cross-process concurrency are correct.** Continue with isolated E2E tests before deployment.
