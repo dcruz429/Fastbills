@@ -56,7 +56,9 @@ async function main(){
     "fixture 003 matches known unauthorized assignment damage");
   check(Number(t8.clinic)===harbor && t8.bucket==="ready_for_billing" && t8.status==="assigned" &&
     t8.priority==="low" && Number(t8.assignee)===u.get("rcm_demo_other") && t8.outcome===null &&
-    typeof t8.notes==="string" && t8.notes.startsWith(BASE_NOTE) && t8.notes.includes("SHOULD NEVER BE SAVED"),
+    typeof t8.notes==="string" &&
+    /^SHOULD NEVER BE SAVED\\n\\n\\[Demo Billing Manager - \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z\\]\\nSHOULD NEVER BE SAVED$/.test(t8.notes) &&
+    t8.notes.length===94,
     "fixture 008 matches known unauthorized note damage");
   check(Number(extra.clinic)===evergreen && extra.bucket==="ready_for_billing" &&
     Number(extra.assignee)===u.get("rcm_demo_biller"),
@@ -83,7 +85,7 @@ async function main(){
    "SELECT id,clinic,notes,collection_status AS status FROM collections WHERE patient_name='TEST PATIENT 001' AND notes LIKE '[Transferred from Verification/Billing - %' FOR UPDATE",
   );
   check(collections.rowCount===1 &&
-   collections.rows[0].clinic==="Evergreen Demo Clinic" &&
+   collections.rows[0].clinic==="Harbor Demo Clinic" &&
    collections.rows[0].status==="Unassigned" &&
    collections.rows[0].notes.includes(BASE_NOTE),
    "exactly one known fictional transfer-created collection");
