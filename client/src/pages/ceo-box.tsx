@@ -467,7 +467,7 @@ export default function CeoBoxPage() {
                   <TableCell className="text-xs text-muted-foreground font-mono">{idx + 1}</TableCell>
                   <TableCell className="font-medium max-w-[200px]">
                     <div className="flex items-center gap-1.5">
-                      {record.confidential && <Lock className="h-3 w-3 text-purple-500 flex-shrink-0" title="Confidential — only visible to Dr. Al" />}
+                      {record.confidential && <span title="Confidential — only visible to Dr. Al"><Lock className="h-3 w-3 text-purple-500 flex-shrink-0" /></span>}
                       <span className="truncate">{record.work || <span className="text-muted-foreground italic text-xs">—</span>}</span>
                     </div>
                   </TableCell>
