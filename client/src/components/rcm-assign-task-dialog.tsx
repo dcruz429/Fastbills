@@ -1,0 +1,91 @@
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type BoardTask = {
+  id:number; itemKey:string; department:string; clinicName:string|null;
+  assignedUserId:number|null; assigneeName:string|null;
+};
+type Assignee = {id:number;fullName:string};
+
+export function RcmAssignTaskDialog({
+  task, onClose, onAssigned,
+}:{
+  task:BoardTask|null;
+  onClose:()=>void;
+  onAssigned:()=>void;
+}){
+  const [assignees,setAssignees]=useState<Assignee[]>([]);
+  const [selection,setSelection]=useState("unassigned");
+  const [loading,setLoading]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  useEffect(()=>{
+    if(!task){setAssignees([]);setError("");return;}
+    const controller=new AbortController();
+    setSelection(task.assignedUserId===null?"unassigned":String(task.assignedUserId));
+    setError("");setLoading(true);setAssignees([]);
+    fetch(`/api/rcm/taskboard/tasks/${task.id}/assignees`,{credentials:"same-origin",cache:"no-store",signal:controller.signal})
+      .then(async response=>{
+        const payload=await response.json();
+        if(!response.ok)throw new Error(payload.message||"Unable to load assignees");
+        return payload as {users:Assignee[]};
+      })
+      .then(data=>{if(!controller.signal.aborted)setAssignees(data.users);})
+      .catch(e=>{if(!controller.signal.aborted)setError((e as Error).message);})
+      .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    return ()=>controller.abort();
+  },[task?.itemKey,task?.assignedUserId]);
+
+  async function save(){
+    if(!task)return;
+    const assignedUserId=selection==="unassigned"?null:Number(selection);
+    if(assignedUserId!==null&&!assignees.some(x=>x.id===assignedUserId)){
+      setError("Select an eligible employee or Unassigned.");return;
+    }
+    setSaving(true);setError("");
+    try{
+      const response=await fetch(`/api/rcm/taskboard/tasks/${task.id}/assignee`,{
+        method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({assignedUserId,expectedAssignedUserId:task.assignedUserId}),
+      });
+      const payload=await response.json();
+      if(!response.ok)throw new Error(payload.message||"Unable to save assignment");
+      onAssigned();
+      onClose();
+    }catch(e){setError((e as Error).message);}
+    finally{setSaving(false);}
+  }
+
+  const taskIsOpen=!!task;
+  return <Dialog open={taskIsOpen} onOpenChange={open=>{if(!open&&!saving)onClose();}}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Assign existing task</DialogTitle>
+        <DialogDescription>Assignment updates the original Verification/Billing record and writes an audit entry. Only employees authorized for this clinic and department are eligible.</DialogDescription>
+      </DialogHeader>
+      {task&&<div className="space-y-3">
+        <p className="text-sm text-muted-foreground">{task.itemKey} · {task.department} · {task.clinicName||"Clinic not recorded"}</p>
+        <div className="space-y-1.5">
+          <Label htmlFor="rcm-assignee-picker">Employee</Label>
+          <Select disabled={loading||saving||!!error&&assignees.length===0} value={selection} onValueChange={setSelection}>
+            <SelectTrigger id="rcm-assignee-picker"><SelectValue placeholder={loading?"Loading employees…":"Choose an employee"}/></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {assignees.map(person=><SelectItem key={person.id} value={String(person.id)}>{person.fullName}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {task.assignedUserId!==null&&!assignees.some(u=>u.id===task.assignedUserId)&&
+          <p className="text-xs text-muted-foreground">Current assignee is no longer eligible for this scope. Choose an eligible employee or Unassigned.</p>}
+        {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
+      </div>}
+      <DialogFooter>
+        <Button variant="outline" disabled={saving} onClick={onClose}>Cancel</Button>
+        <Button disabled={loading||saving||!!error&&assignees.length===0} onClick={save}>{saving?"Assigning…":"Save assignment"}</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
