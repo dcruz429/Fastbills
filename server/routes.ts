@@ -27,6 +27,8 @@ import { registerRcmProductivityRoutes } from "./rcm-productivity-routes";
 import { registerRcmLegacyAssignmentRoutes } from "./rcm-legacy-assignment-routes";
 import { registerRcmSlaRoutes } from "./rcm-sla-routes";
 import { registerRcmQualityRoutes } from "./rcm-quality-routes";
+import { resolveRcmAccess } from "./rcm-access-service";
+import { resourceAllowed } from "../shared/rcm-access-policy";
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -935,15 +937,34 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/tasks", requireAuth, async (req, res) => {
-    const user = await storage.getUser(req.session.userId!);
-    const isWorkload = req.query.workload === "true";
-    if (!isWorkload && user && (user.role === "verifier" || user.role === "biller")) {
+  // Legacy Verification/Billing routes must enforce the same RCM scope as
+  // /api/rcm/taskboard. A client-supplied workload flag never grants access.
+  // Historical 'done' tasks are displayed in the Billing department by the board.
+  const legacyTaskScope = (task: { clinicId: number | null; bucket: string | null }) =>
+    task.clinicId == null ? null : {
+      clinicId: Number(task.clinicId),
+      departmentId: task.bucket === "for_verification" ? "Verification" : "Billing",
+    };
+
+  app.get("/api/tasks", requireAuth, async (req, res, next) => {
+    try {
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Task access denied" });
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(403).json({ message: "Task access denied" });
       const allTasks = await storage.getAllTasks();
-      res.json(allTasks.filter((t) => t.assignedUserId === user.id));
-    } else {
-      res.json(await storage.getAllTasks());
-    }
+      const scoped = allTasks.filter(task => {
+        const scope = legacyTaskScope(task);
+        return !!scope && resourceAllowed(access.context, "tasks.read", scope);
+      });
+      // Retain older per-assignee behavior for billers and verifiers.
+      // Workload mode can show all tasks within the authorized scope only.
+      const isWorkload = req.query.workload === "true";
+      const visible = !isWorkload && (user.role === "verifier" || user.role === "biller")
+        ? scoped.filter(t => t.assignedUserId === user.id) : scoped;
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(visible);
+    } catch (error) { next(error); }
   });
 
   const createTaskSchema = z.object({
@@ -1198,15 +1219,38 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/tasks/:taskId", requireAuth, async (req, res) => {
-    const task = await storage.getTask(parseInt(req.params.taskId));
-    if (!task) return res.status(404).json({ message: "Task not found" });
-    res.json(task);
+  app.get("/api/tasks/:taskId", requireAuth, async (req, res, next) => {
+    try {
+      const taskId = Number(req.params.taskId);
+      if (!Number.isSafeInteger(taskId) || taskId < 1) return res.status(400).json({ message: "Invalid task ID" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Task access denied" });
+      const task = await storage.getTask(taskId);
+      if (!task) return res.status(404).json({ message: "Task not found" });
+      const scope = legacyTaskScope(task);
+      if (!scope || !resourceAllowed(access.context, "tasks.read", scope)) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(task);
+    } catch (error) { next(error); }
   });
 
-  app.get("/api/tasks/:taskId/activity", requireAuth, async (req, res) => {
-    const taskId = parseInt(req.params.taskId);
-    res.json(await storage.getTaskActivity(taskId));
+  app.get("/api/tasks/:taskId/activity", requireAuth, async (req, res, next) => {
+    try {
+      const taskId = Number(req.params.taskId);
+      if (!Number.isSafeInteger(taskId) || taskId < 1) return res.status(400).json({ message: "Invalid task ID" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Task access denied" });
+      const task = await storage.getTask(taskId);
+      if (!task) return res.status(404).json({ message: "Task not found" });
+      const scope = legacyTaskScope(task);
+      if (!scope || !resourceAllowed(access.context, "tasks.read", scope)) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getTaskActivity(taskId));
+    } catch (error) { next(error); }
   });
 
   app.get("/api/notifications", requireAuth, async (req, res) => {
