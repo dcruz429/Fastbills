@@ -43,7 +43,12 @@ export function registerLegacyFinancialWriteBoundary(app:Express){
     const access=await resolveRcmAccess(req.session.userId);
     if(!access)return res.status(403).json({message:"Access denied"});
     const method=req.method;
-    const suffix=req.path;
+    // Express 5 accepts trailing slashes and decodes route parameters after
+    // middleware dispatch. Reject encoded write URLs and normalize slashes so
+    // deny overrides and bulk/import restrictions cannot be route-dependent.
+    if(req.path.includes("%"))
+      return res.status(400).json({message:"Encoded financial write paths not supported"});
+    const suffix=req.path.replace(/\/+$/,"") || "/";
     const isCreate=suffix==="/" && method==="POST";
     const isImport=suffix==="/import-csv";
     const isDelete=method==="DELETE" || suffix==="/bulk-delete" || suffix==="/remove-duplicates";
