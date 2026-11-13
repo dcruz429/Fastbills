@@ -20,9 +20,12 @@ Until that table exists:
 1. Approve review and execution of the single additive SQL migration, specifying
    the database/environment. It creates one empty grant table, foreign keys and
    an index; it does not seed assignments or change patient records.
-2. Authorize synthetic-only database integration verification in an isolated test
-   database before live activation. Current tests mock persistence and do not
-   claim to have executed PostgreSQL transactions or the migration.
+2. Review the completed isolated PostgreSQL verification before considering
+   activation. A fresh PostgreSQL 16 cluster, private Unix socket and empty
+   inherited environment were used for fabricated fixtures only. All 19 checks
+   passed, and the purpose-created database/cluster were removed. This does not
+   establish the schema state of any existing environment or authorize changes
+   to it. Results: `generated-artifacts/calendar-postgres/results.json`.
 3. Separately approve the exact supervisor-to-team assignments. An authorized
    system administrator then selects an employee in **RCM Access Management**,
    uses **Call Calendar supervisory teams**, and explicitly saves teams.
@@ -81,3 +84,31 @@ The browser harness intercepts every request and starts no application listener.
 Generated reports/screenshots and compile outputs are excluded from Git and
 deployment. The compilation-only output is not a deployment package and does
 not execute server code or copy private workbooks.
+
+### Isolated real-PostgreSQL verification
+
+With explicit permission for a disposable, fabricated-only cluster, run:
+
+```sh
+bash scripts/verify-call-supervision-postgres.sh
+```
+
+This requires pre-existing local PostgreSQL 16 tools and the local Node/tsx
+packages; it does not install dependencies or connect to the application's
+database. The launcher clears inherited environment variables and uses a new
+temporary HOME. The harness creates a private, socket-only PostgreSQL cluster
+with TCP disabled, verifies its data directory/process identity, creates an empty
+test database, loads fabricated prerequisites and the actual access-foundation
+and supervision migrations, and runs the real grant repository, permission
+resolver, call boundary/routes and selected storage methods against it.
+
+Checks include constraints/indexes, grant/revoke/audit persistence, scope and
+membership denials, explicit permission denies, impersonation, revocation,
+SELECT-only schedules, rollback after a late audit failure, concurrent grant
+replacement, foreign-key cascades, and unchanged call/schedule data.
+
+The actual application database module and app entry point are never imported.
+Only the purpose-created test database/cluster are disposed of, including on
+failed assertions. No real supervisor is assigned and no activation occurs.
+This verifies the synthetic schema/authorization behavior, not the state or
+deployment compatibility of an existing database.
