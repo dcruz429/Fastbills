@@ -2279,9 +2279,24 @@ export async function registerRoutes(
   app.post("/api/tasks/import-csv", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
-      const { rows, bucket } = req.body;
-      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
+      // The legacy importer can overwrite existing tasks by patient/chart
+      // matching, including cross-clinic records. Until a scoped import service
+      // is available, reserve this powerful bulk path for the original admin.
+      if (!user || user.role !== "admin" || req.session.originalUserId)
+        return res.status(403).json({ message: "Bulk task import restricted to original administrators" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access || !permissionAllowed(access.context, "tasks.create") ||
+          !permissionAllowed(access.context, "tasks.update"))
+        return res.status(403).json({ message: "RCM task import permissions required" });
+      const { rows, bucket } = req.body ?? {};
+      if (!Array.isArray(rows) || rows.length === 0 || rows.length > 250)
+        return res.status(400).json({ message: "Import must contain 1 to 250 rows" });
+      if (!["for_verification", "ready_for_billing", "done"].includes(bucket))
+        return res.status(400).json({ message: "Explicit valid task bucket required" });
+      if (rows.some(row => !row || typeof row !== "object" || Array.isArray(row) ||
+          Object.hasOwn(row, "assignedUserId") || Object.hasOwn(row, "assignedTo") ||
+          Object.hasOwn(row, "uploaderId") || Object.hasOwn(row, "id")))
+        return res.status(403).json({ message: "Task assignment and record identity changes require dedicated workflows" });
       const allClinics = await storage.getAllClinics();
       const allInsurances = await storage.getAllInsurances();
       const allUsers = await storage.getAllUsers();
