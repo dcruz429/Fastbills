@@ -560,7 +560,7 @@ export default function ArbitrationPage() {
           <SelectTrigger className="w-[130px]" data-testid="filter-assigned-to"><SelectValue placeholder="All Assigned" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All Assigned</SelectItem>
-            {[...new Map([...(arbitrations || []).map(d => d.assignedTo).filter(Boolean), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
+            {[...new Map([...(arbitrations || []).map(d => d.assignedTo).filter((name): name is string => typeof name === "string" && name.trim().length > 0), ...activeUsers.map(u => u.fullName)].map(n => [n.replace(/\s+/g, ' ').trim().toLowerCase(), n.replace(/\s+/g, ' ').trim()])).values()].sort().map(name => (
               <SelectItem key={name} value={name}>{name}</SelectItem>
             ))}
           </SelectContent>

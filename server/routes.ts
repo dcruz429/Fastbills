@@ -9,7 +9,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import { db, pool } from "./db";
-import { fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS, ceoBox, CEO_USERS, DR_AL_NAME } from "@shared/schema";
+import { roleEnum, fileUploads, tasks, arbitrations, arbitrationActivity, denials, denialActivity, collections, collectionActivity, postings, postingActivity, checks, checkActivity, closed, closedActivity, taskActivity, users, DROPDOWN_CATEGORIES, OUTCOME_OPTIONS, ceoBox, CEO_USERS, DR_AL_NAME } from "@shared/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { buildPatientOverview } from "./patient-overview";
 import { searchPatientRecords } from "./patient-overview-query";
@@ -19,6 +19,28 @@ import { registerGuidelineBoardRoutes } from "./guideline-board";
 import { registerMedicalRecordsRoutes } from "./medical-records-routes";
 import { medicalRecordsRepository, ensureMedicalRecordsHistory } from "./medical-records-repository";
 import { getProductivityTransfers } from "./productivity-transfers";
+import { registerRcmAccessRoutes } from "./rcm-access-routes";
+import { registerRcmTaskboardRoutes } from "./rcm-taskboard-routes";
+import { registerRcmTaskAssignmentRoutes } from "./rcm-task-assignment-routes";
+import { registerRcmApprovalRoutes } from "./rcm-approval-routes";
+import { registerRcmProductivityRoutes } from "./rcm-productivity-routes";
+import { registerRcmLegacyAssignmentRoutes } from "./rcm-legacy-assignment-routes";
+import { registerRcmSlaRoutes } from "./rcm-sla-routes";
+import { registerRcmQualityRoutes } from "./rcm-quality-routes";
+import { registerLegacyFinancialWriteBoundary } from "./rcm-legacy-financial-write-boundary";
+import { registerRcmFileDownloadBoundary } from "./rcm-file-download-boundary";
+import { resolveRcmAccess } from "./rcm-access-service";
+import { createCallBoundary, positiveCallId, type CallAuthorization } from "./rcm-call-boundary";
+import { createCallSupervisionStore } from "./rcm-call-supervision";
+import { registerCallSupervisionRoutes } from "./rcm-call-supervision-routes";
+import { permissionAllowed, resourceAllowed, legacyMaintenanceAllowed } from "../shared/rcm-access-policy";
+
+// Express 5 route parameters may be arrays. Reject ambiguous or partial IDs.
+function parsePositiveRouteId(value: string | string[] | undefined): number | null {
+  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) ? id : null;
+}
 
 const ADMIN_ROLES = ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"];
 
@@ -82,7 +104,7 @@ function autoAssignTaskStatus(data: any, existing?: any): any {
 async function handleOutcomeTransfer(
   outcome: string,
   source: string,
-  record: { patientName?: string; clinic?: string; insurance?: string; amount?: string | null; notes?: string | null; comments?: string | null; activityHistory?: { field: string; oldValue: string | null; newValue: string | null; action: string; timestamp: Date }[]; [key: string]: any },
+  record: { patientName?: string | null; clinic?: string | null; insurance?: string | null; amount?: string | null; notes?: string | null; comments?: string | null; activityHistory?: { field: string; oldValue: string | null; newValue: string | null; action: string; timestamp: Date }[]; [key: string]: any },
   userId: number
 ) {
   // ── Core identity fields ──────────────────────────────────────────────────
@@ -473,6 +495,43 @@ export async function registerRoutes(
     })
   );
 
+  // New additive RCM administration endpoints; existing sessions remain authoritative.
+  registerRcmAccessRoutes(app);
+  const callSupervision = createCallSupervisionStore(pool);
+  registerCallSupervisionRoutes(app, { store: callSupervision, resolveAccess: resolveRcmAccess });
+  registerRcmTaskboardRoutes(app);
+  registerRcmTaskAssignmentRoutes(app);
+  registerRcmApprovalRoutes(app);
+  registerRcmProductivityRoutes(app);
+  registerRcmLegacyAssignmentRoutes(app);
+  registerRcmSlaRoutes(app);
+  registerRcmQualityRoutes(app);
+  // Guard all legacy financial tracker mutations before route registration.
+  registerLegacyFinancialWriteBoundary(app);
+  // Download permission is checked before the historical file serving handler.
+  registerRcmFileDownloadBoundary(app);
+  // Administrative maintenance can bypass the normal financial tracker paths.
+  // Require the original active system administrator and explicit RCM permissions
+  // before any of these legacy bulk maintenance handlers can execute.
+  const guardedMaintenancePermissions = new Map<string, "tasks.update" | "tasks.close">([
+    ["/cleanup-legacy-rtp", "tasks.close"],
+    ["/recover-notes", "tasks.update"],
+    ["/backfill-assigned-status", "tasks.update"],
+    ["/rename-kimberly", "tasks.update"],
+  ]);
+  app.use("/api/admin", async (req, res, next) => {
+    const required = req.method === "POST" ? guardedMaintenancePermissions.get(req.path) : undefined;
+    if (!required) return next();
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (req.session.originalUserId) return res.status(403).json({ message: "Unavailable during impersonation" });
+    try {
+      const access = await resolveRcmAccess(req.session.userId);
+      if (!access || !legacyMaintenanceAllowed(access.context, required))
+        return res.status(403).json({ message: "Administrative maintenance permission denied" });
+      next();
+    } catch (error) { next(error); }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -488,7 +547,17 @@ export async function registerRoutes(
       }
       req.session.userId = user.id;
       const { password: _, ...safeUser } = user;
-      res.json(safeUser);
+      // Persist the new authenticated session BEFORE returning HTTP 200.
+      // Without an explicit save, a client can issue its next request while
+      // the PostgreSQL session store has not yet made the login available.
+      // Avoid returning a successful login if the session write fails.
+      req.session.save((saveError) => {
+        if (saveError) {
+          console.error("Login session persistence failed:", saveError);
+          return res.status(503).json({ message: "Could not establish session; retry login" });
+        }
+        res.json(safeUser);
+      });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -539,8 +608,8 @@ export async function registerRoutes(
       if (!admin || admin.role !== "admin") {
         return res.status(403).json({ message: "Only admins can impersonate users" });
       }
-      const targetId = parseInt(req.params.userId);
-      if (isNaN(targetId)) return res.status(400).json({ message: "Invalid user id" });
+      const targetId = parsePositiveRouteId(req.params.userId);
+      if (targetId === null) return res.status(400).json({ message: "Invalid user id" });
       const target = await storage.getUser(targetId);
       if (!target) return res.status(404).json({ message: "User not found" });
       if (target.id === admin.id) return res.status(400).json({ message: "Cannot impersonate yourself" });
@@ -578,6 +647,50 @@ export async function registerRoutes(
     res.json(allUsers.map(({ password: _, ...u }) => u));
   });
 
+  // Legacy account mutations previously allowed delegated roles to assign the
+  // original admin role or reset an administrator's password. Until a scoped
+  // delegation workflow exists, fail closed for all direct account writes.
+  app.use("/api/users", async (req, res, next) => {
+    if (!["POST", "PATCH", "DELETE"].includes(req.method)) return next();
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (req.session.originalUserId) return res.status(403).json({ message: "Unavailable during impersonation" });
+    try {
+      const access = await resolveRcmAccess(req.session.userId);
+      if (!access || !access.context.isSystemAdmin ||
+          !permissionAllowed(access.context, "users.manage"))
+        return res.status(403).json({ message: "System administrator user-management permission required" });
+
+      // Express accepts optional trailing slashes on legacy routes. Normalize
+      // before applying privilege checks so /:id and /:id/ are identical.
+      // Express decodes route parameters after middleware path matching.
+      // Reject encoded account-write paths so %31 ("1"), encoded separators,
+      // and double-encoding cannot bypass field or role permission checks.
+      if (req.path.includes("%")) {
+        return res.status(400).json({ message: "Encoded account paths are not supported" });
+      }
+      const accountPath = req.path.replace(/\/+$/, "") || "/";
+      const isAccountPatch = req.method === "PATCH" && /^\/\d+$/.test(accountPath);
+      // The generic patch endpoint must not modify privilege bits owned by
+      // their dedicated access-control routes, or database-generated fields.
+      if (isAccountPatch) {
+        const payload = req.body;
+        if (!payload || typeof payload !== "object" || Array.isArray(payload))
+          return res.status(400).json({ message: "Invalid account update" });
+        const allowedFields = new Set(["username", "fullName", "password", "role", "active"]);
+        if (Object.keys(payload).some(field => !allowedFields.has(field)))
+          return res.status(403).json({ message: "Account field requires a dedicated permission workflow" });
+      }
+      if ((accountPath === "/" && req.method === "POST") || isAccountPatch) {
+        const role = req.body?.role;
+        if (role !== undefined &&
+            (!permissionAllowed(access.context, "roles.manage") ||
+             typeof role !== "string" || !roleEnum.enumValues.some(value => value === role)))
+          return res.status(403).json({ message: "Role management permission required or invalid role" });
+      }
+      next();
+    } catch (error) { next(error); }
+  });
+
   const USER_MGMT_ROLES = ["admin", "manager", "account_manager", "case_manager"];
   app.post("/api/users", requireAuth, async (req, res) => {
     try {
@@ -610,7 +723,8 @@ export async function registerRoutes(
       if (!requestingUser || !USER_MGMT_ROLES.includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid user id" });
       const updateData = { ...req.body };
       if (Object.hasOwn(updateData, "guidelineModuleAccess")) {
         return res.status(403).json({ message: "Use the admin-only module editor access control to change this permission" });
@@ -641,8 +755,9 @@ export async function registerRoutes(
       if (!requestingUser || !USER_MGMT_ROLES.includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const id = parseInt(req.params.id);
-      const currentUser = (req as any).session?.userId;
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid user id" });
+      const currentUser = req.session.userId;
       if (id === currentUser) {
         return res.status(400).json({ message: "Cannot delete yourself" });
       }
@@ -679,7 +794,9 @@ export async function registerRoutes(
       }
       const { name } = req.body;
       if (!name) return res.status(400).json({ message: "Name required" });
-      const clinic = await storage.updateClinic(parseInt(req.params.id), { name });
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid clinic id" });
+      const clinic = await storage.updateClinic(id, { name });
       if (!clinic) return res.status(404).json({ message: "Clinic not found" });
       res.json(clinic);
     } catch (e: any) {
@@ -693,7 +810,9 @@ export async function registerRoutes(
       if (!requestingUser || !["admin", "manager", "account_manager", "case_manager"].includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      await storage.deleteClinic(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid clinic id" });
+      await storage.deleteClinic(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -726,7 +845,9 @@ export async function registerRoutes(
       }
       const { name } = req.body;
       if (!name) return res.status(400).json({ message: "Name required" });
-      const ins = await storage.updateInsurance(parseInt(req.params.id), { name });
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid insurance id" });
+      const ins = await storage.updateInsurance(id, { name });
       if (!ins) return res.status(404).json({ message: "Insurance not found" });
       res.json(ins);
     } catch (e: any) {
@@ -740,7 +861,9 @@ export async function registerRoutes(
       if (!requestingUser || !["admin", "manager", "account_manager", "case_manager"].includes(requestingUser.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      await storage.deleteInsurance(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid insurance id" });
+      await storage.deleteInsurance(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -907,16 +1030,64 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/tasks", requireAuth, async (req, res) => {
-    const user = await storage.getUser(req.session.userId!);
-    const isWorkload = req.query.workload === "true";
-    if (!isWorkload && user && (user.role === "verifier" || user.role === "biller")) {
+  // Legacy Verification/Billing routes must enforce the same RCM scope as
+  // /api/rcm/taskboard. A client-supplied workload flag never grants access.
+  // Historical 'done' tasks are displayed in the Billing department by the board.
+  const legacyTaskScope = (task: { clinicId: number | null; bucket: string | null }) =>
+    task.clinicId == null ? null : {
+      clinicId: Number(task.clinicId),
+      departmentId: task.bucket === "for_verification" ? "Verification" : "Billing",
+    };
+
+  app.get("/api/tasks", requireAuth, async (req, res, next) => {
+    try {
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Task access denied" });
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(403).json({ message: "Task access denied" });
       const allTasks = await storage.getAllTasks();
-      res.json(allTasks.filter((t) => t.assignedUserId === user.id));
-    } else {
-      res.json(await storage.getAllTasks());
-    }
+      const scoped = allTasks.filter(task => {
+        const scope = legacyTaskScope(task);
+        return !!scope && resourceAllowed(access.context, "tasks.read", scope);
+      });
+      // Retain older per-assignee behavior for billers and verifiers.
+      // Workload mode can show all tasks within the authorized scope only.
+      const isWorkload = req.query.workload === "true";
+      const visible = !isWorkload && (user.role === "verifier" || user.role === "biller")
+        ? scoped.filter(t => t.assignedUserId === user.id) : scoped;
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(visible);
+    } catch (error) { next(error); }
   });
+
+  // These legacy mutations share the same clinic/department boundary as
+  // the new RCM APIs. All assignment changes must use the independent
+  // approval-gated RCM assignment endpoint, never these legacy handlers.
+  async function mayActOnLegacyTask(userId: number, task: { clinicId: number | null; bucket: string | null }, permission: "tasks.create" | "tasks.update" | "tasks.close") {
+    const scope = legacyTaskScope(task);
+    if (!scope) return false;
+    const access = await resolveRcmAccess(userId);
+    return !!access && resourceAllowed(access.context, permission, scope);
+  }
+
+  // Legacy Denials/Checks clinic names are text. Resolve only a unique,
+  // normalized clinic name to an existing clinic ID, then enforce department
+  // and record-level permissions. Ambiguous/unknown names fail closed.
+  async function legacyClinicNameIds() {
+    const rows = await pool.query(
+      "SELECT lower(btrim(name)) AS name, min(id)::int AS id FROM clinics GROUP BY lower(btrim(name)) HAVING count(*)=1"
+    );
+    return new Map<string,number>(rows.rows.map(row => [String(row.name),Number(row.id)]));
+  }
+  function scopedLegacyRecord(
+    context: NonNullable<Awaited<ReturnType<typeof resolveRcmAccess>>>["context"],
+    clinicIds: Map<string,number>, clinic: string | null | undefined,
+    department: string, permission: "tasks.read" | "checks.read" | "tasks.update"
+  ) {
+    const key = typeof clinic === "string" ? clinic.trim().toLowerCase() : "";
+    const clinicId = key ? clinicIds.get(key) : undefined;
+    return clinicId !== undefined && resourceAllowed(context,permission,{clinicId,departmentId:department});
+  }
 
   const createTaskSchema = z.object({
     patientName: z.string().min(1, "Patient name is required"),
@@ -942,6 +1113,12 @@ export async function registerRoutes(
       const parsed = createTaskSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
+      }
+      // No implicit broadening via missing clinic, or direct assignee writes.
+      if (req.session.originalUserId) return res.status(403).json({ message: "Task changes disabled during impersonation" });
+      if (parsed.data.assignedUserId != null) return res.status(403).json({ message: "Use the authorized RCM task assignment workflow" });
+      if (!await mayActOnLegacyTask(req.session.userId!, parsed.data as { clinicId: number | null; bucket: string | null }, "tasks.create")) {
+        return res.status(403).json({ message: "Not authorized for this clinic and department" });
       }
       const data: any = { ...parsed.data };
       data.uploaderId = req.session.userId;
@@ -988,9 +1165,21 @@ export async function registerRoutes(
 
   app.patch("/api/tasks/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid task id" });
       const existing = await storage.getTask(id);
       if (!existing) return res.status(404).json({ message: "Task not found" });
+      if (req.session.originalUserId) return res.status(403).json({ message: "Task changes disabled during impersonation" });
+      if (!await mayActOnLegacyTask(req.session.userId!, existing, "tasks.update")) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      // Disallow clinic/bucket/assignee moves through the unreviewed legacy
+      // update path. The scoped RCM endpoint validates eligible assignees,
+      // optimistic concurrency and independent high-risk approval.
+      if (Object.hasOwn(req.body ?? {}, "assignedUserId") || Object.hasOwn(req.body ?? {}, "clinicId") ||
+          Object.hasOwn(req.body ?? {}, "bucket") || Object.hasOwn(req.body ?? {}, "outcome")) {
+        return res.status(403).json({ message: "Assignment, clinic, bucket and outcome transfers require a scoped workflow" });
+      }
 
       const updates = { ...req.body };
       const editor = await storage.getUser(req.session.userId!);
@@ -1128,9 +1317,13 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete tasks" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid task id" });
       const existing = await storage.getTask(id);
       if (!existing) return res.status(404).json({ message: "Task not found" });
+      if (req.session.originalUserId || !await mayActOnLegacyTask(req.session.userId!, existing, "tasks.close")) {
+        return res.status(404).json({ message: "Task not found" });
+      }
       await storage.deleteTask(id);
       res.json({ ok: true });
     } catch (e: any) {
@@ -1140,12 +1333,16 @@ export async function registerRoutes(
 
   app.post("/api/tasks/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid task id" });
       const { note } = req.body;
       if (!note) return res.status(400).json({ message: "Note required" });
 
       const existing = await storage.getTask(id);
       if (!existing) return res.status(404).json({ message: "Task not found" });
+      if (req.session.originalUserId || !await mayActOnLegacyTask(req.session.userId!, existing, "tasks.update")) {
+        return res.status(404).json({ message: "Task not found" });
+      }
 
       const existingNotes = existing.notes || "";
       const user = await storage.getUser(req.session.userId!);
@@ -1170,15 +1367,38 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/tasks/:taskId", requireAuth, async (req, res) => {
-    const task = await storage.getTask(parseInt(req.params.taskId));
-    if (!task) return res.status(404).json({ message: "Task not found" });
-    res.json(task);
+  app.get("/api/tasks/:taskId", requireAuth, async (req, res, next) => {
+    try {
+      const taskId = Number(req.params.taskId);
+      if (!Number.isSafeInteger(taskId) || taskId < 1) return res.status(400).json({ message: "Invalid task ID" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Task access denied" });
+      const task = await storage.getTask(taskId);
+      if (!task) return res.status(404).json({ message: "Task not found" });
+      const scope = legacyTaskScope(task);
+      if (!scope || !resourceAllowed(access.context, "tasks.read", scope)) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(task);
+    } catch (error) { next(error); }
   });
 
-  app.get("/api/tasks/:taskId/activity", requireAuth, async (req, res) => {
-    const taskId = parseInt(req.params.taskId);
-    res.json(await storage.getTaskActivity(taskId));
+  app.get("/api/tasks/:taskId/activity", requireAuth, async (req, res, next) => {
+    try {
+      const taskId = Number(req.params.taskId);
+      if (!Number.isSafeInteger(taskId) || taskId < 1) return res.status(400).json({ message: "Invalid task ID" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Task access denied" });
+      const task = await storage.getTask(taskId);
+      if (!task) return res.status(404).json({ message: "Task not found" });
+      const scope = legacyTaskScope(task);
+      if (!scope || !resourceAllowed(access.context, "tasks.read", scope)) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getTaskActivity(taskId));
+    } catch (error) { next(error); }
   });
 
   app.get("/api/notifications", requireAuth, async (req, res) => {
@@ -1187,11 +1407,13 @@ export async function registerRoutes(
   });
 
   app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
-    const notif = await storage.getNotification(parseInt(req.params.id));
+    const id = parsePositiveRouteId(req.params.id);
+    if (id === null) return res.status(400).json({ message: "Invalid notification id" });
+    const notif = await storage.getNotification(id);
     if (!notif || notif.userId !== req.session.userId) {
       return res.status(403).json({ message: "Not authorized" });
     }
-    await storage.markNotificationRead(parseInt(req.params.id));
+    await storage.markNotificationRead(id);
     res.json({ ok: true });
   });
 
@@ -1202,20 +1424,22 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
-  app.get("/api/denials", requireAuth, async (req, res) => {
+  app.get("/api/denials", requireAuth, async (req, res, next) => {
     try {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const all = await storage.getAllDenials();
-      const isWorkload = req.query.workload === "true";
-      if (isWorkload || ADMIN_ROLES.includes(user.role)) {
-        res.json(all);
-      } else {
-        res.json(all.filter(d => d.assignedTo === user.fullName));
-      }
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
+      const access=await resolveRcmAccess(req.session.userId!);
+      const user=await storage.getUser(req.session.userId!);
+      if (!access || !user) return res.status(403).json({ message:"Denials access denied" });
+      const clinicIds=await legacyClinicNameIds();
+      const all=await storage.getAllDenials();
+      const permitted=all.filter(d=>scopedLegacyRecord(access.context,clinicIds,d.clinic,"Denials","tasks.read"));
+      // Preserve existing assignee filtering within authorized scope.
+      // The workload query flag cannot widen clinic or department access.
+      const isWorkload=req.query.workload==="true";
+      const visible=!isWorkload && !ADMIN_ROLES.includes(user.role)
+        ? permitted.filter(d=>d.assignedTo===user.fullName) : permitted;
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(visible);
+    } catch (error) { next(error); }
   });
 
   const denialFieldLabels: Record<string, string> = {
@@ -1269,7 +1493,8 @@ export async function registerRoutes(
 
   app.patch("/api/denials/:id", requireAuth, validatePaidFlag, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Denial id" });
       const existing = await storage.getDenial(id);
       if (!existing) return res.status(404).json({ message: "Denial not found" });
       const data: any = { ...req.body };
@@ -1375,20 +1600,43 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/denials/:id", requireAuth, async (req, res) => {
-    const record = await storage.getDenial(parseInt(req.params.id));
-    if (!record) return res.status(404).json({ message: "Denial not found" });
-    res.json(record);
+  app.get("/api/denials/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id=Number(req.params.id);
+      if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({message:"Invalid Denial ID"});
+      const access=await resolveRcmAccess(req.session.userId!);
+      if(!access)return res.status(403).json({message:"Denials access denied"});
+      const record=await storage.getDenial(id);
+      if(!record)return res.status(404).json({message:"Denial not found"});
+      const clinicIds=await legacyClinicNameIds();
+      if(!scopedLegacyRecord(access.context,clinicIds,record.clinic,"Denials","tasks.read"))
+        return res.status(404).json({message:"Denial not found"});
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(record);
+    }catch(error){next(error);}
   });
 
-  app.get("/api/denials/:id/activity", requireAuth, async (req, res) => {
-    const denialId = parseInt(req.params.id);
-    res.json(await storage.getDenialActivity(denialId));
+  app.get("/api/denials/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id=Number(req.params.id);
+      if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({message:"Invalid Denial ID"});
+      const access=await resolveRcmAccess(req.session.userId!);
+      if(!access)return res.status(403).json({message:"Denials access denied"});
+      const record=await storage.getDenial(id);
+      if(!record)return res.status(404).json({message:"Denial not found"});
+      const clinicIds=await legacyClinicNameIds();
+      if(!scopedLegacyRecord(access.context,clinicIds,record.clinic,"Denials","tasks.read"))
+        return res.status(404).json({message:"Denial not found"});
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(await storage.getDenialActivity(id));
+    }catch(error){next(error);}
   });
 
   app.post("/api/denials/:id/send-to-arbitration", requireAuth, async (req, res) => {
     try {
-      const denial = await storage.getDenial(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Denial id" });
+      const denial = await storage.getDenial(id);
       if (!denial) return res.status(404).json({ message: "Denial not found" });
       const arbData = {
         paid: denial.paid,
@@ -1438,7 +1686,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete denials" });
       }
-      await storage.deleteDenial(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Denial id" });
+      await storage.deleteDenial(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1471,7 +1721,11 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const all = await storage.getAllArbitrations();
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
+      const all = (await storage.getAllArbitrations()).filter(a => scopedLegacyRecord(access.context, clinicIds, a.clinic, "Arbitration", "tasks.read"));
+      res.setHeader("Cache-Control", "private, no-store");
       const isWorkload = req.query.workload === "true";
       if (isWorkload || ADMIN_ROLES.includes(user.role)) {
         res.json(all);
@@ -1534,7 +1788,8 @@ export async function registerRoutes(
 
   app.patch("/api/arbitrations/:id", requireAuth, validatePaidFlag, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Arbitration id" });
       const existing = await storage.getArbitration(id);
       if (!existing) return res.status(404).json({ message: "Arbitration not found" });
       const data: any = { ...req.body };
@@ -1641,15 +1896,36 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/arbitrations/:id", requireAuth, async (req, res) => {
-    const record = await storage.getArbitration(parseInt(req.params.id));
-    if (!record) return res.status(404).json({ message: "Arbitration not found" });
-    res.json(record);
+  app.get("/api/arbitrations/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getArbitration(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Arbitration", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(record);
+    } catch (error) { next(error); }
   });
 
-  app.get("/api/arbitrations/:id/activity", requireAuth, async (req, res) => {
-    const arbId = parseInt(req.params.id);
-    res.json(await storage.getArbitrationActivity(arbId));
+  app.get("/api/arbitrations/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getArbitration(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Arbitration", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getArbitrationActivity(id));
+    } catch (error) { next(error); }
   });
 
   app.delete("/api/arbitrations/:id", requireAuth, async (req, res) => {
@@ -1658,7 +1934,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete arbitrations" });
       }
-      await storage.deleteArbitration(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Arbitration id" });
+      await storage.deleteArbitration(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1691,7 +1969,11 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const all = await storage.getAllCollections();
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
+      const all = (await storage.getAllCollections()).filter(c => scopedLegacyRecord(access.context, clinicIds, c.clinic, "Collections", "tasks.read"));
+      res.setHeader("Cache-Control", "private, no-store");
       const isWorkload = req.query.workload === "true";
       if (isWorkload || ADMIN_ROLES.includes(user.role)) {
         res.json(all);
@@ -2002,9 +2284,24 @@ export async function registerRoutes(
   app.post("/api/tasks/import-csv", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
-      if (!user || !ADMIN_ROLES.includes(user.role)) return res.status(403).json({ message: "Access denied" });
-      const { rows, bucket } = req.body;
-      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No rows provided" });
+      // The legacy importer can overwrite existing tasks by patient/chart
+      // matching, including cross-clinic records. Until a scoped import service
+      // is available, reserve this powerful bulk path for the original admin.
+      if (!user || user.role !== "admin" || req.session.originalUserId)
+        return res.status(403).json({ message: "Bulk task import restricted to original administrators" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access || !permissionAllowed(access.context, "tasks.create") ||
+          !permissionAllowed(access.context, "tasks.update"))
+        return res.status(403).json({ message: "RCM task import permissions required" });
+      const { rows, bucket } = req.body ?? {};
+      if (!Array.isArray(rows) || rows.length === 0 || rows.length > 250)
+        return res.status(400).json({ message: "Import must contain 1 to 250 rows" });
+      if (!["for_verification", "ready_for_billing", "done"].includes(bucket))
+        return res.status(400).json({ message: "Explicit valid task bucket required" });
+      if (rows.some(row => !row || typeof row !== "object" || Array.isArray(row) ||
+          Object.hasOwn(row, "assignedUserId") || Object.hasOwn(row, "assignedTo") ||
+          Object.hasOwn(row, "uploaderId") || Object.hasOwn(row, "id")))
+        return res.status(403).json({ message: "Task assignment and record identity changes require dedicated workflows" });
       const allClinics = await storage.getAllClinics();
       const allInsurances = await storage.getAllInsurances();
       const allUsers = await storage.getAllUsers();
@@ -2051,12 +2348,14 @@ export async function registerRoutes(
           if (assignedName) {
             const nameLower = assignedName.toLowerCase().trim();
             const matchedUser = allUsers.find(u =>
-              `${u.firstName} ${u.lastName}`.toLowerCase() === nameLower ||
+              u.fullName.trim().toLowerCase() === nameLower ||
               u.username.toLowerCase() === nameLower
             );
             data.assignedUserId = matchedUser?.id || null;
           } else {
-            data.assignedUserId = data.assignedUserId || null;
+            // A missing assignee must never implicitly clear an existing
+            // assignment. Preserve it for updates; leave unset for creation.
+            delete data.assignedUserId;
           }
 
           if (!data.status) data.status = "unassigned";
@@ -2076,6 +2375,13 @@ export async function registerRoutes(
 
           const DONE_STATUSES = ["done", "billed", "verified"];
           if (match) {
+            // Prevent cross-clinic takeover via patient/chart duplicate
+            // matching, even when an import row supplies another clinic.
+            if (match.clinicId !== data.clinicId) {
+              results.errors.push(`Row ${i + 1}: Matching task belongs to a different clinic`);
+              continue;
+            }
+            if (data.assignedUserId === undefined) delete data.assignedUserId;
             await storage.updateTask(match.id, data);
             await storage.createTaskActivity({ taskId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
             if (data.status && DONE_STATUSES.includes(data.status) && !DONE_STATUSES.includes(match.status || "")) {
@@ -2102,7 +2408,8 @@ export async function registerRoutes(
       if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can edit collections" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Collection id" });
       const existing = await storage.getCollection(id);
       if (!existing) return res.status(404).json({ message: "Collection not found" });
       const data: any = { ...req.body };
@@ -2207,20 +2514,42 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/collections/:id", requireAuth, async (req, res) => {
-    const record = await storage.getCollection(parseInt(req.params.id));
-    if (!record) return res.status(404).json({ message: "Collection not found" });
-    res.json(record);
+  app.get("/api/collections/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getCollection(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Collections", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(record);
+    } catch (error) { next(error); }
   });
 
-  app.get("/api/collections/:id/activity", requireAuth, async (req, res) => {
-    const collectionId = parseInt(req.params.id);
-    res.json(await storage.getCollectionActivity(collectionId));
+  app.get("/api/collections/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getCollection(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Collections", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getCollectionActivity(id));
+    } catch (error) { next(error); }
   });
 
   app.post("/api/collections/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Collection id" });
       const { note } = req.body;
       if (!note) return res.status(400).json({ message: "Note required" });
       const existing = await storage.getCollection(id);
@@ -2310,7 +2639,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete collections" });
       }
-      await storage.deleteCollection(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Collection id" });
+      await storage.deleteCollection(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2345,16 +2676,20 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const all = await storage.getAllPostings();
-      const isWorkload = req.query.workload === "true";
-      if (isWorkload) {
-        res.json(all);
-        return;
-      }
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
+      const all = (await storage.getAllPostings()).filter(p => scopedLegacyRecord(access.context, clinicIds, p.clinic, "Posting", "tasks.read"));
+      res.setHeader("Cache-Control", "private, no-store");
       const canSeePaymentDocs = PAYMENT_DOC_ROLES.includes(user.role);
       const visibleByDocType = canSeePaymentDocs
         ? all
-        : all.filter(p => (p.documentType || "").toLowerCase() !== "payment");
+        : all.filter(p => (p.documentType || "").trim().toLowerCase() !== "payment");
+      const isWorkload = req.query.workload === "true";
+      if (isWorkload) {
+        res.json(visibleByDocType);
+        return;
+      }
       if (ADMIN_ROLES.includes(user.role)) {
         res.json(visibleByDocType);
       } else {
@@ -2401,7 +2736,8 @@ export async function registerRoutes(
       if (!user || !ADMIN_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Only admins, managers, and case coordinators can edit postings" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
       const existing = await storage.getPosting(id);
       if (!existing) return res.status(404).json({ message: "Posting not found" });
       const data: any = { ...req.body };
@@ -2497,20 +2833,50 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/postings/:id", requireAuth, async (req, res) => {
-    const record = await storage.getPosting(parseInt(req.params.id));
-    if (!record) return res.status(404).json({ message: "Posting not found" });
-    res.json(record);
+  app.get("/api/postings/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getPosting(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Posting", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || (!PAYMENT_DOC_ROLES.includes(user.role) &&
+          (record.documentType || "").trim().toLowerCase() === "payment"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(record);
+    } catch (error) { next(error); }
   });
 
-  app.get("/api/postings/:id/activity", requireAuth, async (req, res) => {
-    const activity = await storage.getPostingActivity(parseInt(req.params.id));
-    res.json(activity);
+  app.get("/api/postings/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getPosting(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "Posting", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || (!PAYMENT_DOC_ROLES.includes(user.role) &&
+          (record.documentType || "").trim().toLowerCase() === "payment"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getPostingActivity(id));
+    } catch (error) { next(error); }
   });
 
   app.post("/api/postings/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
       const { note } = req.body;
       if (!note) return res.status(400).json({ message: "Note required" });
       const existing = await storage.getPosting(id);
@@ -2542,7 +2908,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete postings" });
       }
-      await storage.deletePosting(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid Posting id" });
+      await storage.deletePosting(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2585,7 +2953,7 @@ export async function registerRoutes(
         if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id) || a.authorId === user.id;
         return false;
       });
-      const unread = visible.filter(a => !a.acks.some((ak: any) => ak.userId === user.id));
+      const unread = visible.filter(a => !(a.acks ?? []).some(ak => ak.userId === user.id));
       res.json({ count: unread.length });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2597,17 +2965,17 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllAnnouncements();
+      // Managers must not bypass targeted-announcement privacy by reading
+      // every message. This matches the file-download audience policy.
       const visible = all.filter(a => {
+        if (a.authorId === user.id) return true;
         if (a.targetType === "all") return true;
         if (a.targetType === "role" && a.targetRoles) return a.targetRoles.includes(user.role);
-        if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id) || a.authorId === user.id;
+        if (a.targetType === "users" && a.targetUserIds) return a.targetUserIds.includes(user.id);
         return false;
       });
-      if (["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
-        res.json(all);
-      } else {
-        res.json(visible);
-      }
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(visible);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -2647,7 +3015,9 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
       const all = await storage.getAllAnnouncements();
-      const a = all.find(ann => ann.id === parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid announcement id" });
+      const a = all.find(ann => ann.id === id);
       if (!a) return res.status(404).json({ message: "Announcement not found" });
       const isRecipient = a.targetType === "all" ||
         (a.targetType === "role" && a.targetRoles?.includes(user.role)) ||
@@ -2667,7 +3037,9 @@ export async function registerRoutes(
       if (!["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can view read receipts" });
       }
-      const acks = await storage.getAnnouncementAcks(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid announcement id" });
+      const acks = await storage.getAnnouncementAcks(id);
       res.json(acks);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2680,7 +3052,9 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can delete announcements" });
       }
-      await storage.deleteAnnouncement(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid announcement id" });
+      await storage.deleteAnnouncement(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2699,7 +3073,9 @@ export async function registerRoutes(
 
   app.get("/api/dropdown-options/:category", requireAuth, async (req, res) => {
     try {
-      const options = await storage.getDropdownOptionsByCategory(req.params.category);
+      const category = req.params.category;
+      if (typeof category !== "string" || !category.trim()) return res.status(400).json({ message: "Invalid category" });
+      const options = await storage.getDropdownOptionsByCategory(category);
       res.json(options);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2717,7 +3093,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "category and value are required strings" });
       }
       const validCategories = DROPDOWN_CATEGORIES.map(c => c.key);
-      if (!validCategories.includes(category)) {
+      if (!DROPDOWN_CATEGORIES.some(c => c.key === category)) {
         return res.status(400).json({ message: `Invalid category. Must be one of: ${validCategories.join(", ")}` });
       }
       if (["posting_document_type", "guideline_module_type"].includes(category) && (!value.trim() || value.trim().length > 200)) {
@@ -2740,12 +3116,14 @@ export async function registerRoutes(
       if (!value || typeof value !== "string") {
         return res.status(400).json({ message: "value is required" });
       }
-      const existingOption = (await storage.getAllDropdownOptions()).find(option => option.id === Number(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid dropdown option id" });
+      const existingOption = (await storage.getAllDropdownOptions()).find(option => option.id === id);
       if (existingOption && ["posting_document_type", "guideline_module_type"].includes(existingOption.category)
         && (!value.trim() || value.trim().length > 200)) {
         return res.status(400).json({ message: "Type names must be between 1 and 200 characters" });
       }
-      const opt = await storage.updateDropdownOption(parseInt(req.params.id), { value: value.trim() });
+      const opt = await storage.updateDropdownOption(id, { value: value.trim() });
       res.json(opt);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2758,7 +3136,9 @@ export async function registerRoutes(
       if (!user || !["admin", "manager", "account_manager", "case_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins and managers can manage dropdown options" });
       }
-      await storage.deleteDropdownOption(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid dropdown option id" });
+      await storage.deleteDropdownOption(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2786,7 +3166,9 @@ export async function registerRoutes(
 
   app.get("/api/messages/:userId", requireAuth, async (req, res) => {
     try {
-      const messages = await storage.getDirectMessages(req.session.userId!, parseInt(req.params.userId));
+      const userId = parsePositiveRouteId(req.params.userId);
+      if (userId === null) return res.status(400).json({ message: "Invalid conversation user id" });
+      const messages = await storage.getDirectMessages(req.session.userId!, userId);
       res.json(messages);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2816,7 +3198,9 @@ export async function registerRoutes(
 
   app.post("/api/messages/:userId/read", requireAuth, async (req, res) => {
     try {
-      await storage.markMessagesRead(req.session.userId!, parseInt(req.params.userId));
+      const userId = parsePositiveRouteId(req.params.userId);
+      if (userId === null) return res.status(400).json({ message: "Invalid conversation user id" });
+      await storage.markMessagesRead(req.session.userId!, userId);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2825,7 +3209,8 @@ export async function registerRoutes(
 
   app.get("/api/files/:id", requireAuth, async (req, res) => {
     try {
-      const fileId = parseInt(req.params.id);
+      const fileId = parsePositiveRouteId(req.params.id);
+      if (fileId === null) return res.status(400).json({ message: "Invalid file id" });
       const [file] = await db.select().from(fileUploads).where(eq(fileUploads.id, fileId));
       if (!file) return res.status(404).json({ message: "File not found" });
       const buffer = Buffer.from(file.data, "base64");
@@ -2888,7 +3273,9 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const ticketToCheck = await storage.getTicket(parseInt(req.params.id));
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      const ticketToCheck = await storage.getTicket(ticketId);
       if (!ticketToCheck) return res.status(404).json({ message: "Ticket not found" });
       const isAdmin = ["admin", "manager", "account_manager", "case_manager"].includes(user.role);
       const isCreator = ticketToCheck.createdById === user.id;
@@ -2930,7 +3317,7 @@ export async function registerRoutes(
           });
         }
       }
-      const ticket = await storage.updateTicket(parseInt(req.params.id), data);
+      const ticket = await storage.updateTicket(ticketId, data);
       res.json(ticket);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -2943,7 +3330,8 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can upload files" });
       }
-      const ticketId = parseInt(req.params.id);
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
       const existing = await storage.getTicket(ticketId);
       if (!existing) return res.status(404).json({ message: "Ticket not found" });
       const files = (req.files as Express.Multer.File[]) || [];
@@ -2971,8 +3359,11 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can delete attachments" });
       }
-      const ticketId = parseInt(req.params.id);
-      const fileIndex = parseInt(req.params.fileIndex);
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      const rawFileIndex = req.params.fileIndex;
+      const fileIndex = typeof rawFileIndex === "string" && /^(0|[1-9]\d*)$/.test(rawFileIndex) && Number.isSafeInteger(Number(rawFileIndex)) ? Number(rawFileIndex) : null;
+      if (fileIndex === null) return res.status(400).json({ message: "Invalid file index" });
       const existing = await storage.getTicket(ticketId);
       if (!existing) return res.status(404).json({ message: "Ticket not found" });
       const attachments = existing.attachments || [];
@@ -3003,7 +3394,9 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can delete tickets" });
       }
-      await storage.deleteTicket(parseInt(req.params.id));
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      await storage.deleteTicket(ticketId);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3016,7 +3409,9 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can access ticket comments" });
       }
-      res.json(await storage.getTicketComments(parseInt(req.params.id)));
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      res.json(await storage.getTicketComments(ticketId));
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -3031,16 +3426,18 @@ export async function registerRoutes(
       if (!req.body.content || !req.body.content.trim()) {
         return res.status(400).json({ message: "Comment content is required" });
       }
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
       const files = (req.files as Express.Multer.File[]) || [];
       const attachments = await saveUploadedFiles(files);
       const comment = await storage.createTicketComment({
-        ticketId: parseInt(req.params.id),
+        ticketId,
         userId: req.session.userId!,
         content: req.body.content.trim(),
         attachments: attachments.length > 0 ? attachments : null,
       });
       await storage.createTicketActivity({
-        ticketId: parseInt(req.params.id),
+        ticketId,
         userId: req.session.userId!,
         action: "Added comment",
         field: null,
@@ -3059,7 +3456,9 @@ export async function registerRoutes(
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Only admins can access ticket activity" });
       }
-      res.json(await storage.getTicketActivity(parseInt(req.params.id)));
+      const ticketId = parsePositiveRouteId(req.params.id);
+      if (ticketId === null) return res.status(400).json({ message: "Invalid ticket id" });
+      res.json(await storage.getTicketActivity(ticketId));
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -3067,19 +3466,21 @@ export async function registerRoutes(
 
   const CHECKS_ROLES = ["admin", "payment_specialist", "account_manager"];
 
-  app.get("/api/checks", requireAuth, async (req, res) => {
+  app.get("/api/checks", requireAuth, async (req, res, next) => {
     try {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const isWorkload = req.query.workload === "true";
-      if (!isWorkload && !CHECKS_ROLES.includes(user.role)) {
-        return res.status(403).json({ message: "Access denied" });
+      const user=await storage.getUser(req.session.userId!);
+      const access=await resolveRcmAccess(req.session.userId!);
+      // Workload mode is never an authorization bypass.
+      if(!user||!access||!CHECKS_ROLES.includes(user.role)||
+         !permissionAllowed(access.context,"checks.read")){
+        return res.status(403).json({message:"Checks access denied"});
       }
-      const all = await storage.getAllChecks();
-      res.json(all);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
+      const clinicIds=await legacyClinicNameIds();
+      const all=await storage.getAllChecks();
+      const visible=all.filter(c=>scopedLegacyRecord(access.context,clinicIds,c.clinic,"Checks","checks.read"));
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(visible);
+    }catch(error){next(error);}
   });
 
   app.post("/api/checks", requireAuth, async (req, res) => {
@@ -3179,7 +3580,8 @@ export async function registerRoutes(
       if (!user || !CHECKS_ROLES.includes(user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid check id" });
       const existing = await storage.getCheck(id);
       if (!existing) return res.status(404).json({ message: "Check not found" });
       const data: any = { ...req.body };
@@ -3226,20 +3628,48 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/checks/:id", requireAuth, async (req, res) => {
-    const record = await storage.getCheck(parseInt(req.params.id));
-    if (!record) return res.status(404).json({ message: "Check not found" });
-    res.json(record);
+  app.get("/api/checks/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id=Number(req.params.id);
+      if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({message:"Invalid Check ID"});
+      const user=await storage.getUser(req.session.userId!);
+      const access=await resolveRcmAccess(req.session.userId!);
+      if(!user||!access||!CHECKS_ROLES.includes(user.role)||
+         !permissionAllowed(access.context,"checks.read"))
+        return res.status(403).json({message:"Checks access denied"});
+      const record=await storage.getCheck(id);
+      if(!record)return res.status(404).json({message:"Check not found"});
+      const clinicIds=await legacyClinicNameIds();
+      if(!scopedLegacyRecord(access.context,clinicIds,record.clinic,"Checks","checks.read"))
+        return res.status(404).json({message:"Check not found"});
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(record);
+    }catch(error){next(error);}
   });
 
-  app.get("/api/checks/:id/activity", requireAuth, async (req, res) => {
-    const activity = await storage.getCheckActivity(parseInt(req.params.id));
-    res.json(activity);
+  app.get("/api/checks/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id=Number(req.params.id);
+      if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({message:"Invalid Check ID"});
+      const user=await storage.getUser(req.session.userId!);
+      const access=await resolveRcmAccess(req.session.userId!);
+      if(!user||!access||!CHECKS_ROLES.includes(user.role)||
+         !permissionAllowed(access.context,"checks.read"))
+        return res.status(403).json({message:"Checks access denied"});
+      const record=await storage.getCheck(id);
+      if(!record)return res.status(404).json({message:"Check not found"});
+      const clinicIds=await legacyClinicNameIds();
+      if(!scopedLegacyRecord(access.context,clinicIds,record.clinic,"Checks","checks.read"))
+        return res.status(404).json({message:"Check not found"});
+      res.setHeader("Cache-Control","private, no-store");
+      res.json(await storage.getCheckActivity(id));
+    }catch(error){next(error);}
   });
 
   app.post("/api/checks/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid check id" });
       const { note } = req.body;
       if (!note) return res.status(400).json({ message: "Note required" });
       const existing = await storage.getCheck(id);
@@ -3274,7 +3704,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete checks" });
       }
-      await storage.deleteCheck(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid check id" });
+      await storage.deleteCheck(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3304,7 +3736,13 @@ export async function registerRoutes(
 
   app.get("/api/closed", requireAuth, async (req, res) => {
     try {
-      res.json(await storage.getAllClosed());
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
+      const visible = (await storage.getAllClosed()).filter(c =>
+        scopedLegacyRecord(access.context, clinicIds, c.clinic, "RTP", "tasks.read"));
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(visible);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -3459,7 +3897,8 @@ export async function registerRoutes(
 
   app.patch("/api/closed/:id", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid closed record id" });
       const existing = await storage.getClosed(id);
       if (!existing) return res.status(404).json({ message: "Record not found" });
       const data: any = { ...req.body };
@@ -3518,8 +3957,20 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/closed/:id/activity", requireAuth, async (req, res) => {
-    res.json(await storage.getClosedActivity(parseInt(req.params.id)));
+  app.get("/api/closed/:id/activity", requireAuth, async (req, res, next) => {
+    try {
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid record id" });
+      const access = await resolveRcmAccess(req.session.userId!);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const record = await storage.getClosed(id);
+      if (!record) return res.status(404).json({ message: "Record not found" });
+      const clinicIds = await legacyClinicNameIds();
+      if (!scopedLegacyRecord(access.context, clinicIds, record.clinic, "RTP", "tasks.read"))
+        return res.status(404).json({ message: "Record not found" });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(await storage.getClosedActivity(id));
+    } catch (error) { next(error); }
   });
 
   app.delete("/api/closed/:id", requireAuth, async (req, res) => {
@@ -3528,7 +3979,9 @@ export async function registerRoutes(
       if (!user || !["admin", "case_manager", "account_manager"].includes(user.role)) {
         return res.status(403).json({ message: "Only admins can delete closed records" });
       }
-      await storage.deleteClosed(parseInt(req.params.id));
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid closed record id" });
+      await storage.deleteClosed(id);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -3537,7 +3990,8 @@ export async function registerRoutes(
 
   app.post("/api/closed/:id/notes", requireAuth, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid closed record id" });
       const existing = await storage.getClosed(id);
       if (!existing) return res.status(404).json({ message: "Record not found" });
       const { note } = req.body;
@@ -3616,7 +4070,8 @@ export async function registerRoutes(
       if (!requestingUser || requestingUser.role !== "admin") {
         return res.status(403).json({ message: "Only admins can manage CEO Box access" });
       }
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid user id" });
       const { ceoBoxAccess } = req.body;
       const updated = await storage.updateUser(id, { ceoBoxAccess: Boolean(ceoBoxAccess) });
       if (!updated) return res.status(404).json({ message: "User not found" });
@@ -3717,7 +4172,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid CEO Box record id" });
       const existing = await storage.getCeoBoxRecord(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       const files = req.files as Express.Multer.File[];
@@ -3749,7 +4205,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid CEO Box record id" });
       const existing = await storage.getCeoBoxRecord(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       const { note } = req.body;
@@ -3769,7 +4226,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const id = parseInt(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid CEO Box record id" });
       const existing = await storage.getCeoBoxRecord(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       if (existing.createdById !== user.id) {
@@ -3784,11 +4242,15 @@ export async function registerRoutes(
 
   app.delete("/api/ceo-box/:id/attachments/:index", requireCeoAccess, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const idx = parseInt(req.params.index);
+      const id = parsePositiveRouteId(req.params.id);
+      if (id === null) return res.status(400).json({ message: "Invalid CEO Box record id" });
+      const rawIndex = req.params.index;
+      const idx = typeof rawIndex === "string" && /^(0|[1-9]\d*)$/.test(rawIndex) && Number.isSafeInteger(Number(rawIndex)) ? Number(rawIndex) : null;
+      if (idx === null) return res.status(400).json({ message: "Invalid attachment index" });
       const existing = await storage.getCeoBoxRecord(id);
       if (!existing) return res.status(404).json({ message: "Not found" });
       const atts = [...(existing.attachments || [])];
+      if (idx >= atts.length) return res.status(400).json({ message: "Invalid attachment index" });
       atts.splice(idx, 1);
       const updated = await storage.updateCeoBoxRecord(id, { attachments: atts });
       res.json(updated);
@@ -4033,26 +4495,35 @@ export async function registerRoutes(
   });
 
   // ── Call Calendar ─────────────────────────────────────────────────────────
+  // Boundary for the legacy call detail, history and mutation endpoints.
+  // These handlers previously accepted arbitrary call IDs without a resource
+  // access check. Restrict reads and writes before entering any handler.
+  app.use("/api/calls", createCallBoundary({
+    storage, resolveAccess: resolveRcmAccess, clinicIds: legacyClinicNameIds,
+    supervisedEmployees: userId => callSupervision.employees(userId),
+  }));
 
   app.get("/api/calls", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const isManager = ADMIN_ROLES.includes(user.role);
+      const auth = res.locals.callAuthorization as CallAuthorization;
       const { dateFrom, dateTo, assignedUserId, callStatus, department, myCallsOnly } = req.query;
       const filters: any = {};
       if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
       if (dateTo) { const d = new Date(dateTo as string); d.setUTCHours(23, 59, 59, 999); filters.dateTo = d; }
       if (callStatus && callStatus !== "all") filters.callStatus = callStatus as string;
       if (department && department !== "all") filters.department = department as string;
-      if (!isManager || myCallsOnly === "true") {
-        if (assignedUserId && assignedUserId !== "all") filters.assignedUserId = Number(assignedUserId);
-        else if (!isManager) filters.assignedUserId = user.id;
+      if (myCallsOnly === "true") {
+        filters.assignedUserId = user.id;
       } else if (assignedUserId && assignedUserId !== "all") {
-        filters.assignedUserId = Number(assignedUserId);
+        const target = positiveCallId(assignedUserId);
+        if (!target) return res.status(400).json({ message: "Invalid employee ID" });
+        if (!auth.canReadEmployee(target)) return res.status(403).json({ message: "Employee is outside your call visibility" });
+        filters.assignedUserId = target;
       }
       const calls = await storage.getScheduledCalls(filters);
-      res.json(calls);
+      res.json(calls.filter(call => auth.canCall(call, "tasks.read")));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -4125,16 +4596,17 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const isManager = ADMIN_ROLES.includes(user.role);
-      let targetUserId = user.id;
-      let targetUserFullName = user.fullName;
-      if (isManager && req.query.userId) {
-        const tu = await storage.getUser(Number(req.query.userId));
-        if (tu) { targetUserId = tu.id; targetUserFullName = tu.fullName; }
-      }
+      const auth = res.locals.callAuthorization as CallAuthorization;
+      const targetUserId = auth.targetUserId!;
+      const target = targetUserId === user.id ? user : await storage.getUser(targetUserId);
+      if (!target) return res.status(404).json({ message: "User not found" });
       const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10);
-      const patients = await storage.getPatientDailySchedule(targetUserId, targetUserFullName, dateStr);
-      res.json(patients);
+      const patients = targetUserId !== user.id || req.session.originalUserId
+        ? await storage.getExistingPatientDailySchedule(targetUserId, dateStr)
+        : await storage.getPatientDailySchedule(targetUserId, target.fullName, dateStr);
+      const allowed = await Promise.all(patients.map(async row =>
+        await auth.canReadSchedule(row) ? row : null));
+      res.json(allowed.filter(row => row !== null));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -4142,7 +4614,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const scheduleId = parseInt(req.params.scheduleId);
+      const scheduleId = parsePositiveRouteId(req.params.scheduleId);
+      if (scheduleId === null) return res.status(400).json({ message: "Invalid schedule id" });
       const { dailyStatus } = req.body;
       const VALID_STATUSES = ["Done", "Resolved", "Voicemail", "Wrong #", "Call Back", "Unable", null];
       if (!VALID_STATUSES.includes(dailyStatus)) {
@@ -4163,7 +4636,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const scheduleId = parseInt(req.params.scheduleId);
+      const scheduleId = parsePositiveRouteId(req.params.scheduleId);
+      if (scheduleId === null) return res.status(400).json({ message: "Invalid schedule id" });
       const { notes } = req.body;
       const row = await storage.getPatientScheduleEntry(scheduleId);
       if (!row) return res.status(404).json({ message: "Schedule entry not found" });
@@ -4181,7 +4655,8 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const scheduleId = parseInt(req.params.scheduleId);
+      const scheduleId = parsePositiveRouteId(req.params.scheduleId);
+      if (scheduleId === null) return res.status(400).json({ message: "Invalid schedule id" });
       const row = await storage.getPatientScheduleEntry(scheduleId);
       if (!row) return res.status(404).json({ message: "Schedule entry not found" });
       if (!ADMIN_ROLES.includes(user.role) && row.userId !== user.id) {
@@ -4201,13 +4676,10 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const isManager = ADMIN_ROLES.includes(user.role);
-      // Managers see all; agents see only their own
-      const targetUserId = (isManager && req.query.userId)
-        ? Number(req.query.userId)
-        : (isManager ? undefined : user.id);
-      const audit = await storage.getPatientCallAudit(targetUserId, 500);
-      res.json(audit);
+      const auth = res.locals.callAuthorization as CallAuthorization;
+      const audit = await storage.getPatientCallAudit(auth.targetUserId, 500);
+      const allowed = await Promise.all(audit.map(row => auth.canAudit(row)));
+      res.json(audit.filter((_row, index) => allowed[index]));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

@@ -1,14 +1,4 @@
-import { defineConfig } from "drizzle-kit";
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
-}
-
-export default defineConfig({
-  out: "./migrations",
-  schema: "./shared/schema.ts",
-  dialect: "postgresql",
-  dbCredentials: {
-    url: process.env.DATABASE_URL,
-  },
-});
+// Maintenance hold: fail BEFORE reading connection configuration or credentials.
+// No review-only declarations are promoted into the active schema by this file.
+import { blockUnapprovedSchemaTooling } from "./preflight/rcm/tooling-guard";
+export default blockUnapprovedSchemaTooling();

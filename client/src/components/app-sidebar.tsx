@@ -60,6 +60,11 @@ import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
+  { title: "RCM Task Board", url: "/rcm-taskboard", icon: ClipboardList, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
+  { title: "RCM Approvals", url: "/rcm-approvals", icon: ShieldCheck, roles: ["admin", "manager", "account_manager", "case_manager"] },
+  { title: "RCM Weighted Productivity", url: "/rcm-productivity", icon: TrendingUp, roles: ["admin", "manager", "account_manager", "case_manager"] },
+  { title: "RCM SLA", url: "/rcm-sla", icon: CalendarClock, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
+  { title: "RCM Quality Assurance", url: "/rcm-quality", icon: ShieldCheck, roles: ["admin", "manager", "account_manager", "case_manager"] },
   { title: "My Tasks", url: "/my-tasks", icon: UserIcon, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
   { title: "Call Calendar", url: "/call-calendar", icon: CalendarClock, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"], vcTeamOnly: true },
   { title: "Patient Overview", url: "/patient-overview", icon: Search, roles: ["admin", "manager", "verifier", "biller", "assigner", "payment_specialist", "account_manager", "case_manager"] },
@@ -85,6 +90,8 @@ const navItems = [
 
 const adminItems = [
   { title: "Settings", url: "/settings", icon: Settings },
+  { title: "RCM Access", url: "/rcm-access", icon: ShieldCheck },
+  { title: "Role Matrix", url: "/rcm-role-matrix", icon: KeyRound },
 ];
 
 function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -258,7 +265,7 @@ export function AppSidebar() {
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminItems.map((item) => (
+                {adminItems.filter(item => (item.url !== "/rcm-access" && item.url !== "/rcm-role-matrix") || user?.role === "admin").map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       data-testid={`nav-${item.title.toLowerCase()}`}

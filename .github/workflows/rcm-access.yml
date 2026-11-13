@@ -1,0 +1,50 @@
+name: RCM Access Phase 1 checks
+on:
+  pull_request:
+    paths:
+      - "shared/rcm-access-*"
+      - "shared/rcm-taskboard-*"
+      - "shared/rcm-task-assignment-*"
+      - "shared/rcm-risk-approval-*"
+      - "shared/rcm-sla-*"
+      - "shared/rcm-productivity-*"
+      - "shared/rcm-legacy-assignment-*"
+      - "shared/rcm-quality-*"
+      - "server/rcm-access-*"
+      - "server/rcm-taskboard-*"
+      - "server/rcm-task-assignment-*"
+      - "server/rcm-approval-*"
+      - "server/rcm-productivity-*"
+      - "server/rcm-legacy-assignment-*"
+      - "server/rcm-sla-*"
+      - "server/rcm-quality-*"
+      - "client/src/pages/rcm-*"
+      - "client/src/components/rcm-*"
+      - "client/src/lib/page-routes.ts"
+      - "client/src/components/app-sidebar.tsx"
+      - "server/routes.ts"
+      - "server/index.ts"
+      - "scripts/rcm-*"
+      - "package.json"
+      - ".github/workflows/rcm-access.yml"
+  push:
+    branches:
+      - "feature/rcm-task-management"
+permissions:
+  contents: read
+jobs:
+  typecheck-and-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npx tsx --test shared/rcm-access-policy.test.ts server/rcm-access-service.test.ts shared/rcm-taskboard-scope.test.ts shared/rcm-task-assignment-policy.test.ts shared/rcm-risk-approval-policy.test.ts shared/rcm-sla-policy.test.ts shared/rcm-productivity-policy.test.ts shared/rcm-legacy-assignment-policy.test.ts shared/rcm-quality-policy.test.ts
+        if: always()
+      - run: npm run build
+        if: always()

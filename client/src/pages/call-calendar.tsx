@@ -1,6 +1,13 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { calendarJson, calendarRequest as apiRequest } from "@/lib/call-calendar-api";
+import { useCallCapabilities } from "@/hooks/use-call-capabilities";
+import { CalendarQueryError } from "@/components/calendar-query-error";
+import {
+  calendarCallsSchema, calendarCallSchema, calendarSchedulesSchema, calendarAgentStatsSchema,
+  calendarUsersSchema, calendarTeamsSchema, calendarAttemptsSchema, calendarActivitySchema, calendarStatsSchema, validNewCallScope,
+} from "@shared/call-calendar-contract";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
@@ -168,21 +175,21 @@ function CallCard({ call, onClick, compact = false }: { call: any; onClick: () =
 }
 
 // ── New Call Dialog ───────────────────────────────────────────────────────────
-function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean; onClose: () => void; prefill?: any; tasks: any[]; users: User[] }) {
+function NewCallDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { user } = useAuth();
+  const access = useCallCapabilities();
   const { toast } = useToast();
   const [form, setForm] = useState({
-    patientName: prefill?.patientName || "",
-    relatedTaskId: prefill?.relatedTaskId ? String(prefill.relatedTaskId) : "",
-    department: prefill?.department || "",
-    assignedUserId: prefill?.assignedUserId ? String(prefill.assignedUserId) : "",
+    patientName: "",
+    department: "",
     scheduledDate: "",
     scheduledTime: "09:00",
     callReason: "",
-    priority: prefill?.priority || "medium",
+    priority: "medium",
     phoneNumber: "",
     notes: "",
-    clinic: prefill?.clinic || "",
-    insurance: prefill?.insurance || "",
+    clinic: "",
+    insurance: "",
   });
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -191,9 +198,11 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
     mutationFn: async () => {
       if (!form.scheduledDate) throw new Error("Scheduled date is required");
       const scheduledAt = new Date(`${form.scheduledDate}T${form.scheduledTime}:00`);
+      if (!validNewCallScope(access.data, form.clinic, form.department) || !access.canMutate || !user)
+        throw new Error("Choose a permitted clinic and department. Call changes must be authorized.");
       await apiRequest("POST", "/api/calls", {
-        patientName: form.patientName, relatedTaskId: form.relatedTaskId || null,
-        department: form.department || null, assignedUserId: form.assignedUserId || null,
+        patientName: form.patientName,
+        department: form.department, assignedUserId: user.id,
         scheduledAt: scheduledAt.toISOString(), callReason: form.callReason,
         priority: form.priority, phoneNumber: form.phoneNumber || null,
         notes: form.notes || null, clinic: form.clinic || null, insurance: form.insurance || null,
@@ -207,21 +216,8 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const handleTaskSelect = (taskId: string) => {
-    set("relatedTaskId", taskId);
-    if (taskId) {
-      const task = tasks.find(t => String(t.id) === taskId);
-      if (task) {
-        if (task.patientName) set("patientName", task.patientName);
-        if (task.clinic?.name) set("clinic", task.clinic.name);
-        if (task.insurance?.name) set("insurance", task.insurance.name);
-        if (task.assignedUserId) set("assignedUserId", String(task.assignedUserId));
-        if (task.priority) set("priority", task.priority);
-      }
-    }
-  };
-
-  const canSave = form.patientName.trim() && form.scheduledDate && form.callReason.trim();
+  const canSave = form.patientName.trim() && form.scheduledDate && form.callReason.trim() &&
+    access.canMutate && validNewCallScope(access.data, form.clinic, form.department);
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -232,20 +228,7 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
             <Label className="text-xs">Patient Name <span className="text-red-500">*</span></Label>
             <Input value={form.patientName} onChange={e => set("patientName", e.target.value)} placeholder="Last, First" data-testid="input-call-patient-name" />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Related Task</Label>
-            <Select value={form.relatedTaskId || "none"} onValueChange={v => handleTaskSelect(v === "none" ? "" : v)}>
-              <SelectTrigger data-testid="select-related-task"><SelectValue placeholder="Link to a task (optional)" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">-- No related task --</SelectItem>
-                {tasks.slice(0, 100).map(t => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    #{t.id} — {t.patientName}{t.chartNumber ? ` · ${t.chartNumber}` : ""}{t.bucket ? ` [${t.bucket.replace(/_/g, " ")}]` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <p className="text-xs text-muted-foreground">Calls are assigned to you. Task linking and delegated assignment are unavailable here.</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Scheduled Date <span className="text-red-500">*</span></Label>
@@ -262,12 +245,11 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">Department</Label>
-              <Select value={form.department || "none"} onValueChange={v => set("department", v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+              <Label className="text-xs">Department *</Label>
+              <Select value={form.department || undefined} onValueChange={v => set("department", v)}>
+                <SelectTrigger data-testid="select-call-department"><SelectValue placeholder="Select permitted department" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">-- None --</SelectItem>
-                  {CALL_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  {access.data?.departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -281,26 +263,20 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
               </Select>
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Assigned To</Label>
-            <Select value={form.assignedUserId || "none"} onValueChange={v => set("assignedUserId", v === "none" ? "" : v)}>
-              <SelectTrigger data-testid="select-call-assigned"><SelectValue placeholder="Select employee" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">-- Unassigned --</SelectItem>
-                {users.filter(u => u.active !== false).sort((a,b) => a.fullName.localeCompare(b.fullName)).map(u => (
-                  <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="text-sm" data-testid="call-self-assignment">Assigned to: {user?.fullName} (you)</div>
           <div className="space-y-1">
             <Label className="text-xs">Phone Number</Label>
             <Input value={form.phoneNumber} onChange={e => set("phoneNumber", e.target.value)} placeholder="(555) 000-0000" data-testid="input-call-phone" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">Clinic</Label>
-              <Input value={form.clinic} onChange={e => set("clinic", e.target.value)} placeholder="Clinic name" />
+              <Label className="text-xs">Clinic *</Label>
+              <Select value={form.clinic || undefined} onValueChange={v => set("clinic", v)}>
+                <SelectTrigger data-testid="select-call-clinic"><SelectValue placeholder="Select permitted clinic" /></SelectTrigger>
+                <SelectContent>{access.data?.clinics.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+              {(!access.data?.clinics.length || !access.data?.departments.length) &&
+                <p role="alert" className="text-xs text-destructive">No recognized clinic/department scope is available. Ask an administrator to review your access.</p>}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Insurance</Label>
@@ -325,6 +301,7 @@ function NewCallDialog({ open, onClose, prefill, tasks, users }: { open: boolean
 
 // ── Record Attempt Dialog ─────────────────────────────────────────────────────
 function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { open: boolean; onClose: () => void; call: any; users: User[]; defaultOutcome?: string }) {
+  const access = useCallCapabilities();
   const { toast } = useToast();
   const [outcome, setOutcome] = useState(defaultOutcome || "");
   const [otherExplanation, setOtherExplanation] = useState("");
@@ -333,9 +310,6 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
   const [followUpRequired, setFollowUpRequired] = useState(defaultOutcome ? CALL_FOLLOWUP_OUTCOMES.includes(defaultOutcome) : false);
   const [nextDate, setNextDate] = useState(defaultOutcome && defaultOutcome !== "Wrong Number" ? addDaysEasternKey(1) : "");
   const [nextTime, setNextTime] = useState("09:00");
-  const [nextAssignedUserId, setNextAssignedUserId] = useState("");
-  const [updateTaskStatus, setUpdateTaskStatus] = useState(false);
-  const [newTaskStatus, setNewTaskStatus] = useState("");
 
   // Reset state when dialog opens with a new call/outcome
   useEffect(() => {
@@ -347,9 +321,6 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
       setFollowUpRequired(defaultOutcome ? CALL_FOLLOWUP_OUTCOMES.includes(defaultOutcome) : false);
       setNextDate(defaultOutcome && defaultOutcome !== "Wrong Number" ? addDaysEasternKey(1) : "");
       setNextTime("09:00");
-      setNextAssignedUserId("");
-      setUpdateTaskStatus(false);
-      setNewTaskStatus("");
     }
   }, [open, defaultOutcome]);
 
@@ -357,6 +328,7 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (!access.canMutateCall(call)) throw new Error("Call changes are not permitted.");
       if (!outcome) throw new Error("Outcome is required");
       let nextScheduledAt: string | null = null;
       if (followUpRequired && nextDate) {
@@ -366,8 +338,6 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
         outcome, otherExplanation: outcome === "Other" ? otherExplanation : undefined,
         contactPerson: contactPerson || null, notes: notes || null,
         followUpRequired, nextScheduledAt,
-        nextAssignedUserId: nextAssignedUserId || null,
-        updateTaskStatus, newTaskStatus: updateTaskStatus ? newTaskStatus : null,
       });
     },
     onSuccess: () => {
@@ -441,44 +411,14 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
                   );
                 })}
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Assign Follow-Up To</Label>
-                <Select value={nextAssignedUserId || "same"} onValueChange={v => setNextAssignedUserId(v === "same" ? "" : v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="same">Same as current ({call.assignedUserName || "Unassigned"})</SelectItem>
-                    {users.filter(u => u.active !== false).sort((a,b) => a.fullName.localeCompare(b.fullName)).map(u => (
-                      <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <p className="text-xs text-muted-foreground">Follow-up keeps the current assignee. Delegated assignment is unavailable here.</p>
             </div>
           )}
-          {call.relatedTaskId && (
-            <div className="space-y-2 border rounded-md p-3 bg-muted/20">
-              <div className="flex items-center gap-2">
-                <Checkbox id="updateTask" checked={updateTaskStatus} onCheckedChange={v => setUpdateTaskStatus(!!v)} />
-                <Label htmlFor="updateTask" className="text-xs cursor-pointer">Update related task status (Task #{call.relatedTaskId})</Label>
-              </div>
-              {updateTaskStatus && (
-                <Select value={newTaskStatus || "none"} onValueChange={v => setNewTaskStatus(v === "none" ? "" : v)}>
-                  <SelectTrigger className="text-xs"><SelectValue placeholder="New task status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">-- Select --</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    <SelectItem value="assigned">Assigned</SelectItem>
-                    <SelectItem value="working_on_it">Working on it</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          )}
+          {call.relatedTaskId && <p className="text-xs text-muted-foreground">Use the authorized task workflow to change the related task status.</p>}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!outcome || mutation.isPending} data-testid="button-save-attempt">
+          <Button onClick={() => mutation.mutate()} disabled={!access.canMutateCall(call) || !outcome || mutation.isPending} data-testid="button-save-attempt">
             {mutation.isPending ? "Saving..." : "Record Attempt"}
           </Button>
         </DialogFooter>
@@ -489,29 +429,33 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
 
 // ── Call Detail Panel ─────────────────────────────────────────────────────────
 function CallDetailPanel({ call, open, onClose, users }: { call: any | null; open: boolean; onClose: () => void; users: User[] }) {
+  const access = useCallCapabilities();
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   const [attemptOpen, setAttemptOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
-  const { data: freshCall } = useQuery<any>({
-    queryKey: ["/api/calls", call?.id],
-    enabled: !!call?.id && open,
+  const { data: freshCall, error: detailError } = useQuery<any>({
+    queryKey: ["/api/calls", call?.id, access.visibilityKey],
+    queryFn: () => calendarJson(`/api/calls/${call.id}`, calendarCallSchema),
+    enabled: !!call?.id && open && access.canViewCall(call),
   });
 
-  const { data: attempts = [] } = useQuery<any[]>({
-    queryKey: ["/api/calls", call?.id, "attempts"],
-    enabled: !!call?.id && open,
+  const { data: attempts = [], error: attemptsError } = useQuery<any[]>({
+    queryKey: ["/api/calls", call?.id, "attempts", access.visibilityKey],
+    queryFn: () => calendarJson(`/api/calls/${call.id}/attempts`, calendarAttemptsSchema),
+    enabled: !!call?.id && open && access.canViewCall(call),
   });
 
-  const { data: activityLog = [] } = useQuery<any[]>({
-    queryKey: ["/api/calls", call?.id, "activity"],
-    enabled: !!call?.id && open,
+  const { data: activityLog = [], error: activityError } = useQuery<any[]>({
+    queryKey: ["/api/calls", call?.id, "activity", access.visibilityKey],
+    queryFn: () => calendarJson(`/api/calls/${call.id}/activity`, calendarActivitySchema),
+    enabled: !!call?.id && open && access.canViewCall(call),
   });
 
   const startMutation = useMutation({
-    mutationFn: async () => { await apiRequest("POST", `/api/calls/${call?.id}/start`, {}); },
+    mutationFn: async () => { if (!call || !access.canMutateCall(call)) throw new Error("Call changes are not permitted."); await apiRequest("POST", `/api/calls/${call?.id}/start`, {}); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calls", call?.id] });
@@ -521,7 +465,7 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
   });
 
   const cancelMutation = useMutation({
-    mutationFn: async () => { await apiRequest("POST", `/api/calls/${call?.id}/cancel`, { reason: cancelReason }); },
+    mutationFn: async () => { if (!call || !access.canMutateCall(call)) throw new Error("Call changes are not permitted."); await apiRequest("POST", `/api/calls/${call?.id}/cancel`, { reason: cancelReason }); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calls", call?.id] });
@@ -532,7 +476,7 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  if (!call) return null;
+  if (!call || !access.canViewCall(freshCall || call)) return null;
 
   const displayCall = freshCall || call;
   const overdue = isOverdue(displayCall);
@@ -551,7 +495,8 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
             </SheetTitle>
           </SheetHeader>
 
-          <div className="p-4 space-y-4">
+          <CalendarQueryError error={detailError || attemptsError || activityError} />
+          {!detailError && <div className="p-4 space-y-4">
             {/* Patient Info */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Patient</p>
@@ -613,7 +558,8 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
             </div>
 
             {/* Actions */}
-            {isActive && (
+            {!access.canMutateCall(displayCall) && <p data-testid="call-view-only" className="text-sm text-muted-foreground">View only. Supervisory visibility does not permit call changes.</p>}
+            {isActive && access.canMutateCall(displayCall) && (
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => setAttemptOpen(true)} data-testid="button-record-attempt">
                   <FileText className="h-3 w-3 mr-1" />Record Attempt
@@ -661,7 +607,7 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
                 </div>
               </div>
             )}
-          </div>
+          </div>}
         </SheetContent>
       </Sheet>
 
@@ -678,7 +624,7 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCancelOpen(false)}>Back</Button>
-            <Button variant="destructive" onClick={() => cancelMutation.mutate()} disabled={cancelMutation.isPending}>
+            <Button variant="destructive" onClick={() => cancelMutation.mutate()} disabled={!call || !access.canMutateCall(call) || cancelMutation.isPending}>
               {cancelMutation.isPending ? "Cancelling..." : "Cancel Call"}
             </Button>
           </DialogFooter>
@@ -823,6 +769,7 @@ function DayView({ date, calls, onCallClick }: { date: Date; calls: any[]; onCal
 
 // ── Move to Another Day Dialog ─────────────────────────────────────────────────
 function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: boolean; onClose: () => void; onSave: (iso: string) => void; isPending: boolean }) {
+  const access = useCallCapabilities();
   const [option, setOption] = useState<"tomorrow" | "pick">("tomorrow");
   const [pickedDate, setPickedDate] = useState("");
   const tomorrowKey = addDaysEasternKey(1);
@@ -854,7 +801,7 @@ function MoveToAnotherDayDialog({ open, onClose, onSave, isPending }: { open: bo
         </div>
         <DialogFooter className="mt-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" onClick={handleSave} disabled={isPending || (option === "pick" && !pickedDate)} data-testid="button-confirm-move">
+          <Button size="sm" onClick={handleSave} disabled={!access.canMutate || isPending || (option === "pick" && !pickedDate)} data-testid="button-confirm-move">
             Save
           </Button>
         </DialogFooter>
@@ -868,6 +815,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
   date: Date; calls: any[]; onCallClick: (c: any) => void; users: User[];
   autoPatients?: any[]; filterDateFrom?: string; filterDateTo?: string;
 }) {
+  const access = useCallCapabilities();
   const { toast } = useToast();
   const todayKey = getDateKey(new Date()) < "2026-08-11" ? "2026-08-11" : getDateKey(new Date());
   const displayFrom = filterDateFrom || getDateKey(date);
@@ -897,6 +845,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
 
   // Open auto-patient via ensure-call → standard CallDetailPanel
   const openAutoPatient = async (p: any) => {
+    if (!access.canMutate) return;
     if (openingPatientId === p.id) return;
     setOpeningPatientId(p.id);
     try {
@@ -914,6 +863,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
 
   // Quick Action: ensure-call exists then immediately fire the action
   const ensureAndAction = async (p: any, action: string) => {
+    if (!access.canMutate) return;
     if (openingPatientId === p.id) return;
     setOpeningPatientId(p.id);
     try {
@@ -939,6 +889,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
 
   const quickMutation = useMutation({
     mutationFn: async ({ callId, action, nextDate }: { callId: number; action: string; nextDate?: string }) => {
+      if (!access.canMutate) throw new Error("Call changes are not permitted.");
       const tomorrow = addDays(new Date(), 1);
       tomorrow.setHours(9, 0, 0, 0);
       const tomorrowISO = tomorrow.toISOString();
@@ -991,6 +942,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
   };
 
   const handleAction = (callId: number, action: string) => {
+    if (!access.canMutate) return;
     setPendingCallId(callId);
     if (action === "move") {
       setMoveOpen(true);
@@ -1096,7 +1048,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
                             <td className="px-3 py-2 text-center text-xs text-muted-foreground font-mono">{i + 1}</td>
                             <td className="px-3 py-2 font-medium whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
-                                <button onClick={() => openAutoPatient(p)} className="text-blue-700 dark:text-blue-400 hover:underline text-left">
+                                <button disabled={!access.canMutate} onClick={() => openAutoPatient(p)} className="text-blue-700 dark:text-blue-400 hover:underline text-left">
                                   {openingPatientId === p.id ? <span className="opacity-60">Opening…</span> : p.patientName}
                                 </button>
                                 {p.isUrgent && <span className="text-xs text-red-600 dark:text-red-400" title="Urgent — pinned to top">🚨</span>}
@@ -1140,7 +1092,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
                                 ].map(btn => (
                                   <button key={btn.key}
                                     onClick={() => ensureAndAction(p, btn.key)}
-                                    disabled={openingPatientId === p.id}
+                                    disabled={!access.canMutate || openingPatientId === p.id}
                                     data-testid={`btn-${btn.key}-${p.sourceId}`}
                                     className={cn("text-xs px-1.5 py-0.5 rounded border disabled:opacity-50 whitespace-nowrap", btn.cls)}>
                                     {btn.label}
@@ -1188,6 +1140,7 @@ function DailyListView({ date, calls, onCallClick, users, autoPatients, filterDa
 
 // ── Manager Dashboard ──────────────────────────────────────────────────────────
 function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string; dateTo: string; onCallClick: (c: any) => void }) {
+  const access = useCallCapabilities();
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
   const [filterDept, setFilterDept] = useState<string>("all");
   const [patientSearch, setPatientSearch] = useState<string>("");
@@ -1202,6 +1155,7 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
 
   // Open a week-view patient via ensure-call → standard CallDetailPanel
   const openWeekPatient = async (p: any) => {
+    if (!access.canMutate) return;
     if (openingPatientId === p.id) return;
     setOpeningPatientId(p.id);
     try {
@@ -1217,19 +1171,22 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
     }
   };
 
-  const { data: agentStats = [] } = useQuery<any[]>({
+  const { data: agentStats = [], error: agentStatsError } = useQuery<any[]>({
     queryKey: ["/api/calls/agent-stats", dayListDate, dayListDate],
     queryFn: ({ queryKey }) => {
       const [, df, dt] = queryKey as string[];
-      return fetch(`/api/calls/agent-stats?dateFrom=${df}&dateTo=${dt}`, { credentials: "include" }).then(r => r.json());
+      return calendarJson(`/api/calls/agent-stats?dateFrom=${df}&dateTo=${dt}`, calendarAgentStatsSchema);
     },
   });
 
-  const { data: teams = [] } = useQuery<{ id: number; name: string; members: { id: number; fullName?: string }[] }[]>({
+  const { data: teams = [], error: teamsError } = useQuery<{ id: number; name: string; members: { id: number; fullName?: string }[] }[]>({
     queryKey: ["/api/teams"],
+    queryFn: () => calendarJson("/api/teams", calendarTeamsSchema),
   });
 
-  const { data: allUsers = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const { data: allUsers = [], error: usersError } = useQuery<any[]>({
+    queryKey: ["/api/users"], queryFn: () => calendarJson("/api/users", calendarUsersSchema),
+  });
 
   const vcTeam = teams.find(t => t.name.toLowerCase() === "vc team");
   const vcMembers: User[] = vcTeam
@@ -1238,27 +1195,26 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
         .filter(Boolean) as User[])
     : [];
 
-  const { data: rawPatients = [], isFetching: patientsFetching } = useQuery<any[]>({
+  const { data: rawPatients = [], isFetching: patientsFetching, error: patientsError } = useQuery<any[]>({
     queryKey: ["/api/calls/daily-schedule", dayListDate, selectedUserId],
     queryFn: ({ queryKey }) => {
       const [, df, uid] = queryKey as string[];
       const params = new URLSearchParams({ date: df });
       params.set("userId", uid);
-      return fetch(`/api/calls/daily-schedule?${params}`, { credentials: "include" }).then(r => r.json());
+      return calendarJson(`/api/calls/daily-schedule?${params}`, calendarSchedulesSchema);
     },
     // Only run when a specific agent is selected; "all" uses allMemberPatients instead
     enabled: selectedUserId !== "all",
   });
 
   // If "all" is selected, fetch for each VC member and merge
-  const { data: allMemberPatients = [] } = useQuery<any[]>({
+  const { data: allMemberPatients = [], error: allPatientsError } = useQuery<any[]>({
     queryKey: ["/api/calls/daily-schedule/all-vc", dayListDate, vcMembers.map(m => m.id).join(",")],
     queryFn: async () => {
       if (vcMembers.length === 0) return [];
       const results = await Promise.all(
         vcMembers.map(m =>
-          fetch(`/api/calls/daily-schedule?date=${dayListDate}&userId=${m.id}`, { credentials: "include" })
-            .then(r => r.json())
+          calendarJson(`/api/calls/daily-schedule?date=${dayListDate}&userId=${m.id}`, calendarSchedulesSchema)
             .then((pts: any[]) => pts.map((p: any) => ({ ...p, agentName: m.fullName, agentId: m.id })))
         )
       );
@@ -1292,14 +1248,13 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
 
   const weekUserId = selectedUserId !== "all" ? selectedUserId : vcMembers[0] ? String(vcMembers[0].id) : null;
 
-  const { data: weekData = {}, isFetching: weekFetching } = useQuery<Record<string, any[]>>({
+  const { data: weekData = {}, isFetching: weekFetching, error: weekError } = useQuery<Record<string, any[]>>({
     queryKey: ["/api/calls/daily-schedule/week", weekDays.map(d => d.key).join(","), weekUserId],
     queryFn: async () => {
       if (!weekUserId) return {};
       const results = await Promise.all(
         weekDays.map(d =>
-          fetch(`/api/calls/daily-schedule?date=${d.key}&userId=${weekUserId}`, { credentials: "include" })
-            .then(r => r.json())
+          calendarJson(`/api/calls/daily-schedule?date=${d.key}&userId=${weekUserId}`, calendarSchedulesSchema)
             .then((pts: any[]) => [d.key, pts] as [string, any[]])
         )
       );
@@ -1316,6 +1271,8 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
     return true;
   });
 
+  const dashboardError = agentStatsError || teamsError || usersError || patientsError || allPatientsError || weekError;
+  if (dashboardError) return <CalendarQueryError error={dashboardError} />;
   return (
     <div className="space-y-4" data-testid="manager-dashboard">
       {/* Sub-view toggle + week controls */}
@@ -1450,7 +1407,8 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
                               p.isRollover && "bg-amber-50/40 dark:bg-amber-950/10",
                               openingPatientId === p.id && "opacity-50 pointer-events-none",
                             )}
-                            onClick={() => openWeekPatient(p)}
+                            role="button" aria-disabled={!access.canMutate}
+                            onClick={() => { if (access.canMutate) void openWeekPatient(p); }}
                           >
                             <div className="flex items-start gap-2">
                               <span className="text-xs text-muted-foreground font-mono w-5 shrink-0 pt-px select-none">
@@ -1681,6 +1639,7 @@ function ManagerDashboard({ dateFrom, dateTo, onCallClick }: { dateFrom: string;
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CallCalendarPage() {
   const { user: currentUser } = useAuth();
+  const access = useCallCapabilities();
   const { toast } = useToast();
 
   const [view, setView] = useState<CalendarView>("list");
@@ -1700,19 +1659,25 @@ export default function CallCalendarPage() {
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterOverdueOnly, setFilterOverdueOnly] = useState(false);
 
-  const isManager = currentUser && ["admin", "manager", "account_manager", "case_manager"].includes(currentUser.role);
+  const isManager = access.canManage;
 
-  const { data: teams = [] } = useQuery<{ id: number; name: string; members: { id: number }[] }[]>({ queryKey: ["/api/teams"] });
-  const CALL_CALENDAR_TEAMS = ["vc team", "manager team"];
-  const isVcTeamMember = teams.some(
-    (t) => CALL_CALENDAR_TEAMS.includes(t.name.toLowerCase()) && t.members.some((m) => m.id === currentUser?.id)
-  );
-  const isManagerTeamMember = teams.some(
-    (t) => t.name.toLowerCase() === "manager team" && t.members.some((m) => m.id === currentUser?.id)
-  );
+  const isVcTeamMember = access.canRead;
+  const isManagerTeamMember = access.canManage;
+  const supervisedSchedule = filterAssigned !== "all" && Number(filterAssigned) !== currentUser?.id;
+  const scheduleEmployeeId = filterAssigned === "all" ? currentUser?.id : Number(filterAssigned);
 
-  const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
-  const { data: tasks = [] } = useQuery<any[]>({ queryKey: ["/api/tasks"] });
+  const { data: users = [], error: usersError } = useQuery<any[]>({
+    queryKey: ["/api/users"], queryFn: () => calendarJson("/api/users", calendarUsersSchema), enabled: access.canManage,
+  });
+  const visibleEmployees = access.canManage ? users : [
+    ...(currentUser ? [{ id: currentUser.id, fullName: currentUser.fullName, active: true }] : []),
+    ...access.supervisedEmployees.map(employee => ({ ...employee, active: true })),
+  ];
+  useEffect(() => {
+    if (selectedCall && !access.canViewCall(selectedCall)) { setDetailOpen(false); setSelectedCall(null); }
+    if (supervisedSchedule && !access.canManage &&
+        !access.supervisedEmployees.some(employee => employee.id === scheduleEmployeeId)) setFilterAssigned("all");
+  }, [access.visibilityKey, selectedCall, filterAssigned]);
 
   // Compute visible date range for the API query
   const { apiDateFrom, apiDateTo } = useMemo(() => {
@@ -1739,26 +1704,29 @@ export default function CallCalendarPage() {
     }
   }, [view, currentDate, filterDateFrom, filterDateTo]);
 
-  const { data: rawCalls = [], isLoading, isFetching, refetch } = useQuery<any[]>({
-    queryKey: ["/api/calls", apiDateFrom, apiDateTo, filterStatus, filterDept, filterAssigned],
+  const { data: rawCalls = [], isLoading, isFetching, refetch, error: callsError } = useQuery<any[]>({
+    queryKey: ["/api/calls", apiDateFrom, apiDateTo, filterStatus, filterDept, filterAssigned, access.visibilityKey],
     queryFn: ({ queryKey }) => {
       const [, dateFrom, dateTo, callStatus, department, assignedUserId] = queryKey as string[];
       const params = new URLSearchParams({ dateFrom, dateTo });
       if (callStatus !== "all") params.set("callStatus", callStatus);
       if (department !== "all") params.set("department", department);
       if (assignedUserId !== "all") params.set("assignedUserId", assignedUserId);
-      return fetch(`/api/calls?${params}`).then(r => r.json());
+      return calendarJson(`/api/calls?${params}`, calendarCallsSchema);
     },
-    placeholderData: keepPreviousData,
+    enabled: access.canRead,
   });
 
-  const { data: stats } = useQuery<any>({ queryKey: ["/api/calls/stats"] });
+  const { data: stats, error: statsError } = useQuery({
+    queryKey: ["/api/calls/stats"], queryFn: () => calendarJson("/api/calls/stats", calendarStatsSchema),
+    enabled: access.canManage,
+  });
 
   const scheduleDate = getDateKey(currentDate);
-  const { data: autoPatients = [] } = useQuery<any[]>({
-    queryKey: ["/api/calls/daily-schedule", scheduleDate],
-    queryFn: () => fetch(`/api/calls/daily-schedule?date=${scheduleDate}`, { credentials: "include" }).then(r => r.json()),
-    enabled: view === "list" && isVcTeamMember && !isManager,
+  const { data: autoPatients = [], error: schedulesError } = useQuery<any[]>({
+    queryKey: ["/api/calls/daily-schedule", scheduleDate, scheduleEmployeeId, access.visibilityKey],
+    queryFn: () => calendarJson(`/api/calls/daily-schedule?date=${scheduleDate}&userId=${scheduleEmployeeId}`, calendarSchedulesSchema),
+    enabled: access.canRead && view === "list" && isVcTeamMember && !isManager,
   });
 
   // Unique clinic/insurance values from loaded calls for filter dropdowns
@@ -1775,6 +1743,7 @@ export default function CallCalendarPage() {
   }, [rawCalls]);
 
   const calls = useMemo(() => rawCalls.filter(c => {
+    if (!access.canViewCall(c)) return false;
     if (filterPriority !== "all" && c.priority !== filterPriority) return false;
     if (filterOverdueOnly && !isOverdue(c)) return false;
     if (filterClinic !== "all" && c.clinic !== filterClinic) return false;
@@ -1784,7 +1753,7 @@ export default function CallCalendarPage() {
       if (!c.patientName?.toLowerCase().includes(q) && !c.callReason?.toLowerCase().includes(q) && !c.clinic?.toLowerCase().includes(q) && !c.assignedUserName?.toLowerCase().includes(q)) return false;
     }
     return true;
-  }), [rawCalls, filterPriority, filterOverdueOnly, filterClinic, filterInsurance, search]);
+  }), [rawCalls, filterPriority, filterOverdueOnly, filterClinic, filterInsurance, search, access.visibilityKey]);
 
   const navigate = useCallback((dir: 1 | -1) => {
     const d = new Date(currentDate);
@@ -1818,7 +1787,10 @@ export default function CallCalendarPage() {
 
   const hasFilters = !!(search || filterStatus !== "all" || filterDept !== "all" || filterPriority !== "all" || filterAssigned !== "all" || filterClinic !== "all" || filterInsurance !== "all" || filterDateFrom || filterDateTo || filterOverdueOnly);
 
-  if (teams.length > 0 && !isVcTeamMember) return <Redirect to="/" />;
+  const pageError = access.error || callsError || usersError || schedulesError || statsError;
+  if (pageError) return <CalendarQueryError error={pageError} />;
+  if (access.isPending) return <p className="p-4">Loading calendar access…</p>;
+  if (!access.canRead) return <CalendarQueryError error={new Error("Access restricted. Calendar read permission is required.")} />;
 
   return (
     <div className="flex flex-col h-full">
@@ -1840,7 +1812,7 @@ export default function CallCalendarPage() {
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setCurrentDate(new Date())} data-testid="button-today">Today</Button>
           <Button size="sm" variant="outline" onClick={() => refetch()} data-testid="button-refresh"><RefreshCw className="h-3.5 w-3.5" /></Button>
-          <Button size="sm" onClick={() => setNewCallOpen(true)} data-testid="button-new-call">
+          <Button size="sm" disabled={!access.canMutate} onClick={() => setNewCallOpen(true)} data-testid="button-new-call">
             <Plus className="h-3.5 w-3.5 mr-1" />New Call
           </Button>
         </div>
@@ -1917,12 +1889,12 @@ export default function CallCalendarPage() {
             </SelectContent>
           </Select>
         )}
-        {isManager && (
+        {(isManager || access.supervisedEmployees.length > 0) && (
           <Select value={filterAssigned} onValueChange={setFilterAssigned}>
             <SelectTrigger className="h-8 w-40 text-xs" data-testid="select-filter-assigned"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
-              {(users as User[]).filter(u => u.active !== false).sort((a,b) => a.fullName.localeCompare(b.fullName)).map(u => (
+              <SelectItem value="all">{isManager ? "All Employees" : "My calls and supervised teams"}</SelectItem>
+              {visibleEmployees.filter(u => u.active !== false).sort((a,b) => a.fullName.localeCompare(b.fullName)).map(u => (
                 <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>
               ))}
             </SelectContent>
@@ -1957,7 +1929,17 @@ export default function CallCalendarPage() {
             <div className="text-muted-foreground">Loading calls…</div>
           </div>
         ) : view === "list" ? (
-          <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} autoPatients={isVcTeamMember ? autoPatients : undefined} filterDateFrom={filterDateFrom} filterDateTo={filterDateTo} />
+          <>
+            {access.supervisedEmployees.length > 0 && <p className="mb-3 text-sm text-muted-foreground" data-testid="supervision-notice">Supervised team calls are view only, within your authorized clinics and departments. Management reports and call changes are not included.</p>}
+            <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} autoPatients={isVcTeamMember && !supervisedSchedule ? autoPatients : undefined} filterDateFrom={filterDateFrom} filterDateTo={filterDateTo} />
+            {supervisedSchedule && <section data-testid="supervised-schedule" className="border rounded-md p-3 mt-3">
+              <h2 className="text-sm font-semibold">Existing employee schedule — view only</h2>
+              {!autoPatients.length && <p className="text-sm text-muted-foreground">No existing permitted schedule entries.</p>}
+              {autoPatients.map(p => <div key={p.id} className="text-sm py-2 border-b">
+                {p.patientName} · {p.clinic} · {p.department}
+              </div>)}
+            </section>}
+          </>
         ) : view === "month" ? (
           <MonthView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : view === "week" ? (
@@ -1965,12 +1947,13 @@ export default function CallCalendarPage() {
         ) : view === "day" ? (
           <DayView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : (
-          <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} onCallClick={openCall} />
+          access.canManage ? <ManagerDashboard dateFrom={getDateKey(currentDate)} dateTo={getDateKey(currentDate)} onCallClick={openCall} />
+            : <CalendarQueryError error={new Error("Access restricted. Manager Dashboard requires administrator access.")} />
         )}
       </div>
 
       {/* Dialogs */}
-      <NewCallDialog open={newCallOpen} onClose={() => setNewCallOpen(false)} tasks={tasks} users={users as User[]} />
+      <NewCallDialog open={newCallOpen && access.canMutate} onClose={() => setNewCallOpen(false)} />
       <CallDetailPanel call={selectedCall} open={detailOpen} onClose={() => { setDetailOpen(false); setSelectedCall(null); }} users={users as User[]} />
     </div>
   );

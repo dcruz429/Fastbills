@@ -4,6 +4,7 @@
 - [Verification-to-billing continuity](task-transfer-contract.md) — an outcome transfer must retain insurance and the current deadline, including edits made in the same save.
 - [Patient Overview scope](patient-overview-scope.md) — all roles may search across trackers, including other assignees and Done records; original edit permissions remain unchanged.
 - [UI rendering checks](jsx-test-runtime.md) — match Vite’s automatic JSX runtime; verify generated table headers and record cells, not just column metadata.
+- [Lazy page recovery](page-load-recovery.md) — React.lazy caches loader failures; bounded download retries must finish before its promise rejects.
 - [PAID marker meaning](paid-marker-meaning.md) — PAID is reversible and independent of workflow status, outcomes, and tracked-amount summaries.
 - [Productivity transfer counts](productivity-transfer-counts.md) — count original outcome-transfer events credited to the actor, separate from completions and copied history.
 - [Tracker pagination scope](tracker-pagination-scope.md) — pagination limits rendering, not search coverage, financial totals, exports or bulk-selection scope.
@@ -11,3 +12,6 @@
 - [Guidelines Board scope](guideline-board-scope.md) — shared staff references; admins may delegate module authoring per user without changing their role.
 - [Managed dropdown types](managed-dropdown-types.md) — configurable Posting/module types; preserve historical selections and never restore intentionally deleted defaults.
 - [Medical Records Request scope](medical-records-scope.md) — keep workbook tabs and historical text; reusable contact variants autofill without rewriting request snapshots.
+- [Call-calendar supervision policy](call-calendar-policy-review.md) — explicit admin grants plus clinic AND department scope; viewing only, with schema activation separately approved.
+- [Offline browser verification](offline-browser-verification.md) — preserve synthetic-only isolation if specialized browser-test delegation is unavailable.
+- [RCM schema ownership](rcm-schema-ownership.md) — SQL authority remains separate from unreviewed Drizzle pushes; DEVELOPMENT identity and activation require separate approval.

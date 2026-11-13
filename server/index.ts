@@ -63,6 +63,41 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Opt-in staging safety mode. Never allow this mode to target any
+  // development or production DB, or to listen on a public interface.
+  const stagingSafe = process.env.RCM_STAGING_SAFE === "1";
+  // Never allow the full app to start on the copied restore-test database.
+  // Synthetic staging must always opt into guarded mode, never the default
+  // seed/backfill/cleanup startup path.
+  const targetName = (() => {
+    try { return process.env.DATABASE_URL ? decodeURIComponent(new URL(process.env.DATABASE_URL).pathname) : ""; }
+    catch { return ""; }
+  })();
+  if (targetName === "/fastbills_rcm_restore_test") {
+    throw new Error("Full application startup prohibited on copied restore-test data");
+  }
+  if (targetName === "/fastbills_rcm_synthetic_staging" && !stagingSafe) {
+    throw new Error("Synthetic staging requires RCM_STAGING_SAFE=1");
+  }
+  if (stagingSafe) {
+    const url = process.env.DATABASE_URL;
+    if (!url || decodeURIComponent(new URL(url).pathname) !== "/fastbills_rcm_synthetic_staging") {
+      throw new Error("RCM staging mode requires the exact synthetic staging database");
+    }
+    if (process.env.NODE_ENV !== "production") {
+      throw new Error("RCM staging mode requires NODE_ENV=production to disable Vite dev middleware");
+    }
+    if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === "workflow-secret-key") {
+      throw new Error("RCM staging mode requires a unique SESSION_SECRET");
+    }
+    const { pool } = await import("./db");
+    const identity = await pool.query("SELECT current_database() AS name");
+    if (identity.rows[0]?.name !== "fastbills_rcm_synthetic_staging") {
+      throw new Error("RCM staging mode connected to unexpected database");
+    }
+    log("RCM staging mode: startup seeding, backfills and schedule cleanup disabled");
+  }
+  if (!stagingSafe) {
   const { seed } = await import("./seed");
   await seed().catch((e) => console.error("Seed error:", e));
 
@@ -133,6 +168,8 @@ app.use((req, res, next) => {
     console.error("Schedule cleanup error:", e);
   }
 
+  } // End of production/development startup maintenance block.
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -163,14 +200,15 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  const host = stagingSafe ? "127.0.0.1" : "0.0.0.0";
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
-      reusePort: true,
+      host,
+      reusePort: !stagingSafe,
     },
     () => {
-      log(`serving on port ${port}`);
+      log(`serving on ${host}:${port}`);
     },
   );
 })();

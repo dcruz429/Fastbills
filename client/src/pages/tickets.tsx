@@ -430,7 +430,7 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Category</label>
-                  <Select value={editCategory} onValueChange={setEditCategory}>
+                  <Select value={editCategory} onValueChange={value => { if (Object.prototype.hasOwnProperty.call(TICKET_CATEGORY_LABELS, value)) setEditCategory(value as typeof editCategory); }}>
                     <SelectTrigger className="mt-1" data-testid="select-edit-ticket-category">
                       <SelectValue />
                     </SelectTrigger>
@@ -443,7 +443,7 @@ function TicketDetail({ ticket, onClose }: { ticket: TicketWithRelations; onClos
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Priority</label>
-                  <Select value={editPriority} onValueChange={setEditPriority}>
+                  <Select value={editPriority} onValueChange={value => { if (Object.prototype.hasOwnProperty.call(TICKET_PRIORITY_LABELS, value)) setEditPriority(value as typeof editPriority); }}>
                     <SelectTrigger className="mt-1" data-testid="select-edit-ticket-priority">
                       <SelectValue />
                     </SelectTrigger>
