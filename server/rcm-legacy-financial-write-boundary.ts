@@ -48,7 +48,7 @@ export function registerLegacyFinancialWriteBoundary(app:Express){
     // deny overrides and bulk/import restrictions cannot be route-dependent.
     if(req.path.includes("%"))
       return res.status(400).json({message:"Encoded financial write paths not supported"});
-    const suffix=req.path.replace(/\/+$/,"") || "/";
+    const suffix=req.path.replace(/\/+$/,"").toLowerCase() || "/";
     const isCreate=suffix==="/" && method==="POST";
     const isImport=suffix==="/import-csv";
     const isDelete=method==="DELETE" || suffix==="/bulk-delete" || suffix==="/remove-duplicates";

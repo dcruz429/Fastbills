@@ -30,6 +30,7 @@ import { registerRcmQualityRoutes } from "./rcm-quality-routes";
 import { registerLegacyFinancialWriteBoundary } from "./rcm-legacy-financial-write-boundary";
 import { registerRcmFileDownloadBoundary } from "./rcm-file-download-boundary";
 import { resolveRcmAccess } from "./rcm-access-service";
+import { createCallBoundary, type CallAuthorization } from "./rcm-call-boundary";
 import { permissionAllowed, resourceAllowed, legacyMaintenanceAllowed } from "../shared/rcm-access-policy";
 
 // Express 5 route parameters may be arrays. Reject ambiguous or partial IDs.
@@ -4493,58 +4494,9 @@ export async function registerRoutes(
   // Boundary for the legacy call detail, history and mutation endpoints.
   // These handlers previously accepted arbitrary call IDs without a resource
   // access check. Restrict reads and writes before entering any handler.
-  app.use("/api/calls", async (req, res, next) => {
-    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-    try {
-      const access = await resolveRcmAccess(req.session.userId);
-      if (!access) return res.status(403).json({ message: "Access denied" });
-      const isWrite = ["POST", "PATCH", "PUT", "DELETE"].includes(req.method);
-      if (isWrite && req.session.originalUserId)
-        return res.status(403).json({ message: "Calls cannot be modified during impersonation" });
-      const permission = isWrite ? "tasks.update" : "tasks.read";
-      if (!permissionAllowed(access.context, permission))
-        return res.status(403).json({ message: "RCM call permission required" });
-      // Reject encoded IDs before Express decodes route parameters.
-      if (req.path.includes("%")) return res.status(400).json({ message: "Encoded call paths are not supported" });
-      const suffix = req.path.replace(/\/+$/, "") || "/";
-      const recordRoute = /^\/(\d+)(?:\/(?:start|cancel|attempts|activity))?$/.exec(suffix);
-      if (recordRoute) {
-        const id = parsePositiveRouteId(recordRoute[1]);
-        if (id === null) return res.status(400).json({ message: "Invalid call id" });
-        const call = await storage.getScheduledCall(id);
-        if (!call) return res.status(404).json({ message: "Call not found" });
-        if (!access.context.isSystemAdmin && call.assignedUserId !== req.session.userId)
-          return res.status(404).json({ message: "Call not found" });
-        const clinicIds = await legacyClinicNameIds();
-        if (!scopedLegacyRecord(access.context, clinicIds, call.clinic, call.department ?? "", permission))
-          return res.status(404).json({ message: "Call not found" });
-        // An attempt must never indirectly mutate a linked task. Use the
-        // dedicated RCM task update workflow with its own scope and audit.
-        if (req.method === "POST" && suffix.endsWith("/attempts") &&
-            (req.body?.updateTaskStatus || req.body?.newTaskStatus))
-          return res.status(403).json({ message: "Use the authorized RCM task workflow" });
-        if (req.method === "PATCH" &&
-            ["relatedTaskId", "assignedUserId", "clinic", "department"].some(k => Object.hasOwn(req.body ?? {}, k)))
-          return res.status(403).json({ message: "Call scope and assignment changes require a dedicated workflow" });
-        if (req.method === "POST" && suffix.endsWith("/attempts") &&
-            req.body?.nextAssignedUserId != null &&
-            Number(req.body.nextAssignedUserId) !== req.session.userId)
-          return res.status(403).json({ message: "Follow-up assignment requires a dedicated workflow" });
-      } else if (suffix === "/" && req.method === "POST") {
-        // Avoid accepting arbitrary related-task links or third-party
-        // assignment in this older, unscoped creation handler.
-        if (req.body?.relatedTaskId != null ||
-            (req.body?.assignedUserId != null && Number(req.body.assignedUserId) !== req.session.userId))
-          return res.status(403).json({ message: "Task linking and assignment require a dedicated workflow" });
-        const clinicIds = await legacyClinicNameIds();
-        if (!scopedLegacyRecord(access.context, clinicIds, req.body?.clinic, req.body?.department, "tasks.update"))
-          return res.status(403).json({ message: "Call clinic and department scope required" });
-      } else if (["/stats", "/agent-stats"].includes(suffix) && !access.context.isSystemAdmin) {
-        return res.status(403).json({ message: "Aggregate call reports require system administrator access" });
-      }
-      next();
-    } catch (error) { next(error); }
-  });
+  app.use("/api/calls", createCallBoundary({
+    storage, resolveAccess: resolveRcmAccess, clinicIds: legacyClinicNameIds,
+  }));
 
   app.get("/api/calls", requireAuth, async (req, res) => {
     try {
@@ -4645,16 +4597,13 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const isManager = ADMIN_ROLES.includes(user.role);
-      let targetUserId = user.id;
-      let targetUserFullName = user.fullName;
-      if (isManager && req.query.userId) {
-        const tu = await storage.getUser(Number(req.query.userId));
-        if (tu) { targetUserId = tu.id; targetUserFullName = tu.fullName; }
-      }
+      const auth = res.locals.callAuthorization as CallAuthorization;
+      const targetUserId = auth.targetUserId!;
+      const target = targetUserId === user.id ? user : await storage.getUser(targetUserId);
+      if (!target) return res.status(404).json({ message: "User not found" });
       const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10);
-      const patients = await storage.getPatientDailySchedule(targetUserId, targetUserFullName, dateStr);
-      res.json(patients);
+      const patients = await storage.getPatientDailySchedule(targetUserId, target.fullName, dateStr);
+      res.json(patients.filter(row => auth.canScope(row, "tasks.read")));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -4724,13 +4673,10 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const isManager = ADMIN_ROLES.includes(user.role);
-      // Managers see all; agents see only their own
-      const targetUserId = (isManager && req.query.userId)
-        ? Number(req.query.userId)
-        : (isManager ? undefined : user.id);
-      const audit = await storage.getPatientCallAudit(targetUserId, 500);
-      res.json(audit);
+      const auth = res.locals.callAuthorization as CallAuthorization;
+      const audit = await storage.getPatientCallAudit(auth.targetUserId, 500);
+      const allowed = await Promise.all(audit.map(row => auth.canAudit(row)));
+      res.json(audit.filter((_row, index) => allowed[index]));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

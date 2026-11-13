@@ -12,3 +12,4 @@
 - [Guidelines Board scope](guideline-board-scope.md) — shared staff references; admins may delegate module authoring per user without changing their role.
 - [Managed dropdown types](managed-dropdown-types.md) — configurable Posting/module types; preserve historical selections and never restore intentionally deleted defaults.
 - [Medical Records Request scope](medical-records-scope.md) — keep workbook tabs and historical text; reusable contact variants autofill without rewriting request snapshots.
+- [Call-calendar policy review](call-calendar-policy-review.md) — security-only fixes must not decide deferred manager visibility, assignment, linking, or missing-clinic policies.
