@@ -1077,7 +1077,7 @@ export async function registerRoutes(
   function scopedLegacyRecord(
     context: NonNullable<Awaited<ReturnType<typeof resolveRcmAccess>>>["context"],
     clinicIds: Map<string,number>, clinic: string | null | undefined,
-    department: "Denials" | "Checks" | "Arbitration" | "Collections" | "Posting" | "RTP", permission: "tasks.read" | "checks.read"
+    department: string, permission: "tasks.read" | "checks.read" | "tasks.update"
   ) {
     const key = typeof clinic === "string" ? clinic.trim().toLowerCase() : "";
     const clinicId = key ? clinicIds.get(key) : undefined;
@@ -4490,6 +4490,61 @@ export async function registerRoutes(
   });
 
   // ── Call Calendar ─────────────────────────────────────────────────────────
+  // Boundary for the legacy call detail, history and mutation endpoints.
+  // These handlers previously accepted arbitrary call IDs without a resource
+  // access check. Restrict reads and writes before entering any handler.
+  app.use("/api/calls", async (req, res, next) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const access = await resolveRcmAccess(req.session.userId);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const isWrite = ["POST", "PATCH", "PUT", "DELETE"].includes(req.method);
+      if (isWrite && req.session.originalUserId)
+        return res.status(403).json({ message: "Calls cannot be modified during impersonation" });
+      const permission = isWrite ? "tasks.update" : "tasks.read";
+      if (!permissionAllowed(access.context, permission))
+        return res.status(403).json({ message: "RCM call permission required" });
+      // Reject encoded IDs before Express decodes route parameters.
+      if (req.path.includes("%")) return res.status(400).json({ message: "Encoded call paths are not supported" });
+      const suffix = req.path.replace(/\/+$/, "") || "/";
+      const recordRoute = /^\/(\d+)(?:\/(?:start|cancel|attempts|activity))?$/.exec(suffix);
+      if (recordRoute) {
+        const id = parsePositiveRouteId(recordRoute[1]);
+        if (id === null) return res.status(400).json({ message: "Invalid call id" });
+        const call = await storage.getScheduledCall(id);
+        if (!call) return res.status(404).json({ message: "Call not found" });
+        if (!access.context.isSystemAdmin && call.assignedUserId !== req.session.userId)
+          return res.status(404).json({ message: "Call not found" });
+        const clinicIds = await legacyClinicNameIds();
+        if (!scopedLegacyRecord(access.context, clinicIds, call.clinic, call.department ?? "", permission))
+          return res.status(404).json({ message: "Call not found" });
+        // An attempt must never indirectly mutate a linked task. Use the
+        // dedicated RCM task update workflow with its own scope and audit.
+        if (req.method === "POST" && suffix.endsWith("/attempts") &&
+            (req.body?.updateTaskStatus || req.body?.newTaskStatus))
+          return res.status(403).json({ message: "Use the authorized RCM task workflow" });
+        if (req.method === "PATCH" &&
+            ["relatedTaskId", "assignedUserId", "clinic", "department"].some(k => Object.hasOwn(req.body ?? {}, k)))
+          return res.status(403).json({ message: "Call scope and assignment changes require a dedicated workflow" });
+        if (req.method === "POST" && suffix.endsWith("/attempts") &&
+            req.body?.nextAssignedUserId != null &&
+            Number(req.body.nextAssignedUserId) !== req.session.userId)
+          return res.status(403).json({ message: "Follow-up assignment requires a dedicated workflow" });
+      } else if (suffix === "/" && req.method === "POST") {
+        // Avoid accepting arbitrary related-task links or third-party
+        // assignment in this older, unscoped creation handler.
+        if (req.body?.relatedTaskId != null ||
+            (req.body?.assignedUserId != null && Number(req.body.assignedUserId) !== req.session.userId))
+          return res.status(403).json({ message: "Task linking and assignment require a dedicated workflow" });
+        const clinicIds = await legacyClinicNameIds();
+        if (!scopedLegacyRecord(access.context, clinicIds, req.body?.clinic, req.body?.department, "tasks.update"))
+          return res.status(403).json({ message: "Call clinic and department scope required" });
+      } else if (["/stats", "/agent-stats"].includes(suffix) && !access.context.isSystemAdmin) {
+        return res.status(403).json({ message: "Aggregate call reports require system administrator access" });
+      }
+      next();
+    } catch (error) { next(error); }
+  });
 
   app.get("/api/calls", requireAuth, async (req, res) => {
     try {
@@ -4502,14 +4557,22 @@ export async function registerRoutes(
       if (dateTo) { const d = new Date(dateTo as string); d.setUTCHours(23, 59, 59, 999); filters.dateTo = d; }
       if (callStatus && callStatus !== "all") filters.callStatus = callStatus as string;
       if (department && department !== "all") filters.department = department as string;
-      if (!isManager || myCallsOnly === "true") {
-        if (assignedUserId && assignedUserId !== "all") filters.assignedUserId = Number(assignedUserId);
-        else if (!isManager) filters.assignedUserId = user.id;
+      if (!isManager) {
+        // Ignore client-supplied assignee filters for non-managers.
+        filters.assignedUserId = user.id;
+      } else if (myCallsOnly === "true") {
+        filters.assignedUserId = user.id;
       } else if (assignedUserId && assignedUserId !== "all") {
         filters.assignedUserId = Number(assignedUserId);
       }
+      const access = await resolveRcmAccess(user.id);
+      if (!access) return res.status(403).json({ message: "Access denied" });
+      const clinicIds = await legacyClinicNameIds();
       const calls = await storage.getScheduledCalls(filters);
-      res.json(calls);
+      res.json(calls.filter(call =>
+        (access.context.isSystemAdmin || call.assignedUserId === user.id) &&
+        scopedLegacyRecord(access.context, clinicIds, call.clinic, call.department ?? "", "tasks.read")
+      ));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
