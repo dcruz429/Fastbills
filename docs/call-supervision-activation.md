@@ -1,5 +1,14 @@
 # Call Calendar supervision: prepared, not activated
 
+## DEVELOPMENT preparation package
+
+DEVELOPMENT is the proposed first target, not an identified/approved database.
+The offline [schema preflight package](../preflight/rcm/README.md) inventories SQL
+ownership, stages review-only Drizzle parity, blocks default schema-push tooling,
+defines metadata-only evidence and comparison, and records separate approval
+gates. No existing database was contacted or schema activated by that package.
+The staged declarations are not imported into the application schema.
+
 ## Activation status
 
 The implementation requires the new `rcm_call_supervisors` table. The SQL in

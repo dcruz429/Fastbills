@@ -14,3 +14,4 @@
 - [Medical Records Request scope](medical-records-scope.md) — keep workbook tabs and historical text; reusable contact variants autofill without rewriting request snapshots.
 - [Call-calendar supervision policy](call-calendar-policy-review.md) — explicit admin grants plus clinic AND department scope; viewing only, with schema activation separately approved.
 - [Offline browser verification](offline-browser-verification.md) — preserve synthetic-only isolation if specialized browser-test delegation is unavailable.
+- [RCM schema ownership](rcm-schema-ownership.md) — SQL authority remains separate from unreviewed Drizzle pushes; DEVELOPMENT identity and activation require separate approval.

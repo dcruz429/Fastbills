@@ -1,0 +1,26 @@
+{
+  "format": "rcm-development-identity/v1",
+  "targetEnvironment": "DEVELOPMENT",
+  "projectRef": "UNCONFIRMED",
+  "providerAccountRef": "UNCONFIRMED",
+  "canonicalDatabaseRef": "UNCONFIRMED",
+  "runtimeBindingResourceRef": "UNCONFIRMED",
+  "toolingBindingResourceRef": "UNCONFIRMED",
+  "otherEnvironments": [
+    {
+      "environment": "STAGING",
+      "status": "unknown",
+      "providerAccountRef": null,
+      "canonicalDatabaseRef": null
+    },
+    {
+      "environment": "PRODUCTION",
+      "status": "unknown",
+      "providerAccountRef": null,
+      "canonicalDatabaseRef": null
+    }
+  ],
+  "environmentOwnerApprovalRef": null,
+  "metadataExportApprovalRef": null,
+  "releaseCommit": "eb734d0452acf9da246df4182b3a6b9583ad2366"
+}
