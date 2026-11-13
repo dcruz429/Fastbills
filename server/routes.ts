@@ -2348,7 +2348,9 @@ export async function registerRoutes(
             );
             data.assignedUserId = matchedUser?.id || null;
           } else {
-            data.assignedUserId = data.assignedUserId || null;
+            // A missing assignee must never implicitly clear an existing
+            // assignment. Preserve it for updates; leave unset for creation.
+            delete data.assignedUserId;
           }
 
           if (!data.status) data.status = "unassigned";
@@ -2368,6 +2370,13 @@ export async function registerRoutes(
 
           const DONE_STATUSES = ["done", "billed", "verified"];
           if (match) {
+            // Prevent cross-clinic takeover via patient/chart duplicate
+            // matching, even when an import row supplies another clinic.
+            if (match.clinicId !== data.clinicId) {
+              results.errors.push(`Row ${i + 1}: Matching task belongs to a different clinic`);
+              continue;
+            }
+            if (data.assignedUserId === undefined) delete data.assignedUserId;
             await storage.updateTask(match.id, data);
             await storage.createTaskActivity({ taskId: match.id, userId: req.session.userId!, action: "Updated (CSV import)", field: null, oldValue: null, newValue: null });
             if (data.status && DONE_STATUSES.includes(data.status) && !DONE_STATUSES.includes(match.status || "")) {
