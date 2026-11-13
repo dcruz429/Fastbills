@@ -4,11 +4,11 @@ import { calendarCallSchema } from "@shared/call-calendar-contract";
 export class CalendarRequestError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
-export async function calendarJson<T>(url: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
+export async function calendarJson<T>(url: string, schema: z.ZodType<T, z.ZodTypeDef, any>, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: "include", ...init });
   return parseCalendarResponse(response, schema);
 }
-export async function parseCalendarResponse<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
+export async function parseCalendarResponse<T>(response: Response, schema: z.ZodType<T, z.ZodTypeDef, any>): Promise<T> {
   if (!response.ok) {
     throw new CalendarRequestError(response.status, response.status === 403
       ? "Access restricted. You do not have permission for this calendar action."

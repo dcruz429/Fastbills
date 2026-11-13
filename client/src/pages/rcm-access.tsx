@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { CallSupervisionSettings } from "@/components/call-supervision-settings";
 
 type UserRecord = { id: number; username: string; fullName: string; role: string; active: boolean };
 type ClinicRecord = { id: number; name: string };
@@ -171,6 +172,7 @@ export default function RcmAccessSettingsPage() {
           </CardContent>
         </Card>
       </>}
+      {selectedId !== null && <CallSupervisionSettings key={selectedId} userId={selectedId} />}
       <p className="text-xs text-muted-foreground">Phase 1 only: existing task and tracker endpoints still use legacy authorization until subsequent integration and security tests are complete.</p>
     </main>
   );

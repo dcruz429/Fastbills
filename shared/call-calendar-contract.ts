@@ -9,6 +9,7 @@ export const callCapabilitiesSchema = z.object({
   userId: id, canRead: z.boolean(), canMutate: z.boolean(), canManage: z.boolean(),
   clinics: z.array(z.object({ id, name: z.string().min(1) })),
   departments: z.array(z.enum(CALL_SCOPE_DEPARTMENTS)),
+  supervisedEmployees: z.array(z.object({ id, fullName: z.string().min(1) })).default([]),
 });
 export type CallCapabilities = z.infer<typeof callCapabilitiesSchema>;
 export const calendarCallSchema = z.object({
@@ -19,7 +20,7 @@ export const calendarCallSchema = z.object({
 }).passthrough();
 export const calendarCallsSchema = z.array(calendarCallSchema);
 export const calendarSchedulesSchema = z.array(z.object({
-  id, sourceId: id, patientName: z.string(), department: z.string(),
+  id, sourceId: id, patientName: z.string(), department: z.string(), userId: id.optional(), callId: id.nullable().optional(),
   clinic: text, insurance: text, scheduledDate: z.string().optional(), notes: text,
   dailyStatus: text,
 }).passthrough());

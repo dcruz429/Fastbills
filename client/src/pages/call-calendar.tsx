@@ -328,7 +328,7 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!access.canMutate) throw new Error("Call changes are not permitted.");
+      if (!access.canMutateCall(call)) throw new Error("Call changes are not permitted.");
       if (!outcome) throw new Error("Outcome is required");
       let nextScheduledAt: string | null = null;
       if (followUpRequired && nextDate) {
@@ -418,7 +418,7 @@ function RecordAttemptDialog({ open, onClose, call, users, defaultOutcome }: { o
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!access.canMutate || !outcome || mutation.isPending} data-testid="button-save-attempt">
+          <Button onClick={() => mutation.mutate()} disabled={!access.canMutateCall(call) || !outcome || mutation.isPending} data-testid="button-save-attempt">
             {mutation.isPending ? "Saving..." : "Record Attempt"}
           </Button>
         </DialogFooter>
@@ -437,25 +437,25 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
   const [cancelReason, setCancelReason] = useState("");
 
   const { data: freshCall, error: detailError } = useQuery<any>({
-    queryKey: ["/api/calls", call?.id],
+    queryKey: ["/api/calls", call?.id, access.visibilityKey],
     queryFn: () => calendarJson(`/api/calls/${call.id}`, calendarCallSchema),
-    enabled: !!call?.id && open,
+    enabled: !!call?.id && open && access.canViewCall(call),
   });
 
   const { data: attempts = [], error: attemptsError } = useQuery<any[]>({
-    queryKey: ["/api/calls", call?.id, "attempts"],
+    queryKey: ["/api/calls", call?.id, "attempts", access.visibilityKey],
     queryFn: () => calendarJson(`/api/calls/${call.id}/attempts`, calendarAttemptsSchema),
-    enabled: !!call?.id && open,
+    enabled: !!call?.id && open && access.canViewCall(call),
   });
 
   const { data: activityLog = [], error: activityError } = useQuery<any[]>({
-    queryKey: ["/api/calls", call?.id, "activity"],
+    queryKey: ["/api/calls", call?.id, "activity", access.visibilityKey],
     queryFn: () => calendarJson(`/api/calls/${call.id}/activity`, calendarActivitySchema),
-    enabled: !!call?.id && open,
+    enabled: !!call?.id && open && access.canViewCall(call),
   });
 
   const startMutation = useMutation({
-    mutationFn: async () => { if (!access.canMutate) throw new Error("Call changes are not permitted."); await apiRequest("POST", `/api/calls/${call?.id}/start`, {}); },
+    mutationFn: async () => { if (!call || !access.canMutateCall(call)) throw new Error("Call changes are not permitted."); await apiRequest("POST", `/api/calls/${call?.id}/start`, {}); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calls", call?.id] });
@@ -465,7 +465,7 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
   });
 
   const cancelMutation = useMutation({
-    mutationFn: async () => { if (!access.canMutate) throw new Error("Call changes are not permitted."); await apiRequest("POST", `/api/calls/${call?.id}/cancel`, { reason: cancelReason }); },
+    mutationFn: async () => { if (!call || !access.canMutateCall(call)) throw new Error("Call changes are not permitted."); await apiRequest("POST", `/api/calls/${call?.id}/cancel`, { reason: cancelReason }); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calls", call?.id] });
@@ -476,7 +476,7 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  if (!call) return null;
+  if (!call || !access.canViewCall(freshCall || call)) return null;
 
   const displayCall = freshCall || call;
   const overdue = isOverdue(displayCall);
@@ -558,7 +558,8 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
             </div>
 
             {/* Actions */}
-            {isActive && access.canMutate && (
+            {!access.canMutateCall(displayCall) && <p data-testid="call-view-only" className="text-sm text-muted-foreground">View only. Supervisory visibility does not permit call changes.</p>}
+            {isActive && access.canMutateCall(displayCall) && (
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => setAttemptOpen(true)} data-testid="button-record-attempt">
                   <FileText className="h-3 w-3 mr-1" />Record Attempt
@@ -623,7 +624,7 @@ function CallDetailPanel({ call, open, onClose, users }: { call: any | null; ope
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCancelOpen(false)}>Back</Button>
-            <Button variant="destructive" onClick={() => cancelMutation.mutate()} disabled={!access.canMutate || cancelMutation.isPending}>
+            <Button variant="destructive" onClick={() => cancelMutation.mutate()} disabled={!call || !access.canMutateCall(call) || cancelMutation.isPending}>
               {cancelMutation.isPending ? "Cancelling..." : "Cancel Call"}
             </Button>
           </DialogFooter>
@@ -1662,10 +1663,21 @@ export default function CallCalendarPage() {
 
   const isVcTeamMember = access.canRead;
   const isManagerTeamMember = access.canManage;
+  const supervisedSchedule = filterAssigned !== "all" && Number(filterAssigned) !== currentUser?.id;
+  const scheduleEmployeeId = filterAssigned === "all" ? currentUser?.id : Number(filterAssigned);
 
   const { data: users = [], error: usersError } = useQuery<any[]>({
     queryKey: ["/api/users"], queryFn: () => calendarJson("/api/users", calendarUsersSchema), enabled: access.canManage,
   });
+  const visibleEmployees = access.canManage ? users : [
+    ...(currentUser ? [{ id: currentUser.id, fullName: currentUser.fullName, active: true }] : []),
+    ...access.supervisedEmployees.map(employee => ({ ...employee, active: true })),
+  ];
+  useEffect(() => {
+    if (selectedCall && !access.canViewCall(selectedCall)) { setDetailOpen(false); setSelectedCall(null); }
+    if (supervisedSchedule && !access.canManage &&
+        !access.supervisedEmployees.some(employee => employee.id === scheduleEmployeeId)) setFilterAssigned("all");
+  }, [access.visibilityKey, selectedCall, filterAssigned]);
 
   // Compute visible date range for the API query
   const { apiDateFrom, apiDateTo } = useMemo(() => {
@@ -1693,7 +1705,7 @@ export default function CallCalendarPage() {
   }, [view, currentDate, filterDateFrom, filterDateTo]);
 
   const { data: rawCalls = [], isLoading, isFetching, refetch, error: callsError } = useQuery<any[]>({
-    queryKey: ["/api/calls", apiDateFrom, apiDateTo, filterStatus, filterDept, filterAssigned],
+    queryKey: ["/api/calls", apiDateFrom, apiDateTo, filterStatus, filterDept, filterAssigned, access.visibilityKey],
     queryFn: ({ queryKey }) => {
       const [, dateFrom, dateTo, callStatus, department, assignedUserId] = queryKey as string[];
       const params = new URLSearchParams({ dateFrom, dateTo });
@@ -1702,7 +1714,6 @@ export default function CallCalendarPage() {
       if (assignedUserId !== "all") params.set("assignedUserId", assignedUserId);
       return calendarJson(`/api/calls?${params}`, calendarCallsSchema);
     },
-    placeholderData: keepPreviousData,
     enabled: access.canRead,
   });
 
@@ -1713,8 +1724,8 @@ export default function CallCalendarPage() {
 
   const scheduleDate = getDateKey(currentDate);
   const { data: autoPatients = [], error: schedulesError } = useQuery<any[]>({
-    queryKey: ["/api/calls/daily-schedule", scheduleDate],
-    queryFn: () => calendarJson(`/api/calls/daily-schedule?date=${scheduleDate}`, calendarSchedulesSchema),
+    queryKey: ["/api/calls/daily-schedule", scheduleDate, scheduleEmployeeId, access.visibilityKey],
+    queryFn: () => calendarJson(`/api/calls/daily-schedule?date=${scheduleDate}&userId=${scheduleEmployeeId}`, calendarSchedulesSchema),
     enabled: access.canRead && view === "list" && isVcTeamMember && !isManager,
   });
 
@@ -1732,6 +1743,7 @@ export default function CallCalendarPage() {
   }, [rawCalls]);
 
   const calls = useMemo(() => rawCalls.filter(c => {
+    if (!access.canViewCall(c)) return false;
     if (filterPriority !== "all" && c.priority !== filterPriority) return false;
     if (filterOverdueOnly && !isOverdue(c)) return false;
     if (filterClinic !== "all" && c.clinic !== filterClinic) return false;
@@ -1741,7 +1753,7 @@ export default function CallCalendarPage() {
       if (!c.patientName?.toLowerCase().includes(q) && !c.callReason?.toLowerCase().includes(q) && !c.clinic?.toLowerCase().includes(q) && !c.assignedUserName?.toLowerCase().includes(q)) return false;
     }
     return true;
-  }), [rawCalls, filterPriority, filterOverdueOnly, filterClinic, filterInsurance, search]);
+  }), [rawCalls, filterPriority, filterOverdueOnly, filterClinic, filterInsurance, search, access.visibilityKey]);
 
   const navigate = useCallback((dir: 1 | -1) => {
     const d = new Date(currentDate);
@@ -1877,12 +1889,12 @@ export default function CallCalendarPage() {
             </SelectContent>
           </Select>
         )}
-        {isManager && (
+        {(isManager || access.supervisedEmployees.length > 0) && (
           <Select value={filterAssigned} onValueChange={setFilterAssigned}>
             <SelectTrigger className="h-8 w-40 text-xs" data-testid="select-filter-assigned"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
-              {(users as User[]).filter(u => u.active !== false).sort((a,b) => a.fullName.localeCompare(b.fullName)).map(u => (
+              <SelectItem value="all">{isManager ? "All Employees" : "My calls and supervised teams"}</SelectItem>
+              {visibleEmployees.filter(u => u.active !== false).sort((a,b) => a.fullName.localeCompare(b.fullName)).map(u => (
                 <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>
               ))}
             </SelectContent>
@@ -1917,7 +1929,17 @@ export default function CallCalendarPage() {
             <div className="text-muted-foreground">Loading calls…</div>
           </div>
         ) : view === "list" ? (
-          <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} autoPatients={isVcTeamMember ? autoPatients : undefined} filterDateFrom={filterDateFrom} filterDateTo={filterDateTo} />
+          <>
+            {access.supervisedEmployees.length > 0 && <p className="mb-3 text-sm text-muted-foreground" data-testid="supervision-notice">Supervised team calls are view only, within your authorized clinics and departments. Management reports and call changes are not included.</p>}
+            <DailyListView date={currentDate} calls={calls} onCallClick={openCall} users={users as User[]} autoPatients={isVcTeamMember && !supervisedSchedule ? autoPatients : undefined} filterDateFrom={filterDateFrom} filterDateTo={filterDateTo} />
+            {supervisedSchedule && <section data-testid="supervised-schedule" className="border rounded-md p-3 mt-3">
+              <h2 className="text-sm font-semibold">Existing employee schedule — view only</h2>
+              {!autoPatients.length && <p className="text-sm text-muted-foreground">No existing permitted schedule entries.</p>}
+              {autoPatients.map(p => <div key={p.id} className="text-sm py-2 border-b">
+                {p.patientName} · {p.clinic} · {p.department}
+              </div>)}
+            </section>}
+          </>
         ) : view === "month" ? (
           <MonthView date={currentDate} calls={calls} onCallClick={openCall} />
         ) : view === "week" ? (

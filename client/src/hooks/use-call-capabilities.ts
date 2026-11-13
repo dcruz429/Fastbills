@@ -12,9 +12,20 @@ export function useCallCapabilities() {
       if (data.userId !== user?.id) throw new Error("Calendar access could not be verified.");
       return data;
     },
-    enabled: !!user, staleTime: 0,
+    enabled: !!user, staleTime: 0, refetchInterval: 5000, refetchOnWindowFocus: true,
   });
-  return { ...query, canRead: !!query.data?.canRead,
-    canMutate: !!query.data?.canMutate && !isImpersonating,
-    canManage: !!query.data?.canManage };
+  const canRead = !!query.data?.canRead && !query.error;
+  const canMutate = canRead && !!query.data?.canMutate && !isImpersonating;
+  const canManage = canRead && !!query.data?.canManage;
+  const supervisedEmployees = canRead && !isImpersonating ? query.data?.supervisedEmployees ?? [] : [];
+  const canViewCall = (call: { assignedUserId?: number | null; clinic?: string | null; department?: string | null }) =>
+    canRead && (canManage || call.assignedUserId === user?.id ||
+      (supervisedEmployees.some(employee => employee.id === call.assignedUserId) &&
+        !!query.data?.clinics.some(c => c.name === call.clinic?.trim().toLowerCase()) &&
+        !!query.data?.departments.includes(call.department as any)));
+  return { ...query, canRead, canMutate, canManage, supervisedEmployees, canViewCall,
+    visibilityKey: JSON.stringify([user?.id, isImpersonating, query.data]),
+    canMutateCall: (call: { assignedUserId?: number | null }) =>
+      canMutate && (canManage || call.assignedUserId === user?.id),
+  };
 }

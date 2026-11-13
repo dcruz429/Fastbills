@@ -242,6 +242,7 @@ export interface IStorage {
   getCallActivityLog(callId: number): Promise<any[]>;
   createCallActivity(data: any): Promise<any>;
   getPatientDailySchedule(userId: number, userFullName: string, dateStr: string): Promise<any[]>;
+  getExistingPatientDailySchedule(userId: number, dateStr: string): Promise<any[]>;
   getPatientCallAudit(userId: number, limit?: number): Promise<PatientCallAudit[]>;
 }
 
@@ -1283,6 +1284,14 @@ export class DatabaseStorage implements IStorage {
     return [...taskRows, ...collRows]
       .filter(r => r.patientName)
       .sort((a, b) => new Date(a.createdAt as any).getTime() - new Date(b.createdAt as any).getTime());
+  }
+
+  // Supervisory viewing must not invoke the legacy builder/rollover writes.
+  async getExistingPatientDailySchedule(userId: number, dateStr: string): Promise<any[]> {
+    const rows = await db.select().from(patientCallSchedule).where(and(
+      eq(patientCallSchedule.userId, userId), eq(patientCallSchedule.scheduledDate, dateStr),
+    ));
+    return rows.map(row => ({ ...row, isRollover: !!row.originalDate }));
   }
 
   async getPatientDailySchedule(userId: number, userFullName: string, dateStr: string): Promise<any[]> {

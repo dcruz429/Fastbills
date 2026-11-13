@@ -12,5 +12,5 @@
 - [Guidelines Board scope](guideline-board-scope.md) — shared staff references; admins may delegate module authoring per user without changing their role.
 - [Managed dropdown types](managed-dropdown-types.md) — configurable Posting/module types; preserve historical selections and never restore intentionally deleted defaults.
 - [Medical Records Request scope](medical-records-scope.md) — keep workbook tabs and historical text; reusable contact variants autofill without rewriting request snapshots.
-- [Call-calendar policy review](call-calendar-policy-review.md) — security-only fixes must not decide deferred manager visibility, assignment, linking, or missing-clinic policies.
+- [Call-calendar supervision policy](call-calendar-policy-review.md) — explicit admin grants plus clinic AND department scope; viewing only, with schema activation separately approved.
 - [Offline browser verification](offline-browser-verification.md) — preserve synthetic-only isolation if specialized browser-test delegation is unavailable.

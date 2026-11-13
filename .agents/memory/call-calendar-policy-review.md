@@ -3,8 +3,8 @@ name: Call-calendar product policy review
 description: Security fixes must not silently decide the deferred call-calendar visibility and assignment policies.
 ---
 
-Keep security fixes separate from decisions about manager-wide call visibility, calls without a recognized clinic, third-party assignment, and task linking.
+Supervisory Call Calendar viewing is approved only through an explicit administrator-controlled manager-to-team assignment, combined with the viewer's clinic AND department scope. Default to no supervisory grants. Never infer management authority from ordinary membership, generic manager roles, or a team named "Manager Team".
 
-**Why:** The user explicitly requested that the high-severity authorization fixes leave medium-severity product decisions unchanged for later review. Restoring an old UI action by weakening authorization is not an acceptable compatibility fix.
+**Why:** The user approved narrowly scoped, read-only team visibility after the existing model was found to lack explicit managerial authority. Shared membership is not proof of supervision. The user authorized preparatory schema/code/tests, but expressly prohibited executing migrations, accessing live data, or activating production changes.
 
-**How to apply:** Preserve currently permitted, scoped self-service workflows. The user authorized technical UI alignment with existing backend restrictions and default self-assignment so successful new calls do not disappear. That is not approval for delegation, linking, an unassigned queue, missing-clinic remediation, or supervisory visibility. Obtain an explicit product decision before broadening these policies. Fail closed when record identity or authorization scope cannot be established.
+**How to apply:** Preserve explicit denies and existing self-service workflows, including default self-assignment. Supervision must never imply mutation, delegation, assignment, linked-task, aggregate-report, cross-team, or impersonation privileges. Recheck grants/membership on each request so revocation takes effect. Existing schedule reads may write through lazy building/rollovers: teammate viewing must remain genuinely read-only. Separate approval is required to apply the new schema and configure real grants. Delegation/linking, unassigned queues and missing-clinic remediation remain unapproved.

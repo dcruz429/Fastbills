@@ -20,9 +20,12 @@ const result = await build({
     import {AuthProvider} from "./client/src/lib/auth";
     import Calendar from "./client/src/pages/call-calendar";
     import {Toaster} from "./client/src/components/ui/toaster";
+    import {CallSupervisionSettings} from "./client/src/components/call-supervision-settings";
     window.__calendarTestClient = queryClient;
     createRoot(document.getElementById("root")).render(
-      <QueryClientProvider client={queryClient}><AuthProvider><Calendar/><Toaster/></AuthProvider></QueryClientProvider>);
+      <QueryClientProvider client={queryClient}><AuthProvider>
+        {window.location.pathname === "/supervision-settings" ? <CallSupervisionSettings userId={2}/> : <Calendar/>}
+        <Toaster/></AuthProvider></QueryClientProvider>);
   `, resolveDir: root, loader: "tsx" },
   bundle: true, write: false, format: "iife", platform: "browser", jsx: "automatic",
   define: { "process.env.NODE_ENV": '"production"' },
@@ -43,6 +46,7 @@ const browser = await chromium.launch({
   headless: true, args: ["--no-sandbox", "--disable-background-networking", "--disable-component-update", "--disable-sync"],
 });
 const results: string[] = [];
+await writeFile(path.join(out, "results.json"), JSON.stringify({ status: "running", passed: 0 }));
 const call = {
   id: 123, patientName: "Synthetic Calendar Patient", assignedUserId: 1, assignedUserName: "Synthetic Agent",
   scheduledAt: new Date().toISOString(), callStatus: "Scheduled", clinic: "demo clinic",
@@ -52,6 +56,8 @@ type Options = {
   admin?: boolean; role?: string; readOnly?: boolean; impersonating?: boolean; noScope?: boolean;
   badCalls?: number | "shape" | "json"; badSchedule?: boolean; badStats?: boolean;
   badMutation?: boolean; badDetail?: number; badAttempts?: boolean;
+  supervisor?: boolean; revoked?: boolean; denyRead?: boolean;
+  settings?: boolean; unavailable?: boolean; grantTeamIds?: number[];
 };
 async function scenario(name: string, options: Options, run: (page: Page, writes: any[], urls: string[]) => Promise<void>) {
   const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1440, height: 1000 } });
@@ -65,17 +71,29 @@ async function scenario(name: string, options: Options, run: (page: Page, writes
       return route.abort("blockedbyclient");
     }
     const respond = (data: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(data) });
-    if (url.pathname === "/") return route.fulfill({ contentType: "text/html", body: html });
+    if (url.pathname === "/" || url.pathname === "/supervision-settings") return route.fulfill({ contentType: "text/html", body: html });
     urls.push(url.pathname);
     if (url.pathname === "/api/auth/me") return respond({
       id: 1, fullName: "Synthetic Agent", username: "synthetic", role: options.admin ? "admin" : options.role ?? "verifier",
       active: true, isImpersonating: !!options.impersonating,
     });
     if (url.pathname === "/api/calls/capabilities") return respond({
-      userId: 1, canRead: true, canMutate: !options.readOnly && !options.impersonating, canManage: !!options.admin,
+      userId: 1, canRead: !options.denyRead, canMutate: !options.denyRead && !options.readOnly && !options.impersonating, canManage: !!options.admin,
       clinics: options.noScope ? [] : [{ id: 10, name: "demo clinic" }],
       departments: options.noScope ? [] : ["Verification"],
+      supervisedEmployees: options.supervisor && !options.revoked && !options.impersonating && !options.denyRead
+        ? [{ id: 2, fullName: "Synthetic Other Agent" }] : [],
     });
+    if (url.pathname === "/api/rcm/access/call-supervision/2") {
+      if (options.unavailable) return respond({ message: "Call supervision is not activated. An authorized schema change is required." }, 503);
+      if (!options.admin || options.impersonating) return respond({ message: "Access denied" }, 403);
+      if (request.method() === "PUT") {
+        const body = request.postDataJSON(); writes.push({ path: url.pathname, body });
+        options.grantTeamIds = body.teamIds;
+        return respond({ teamIds: body.teamIds });
+      }
+      return respond({ teamIds: options.grantTeamIds ?? [], teams: [{ id: 7, name: "Synthetic Explicit Team" }] });
+    }
     if (url.pathname === "/api/users") return respond([
       { id: 1, fullName: "Synthetic Agent", role: "verifier", active: true },
       { id: 2, fullName: "Synthetic Other Agent", role: "verifier", active: true },
@@ -90,7 +108,9 @@ async function scenario(name: string, options: Options, run: (page: Page, writes
     if (url.pathname === "/api/calls/agent-stats") return options.badStats
       ? respond({ message: "denied" }, 403)
       : respond([{ userId: 1, userName: "Synthetic Agent", assigned: 1, done: 0, pending: 1, rescheduled: 0, successRate: 0 }]);
-    if (url.pathname === "/api/calls/daily-schedule") return respond(options.badSchedule ? { message: "malformed" } : []);
+    if (url.pathname === "/api/calls/daily-schedule") return respond(options.badSchedule ? { message: "malformed" } :
+      options.supervisor && !options.revoked && url.searchParams.get("userId") === "2"
+        ? [{ id: 12, sourceId: 41, userId: 2, callId: 124, patientName: "Synthetic Teammate Schedule", clinic: "demo clinic", department: "Verification" }] : []);
     if (request.method() !== "GET" && url.pathname.startsWith("/api/calls")) {
       const body = request.postDataJSON(); writes.push({ path: url.pathname, body });
       if (options.badMutation) return respond({ message: "not a successful call" });
@@ -101,16 +121,23 @@ async function scenario(name: string, options: Options, run: (page: Page, writes
       if (typeof options.badCalls === "number") return respond({ message: "denied" }, options.badCalls);
       if (options.badCalls === "shape") return respond({ message: "not an array" });
       if (options.badCalls === "json") return route.fulfill({ contentType: "application/json", body: "not JSON" });
-      return respond([call]);
+      const rows = options.supervisor && !options.revoked ? [
+        call, { ...call, id: 124, patientName: "Synthetic Teammate Call", assignedUserId: 2, assignedUserName: "Synthetic Other Agent" },
+      ] : [call];
+      const owner = url.searchParams.get("assignedUserId");
+      return respond(owner ? rows.filter(row => row.assignedUserId === Number(owner)) : rows);
     }
     if (url.pathname === "/api/calls/123") return options.badDetail ? respond({}, options.badDetail) : respond(call);
     if (url.pathname === "/api/calls/123/attempts") return respond(options.badAttempts ? {} : []);
     if (url.pathname === "/api/calls/123/activity") return respond([]);
+    if (url.pathname === "/api/calls/124") return options.revoked ? respond({}, 404) :
+      respond({ ...call, id: 124, patientName: "Synthetic Teammate Call", assignedUserId: 2, assignedUserName: "Synthetic Other Agent" });
+    if (url.pathname === "/api/calls/124/attempts" || url.pathname === "/api/calls/124/activity") return respond([]);
     unexpected.push("Unhandled synthetic path: " + url.pathname);
     return respond({ message: "Unhandled synthetic request" }, 500);
   });
   try {
-    await page.goto("https://calendar.synthetic.invalid/");
+    await page.goto("https://calendar.synthetic.invalid/" + (options.settings ? "supervision-settings" : ""));
     await run(page, writes, urls);
     assert.deepEqual(errors, [], "No browser render exceptions");
     assert.deepEqual(unexpected, [], "No live/unhandled requests");
@@ -233,6 +260,74 @@ try {
     for (const key of ["nextAssignedUserId", "relatedTaskId", "updateTaskStatus", "newTaskStatus"])
       assert.ok(!(key in attempt.body));
   });
+  await scenario("explicit supervisor sees only authorized employee filter and view-only details", { supervisor: true }, async (page, writes, urls) => {
+    await ready(page);
+    await page.getByTestId("supervision-notice").waitFor();
+    assert.equal(await page.getByTestId("tab-view-manager").count(), 0);
+    assert.ok(!urls.includes("/api/users") && !urls.includes("/api/teams") && !urls.includes("/api/calls/stats"));
+    await page.getByTestId("select-filter-assigned").click();
+    assert.equal(await page.getByRole("option", { name: "Synthetic Other Agent", exact: true }).count(), 1);
+    assert.equal(await page.getByRole("option").count(), 3, "All visible, self and exactly one granted employee");
+    await page.getByRole("option", { name: "Synthetic Other Agent", exact: true }).click();
+    await page.getByTestId("supervised-schedule").getByText(/Synthetic Teammate Schedule/).waitFor();
+    assert.equal(await page.getByText("Synthetic Calendar Patient", { exact: true }).count(), 0, "Employee filter excludes own calls");
+    assert.equal(await page.getByTestId("supervised-schedule").getByRole("button").count(), 0);
+    await page.getByText("Synthetic Teammate Call", { exact: true }).click();
+    await page.getByTestId("call-view-only").waitFor();
+    assert.equal(await page.getByTestId("button-record-attempt").count(), 0);
+    assert.equal(writes.length, 0);
+    await page.screenshot({ path: path.join(out, "synthetic-supervisor.jpg"), fullPage: true, animations: "disabled" });
+  });
+  const revocation: Options = { supervisor: true };
+  await scenario("revocation removes teammate calls, employee filter and open details", revocation, async (page, writes) => {
+    await ready(page); await page.getByText("Synthetic Teammate Call", { exact: true }).click();
+    await page.getByTestId("call-view-only").waitFor();
+    revocation.revoked = true;
+    await page.evaluate(async () => { await (window as any).__calendarTestClient.invalidateQueries({ queryKey: ["/api/calls/capabilities"] }); });
+    await page.getByTestId("call-detail-panel").waitFor({ state: "hidden" });
+    await page.getByTestId("select-filter-assigned").waitFor({ state: "hidden" });
+    assert.equal(await page.getByText("Synthetic Teammate Call", { exact: true }).count(), 0);
+    assert.equal(writes.length, 0);
+  });
+  await scenario("impersonation never exposes supervisory calls or employee filters", { supervisor: true, impersonating: true }, async page => {
+    await ready(page); await settled(page);
+    assert.equal(await page.getByText("Synthetic Teammate Call", { exact: true }).count(), 0);
+    assert.equal(await page.getByTestId("select-filter-assigned").count(), 0);
+    assert.equal(await page.getByTestId("button-new-call").isDisabled(), true);
+  });
+  await scenario("explicit read deny suppresses supervisor content", { supervisor: true, denyRead: true }, async page => {
+    await page.getByTestId("calendar-query-error").waitFor();
+    assert.equal(await page.getByTestId("select-filter-assigned").count(), 0);
+    assert.equal(await page.getByText("Synthetic Teammate Call", { exact: true }).count(), 0);
+  });
+  await scenario("admin config can assign then revoke explicit teams", { settings: true, admin: true }, async (page, writes) => {
+    const checkbox = page.getByRole("checkbox", { name: "Supervise Synthetic Explicit Team" });
+    await checkbox.waitFor(); assert.equal(await checkbox.isChecked(), false);
+    await checkbox.click();
+    await page.getByRole("button", { name: "Save supervisory teams", exact: true }).click();
+    await settled(page);
+    assert.equal(writes[0].body.teamIds[0], 7);
+    assert.equal(await checkbox.isChecked(), true);
+    await page.getByRole("button", { name: "Revoke all supervisory teams", exact: true }).click();
+    await page.waitForFunction(() => (window as any).__calendarTestClient.isMutating() === 0);
+    await settled(page);
+    assert.deepEqual(writes[1].body.teamIds, []);
+    assert.equal(await checkbox.isChecked(), false);
+  });
+  await scenario("unapplied schema shows controlled activation error and disables grant writes", { settings: true, admin: true, unavailable: true }, async (page, writes) => {
+    await page.getByRole("alert").getByText(/authorized schema change/).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Save supervisory teams", exact: true }).isDisabled(), true);
+    assert.equal(writes.length, 0);
+  });
+  await scenario("impersonation cannot configure supervisory grants", { settings: true, admin: true, impersonating: true }, async (page, writes) => {
+    await page.getByText(/Stop impersonation and use/).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Save supervisory teams", exact: true }).isDisabled(), true);
+    assert.equal(writes.length, 0);
+  });
   await writeFile(path.join(out, "results.json"), JSON.stringify({ passed: results.length, failed: 0, results, network: "all requests intercepted" }, null, 2));
   console.log(`PASS: ${results.length} synthetic browser scenarios; no live requests, sessions, or server.`);
+} catch (error) {
+  await writeFile(path.join(out, "results.json"), JSON.stringify({ passed: results.length, failed: 1, results,
+    error: error instanceof Error ? error.message : "Synthetic check failed", network: "all requests intercepted" }, null, 2));
+  throw error;
 } finally { await browser.close(); }

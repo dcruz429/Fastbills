@@ -30,7 +30,9 @@ import { registerRcmQualityRoutes } from "./rcm-quality-routes";
 import { registerLegacyFinancialWriteBoundary } from "./rcm-legacy-financial-write-boundary";
 import { registerRcmFileDownloadBoundary } from "./rcm-file-download-boundary";
 import { resolveRcmAccess } from "./rcm-access-service";
-import { createCallBoundary, type CallAuthorization } from "./rcm-call-boundary";
+import { createCallBoundary, positiveCallId, type CallAuthorization } from "./rcm-call-boundary";
+import { createCallSupervisionStore } from "./rcm-call-supervision";
+import { registerCallSupervisionRoutes } from "./rcm-call-supervision-routes";
 import { permissionAllowed, resourceAllowed, legacyMaintenanceAllowed } from "../shared/rcm-access-policy";
 
 // Express 5 route parameters may be arrays. Reject ambiguous or partial IDs.
@@ -495,6 +497,8 @@ export async function registerRoutes(
 
   // New additive RCM administration endpoints; existing sessions remain authoritative.
   registerRcmAccessRoutes(app);
+  const callSupervision = createCallSupervisionStore(pool);
+  registerCallSupervisionRoutes(app, { store: callSupervision, resolveAccess: resolveRcmAccess });
   registerRcmTaskboardRoutes(app);
   registerRcmTaskAssignmentRoutes(app);
   registerRcmApprovalRoutes(app);
@@ -4496,35 +4500,30 @@ export async function registerRoutes(
   // access check. Restrict reads and writes before entering any handler.
   app.use("/api/calls", createCallBoundary({
     storage, resolveAccess: resolveRcmAccess, clinicIds: legacyClinicNameIds,
+    supervisedEmployees: userId => callSupervision.employees(userId),
   }));
 
   app.get("/api/calls", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(401).json({ message: "Not authenticated" });
-      const isManager = ADMIN_ROLES.includes(user.role);
+      const auth = res.locals.callAuthorization as CallAuthorization;
       const { dateFrom, dateTo, assignedUserId, callStatus, department, myCallsOnly } = req.query;
       const filters: any = {};
       if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
       if (dateTo) { const d = new Date(dateTo as string); d.setUTCHours(23, 59, 59, 999); filters.dateTo = d; }
       if (callStatus && callStatus !== "all") filters.callStatus = callStatus as string;
       if (department && department !== "all") filters.department = department as string;
-      if (!isManager) {
-        // Ignore client-supplied assignee filters for non-managers.
-        filters.assignedUserId = user.id;
-      } else if (myCallsOnly === "true") {
+      if (myCallsOnly === "true") {
         filters.assignedUserId = user.id;
       } else if (assignedUserId && assignedUserId !== "all") {
-        filters.assignedUserId = Number(assignedUserId);
+        const target = positiveCallId(assignedUserId);
+        if (!target) return res.status(400).json({ message: "Invalid employee ID" });
+        if (!auth.canReadEmployee(target)) return res.status(403).json({ message: "Employee is outside your call visibility" });
+        filters.assignedUserId = target;
       }
-      const access = await resolveRcmAccess(user.id);
-      if (!access) return res.status(403).json({ message: "Access denied" });
-      const clinicIds = await legacyClinicNameIds();
       const calls = await storage.getScheduledCalls(filters);
-      res.json(calls.filter(call =>
-        (access.context.isSystemAdmin || call.assignedUserId === user.id) &&
-        scopedLegacyRecord(access.context, clinicIds, call.clinic, call.department ?? "", "tasks.read")
-      ));
+      res.json(calls.filter(call => auth.canCall(call, "tasks.read")));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -4602,8 +4601,12 @@ export async function registerRoutes(
       const target = targetUserId === user.id ? user : await storage.getUser(targetUserId);
       if (!target) return res.status(404).json({ message: "User not found" });
       const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10);
-      const patients = await storage.getPatientDailySchedule(targetUserId, target.fullName, dateStr);
-      res.json(patients.filter(row => auth.canScope(row, "tasks.read")));
+      const patients = targetUserId !== user.id || req.session.originalUserId
+        ? await storage.getExistingPatientDailySchedule(targetUserId, dateStr)
+        : await storage.getPatientDailySchedule(targetUserId, target.fullName, dateStr);
+      const allowed = await Promise.all(patients.map(async row =>
+        await auth.canReadSchedule(row) ? row : null));
+      res.json(allowed.filter(row => row !== null));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

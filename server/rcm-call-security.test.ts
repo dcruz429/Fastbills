@@ -34,6 +34,7 @@ function fixture(options: {
   admin?: boolean; inactive?: boolean; role?: string; denies?: string[];
   owner?: number | null; clinic?: string | null; department?: string;
   linkedOwner?: number; linkedClinic?: string; linkedCallOwner?: number;
+  employees?: number[]; unknownScope?: boolean;
 } = {}) {
   const reads: string[] = [], writes: string[] = [];
   const context: AccessContext = {
@@ -42,6 +43,7 @@ function fixture(options: {
     userOverrides: new Map((options.denies ?? []).map(p => [p as any, "deny"])),
     clinicIds: new Set([10]), departmentIds: new Set(["Verification"]),
   };
+  if (options.unknownScope) context.clinicIds = new Set();
   const call = {
     id: 123, patientName: "Synthetic Call", assignedUserId: options.owner === undefined ? 1 : options.owner,
     clinic: options.clinic === undefined ? "Demo Clinic" : options.clinic,
@@ -58,7 +60,8 @@ function fixture(options: {
     },
     getScheduledCalls: async (filters: any = {}) => {
       reads.push("list:" + (filters.assignedUserId ?? "all"));
-      return [call, { ...call, id: 124, assignedUserId: 2 }, { ...call, id: 125, clinic: "Other Clinic" }];
+      return [call, { ...call, id: 124, assignedUserId: 2 }, { ...call, id: 125, clinic: "Other Clinic" }]
+        .filter(row => filters.assignedUserId === undefined || row.assignedUserId === filters.assignedUserId);
     },
     getPatientScheduleEntry: async (id: number) => id === 11 ? schedule :
       id === 12 ? { ...schedule, id, userId: 2 } :
@@ -72,6 +75,12 @@ function fixture(options: {
       reads.push("daily:" + id);
       return [{ ...schedule, userId: id }, { ...schedule, id: 13, clinic: "Other Clinic" },
         { ...schedule, id: 14, department: "Billing" }];
+    },
+    getExistingPatientDailySchedule: async (id: number) => {
+      reads.push("read-only-daily:" + id);
+      return [{ ...schedule, userId: id, callId: id === 2 ? 124 : 123 },
+        { ...schedule, userId: id, clinic: "Other Clinic" },
+        { ...schedule, userId: id, department: "Billing" }];
     },
     getPatientCallAudit: async (id?: number) => {
       reads.push("audit:" + (id ?? "all"));
@@ -94,14 +103,16 @@ function fixture(options: {
   }
   const globals = {
     storage, Date, console, ADMIN_ROLES: ["admin", "manager", "assigner", "account_manager", "case_manager", "payment_specialist"],
-    parsePositiveRouteId: positiveCallId, resolveRcmAccess: access, legacyClinicNameIds: async () => clinics,
+    parsePositiveRouteId: positiveCallId, positiveCallId, resolveRcmAccess: access, legacyClinicNameIds: async () => clinics,
     scopedLegacyRecord: (ctx: AccessContext, ids: Map<string, number>, clinic: string, department: string, permission: any) => {
       const clinicId = typeof clinic === "string" ? ids.get(clinic.trim().toLowerCase()) : undefined;
       return clinicId !== undefined && resourceAllowed(ctx, permission, { clinicId, departmentId: department });
     },
   };
   const router = express.Router();
-  router.use("/api/calls", createCallBoundary({ storage, resolveAccess: access, clinicIds: async () => clinics }));
+  router.use("/api/calls", createCallBoundary({ storage, resolveAccess: access, clinicIds: async () => clinics,
+    supervisedEmployees: async () => (options.employees ?? []).map(id => ({ id, fullName: "Synthetic Team Employee" })),
+  }));
   for (const route of routes) {
     const handler = evaluate(`(() => { const handler = ${route.code}; return handler; })()`, globals);
     (router as any)[route.method](route.path, async (req: any, res: any, next: any) => handler(req, res, next));
@@ -203,12 +214,12 @@ for (const path of ["/stats", "/STATS/", "/agent-stats", "/AGENT-STATS/"]) {
   });
 }
 
-test("list ignores non-admin assignee overrides and filters clinic/department scope", async () => {
+test("list rejects unauthorized assignee filters rather than trusting role labels", async () => {
   for (const role of ["verifier", "manager"]) {
     const f = fixture({ role });
     const result = await f.request("GET", "/api/calls/?assignedUserId=2");
-    assert.equal(result.status, 200);
-    assert.deepEqual(Array.from(result.body, (r: any) => r.id), [123]);
+    assert.equal(result.status, 403);
+    assert.equal(f.reads.length, 0);
   }
 });
 
@@ -248,7 +259,7 @@ test("daily list filters scopes and rejects arbitrary users before schedule gene
   }
   const admin = fixture({ admin: true });
   assert.equal((await admin.request("GET", "/api/calls/daily-schedule?userId=2")).status, 200);
-  assert.ok(admin.reads.includes("daily:2"));
+  assert.ok(admin.reads.includes("read-only-daily:2"));
 });
 
 test("rollover audit filters row owner and current source scope, missing sources fail closed", async () => {
@@ -352,6 +363,83 @@ test("capabilities never grant writes during impersonation or override permissio
   assert.equal((await fixture({ inactive: true }).request("GET", "/api/calls/capabilities")).status, 403);
   assert.equal((await fixture().request("GET", "/api/calls/capabilities", {}, {})).status, 401);
   assert.equal((await fixture().request("GET", "/api/calls/%63apabilities")).status, 400);
+});
+
+for (const path of ["", "/attempts", "/activity", "/ATTEMPTS/", "/ACTIVITY/"]) {
+  test("explicit supervision permits only same-scope team call reads " + path, async () => {
+    const f = fixture({ owner: 2, employees: [2] });
+    assert.equal((await f.request("GET", "/api/calls/123" + path)).status, 200);
+    assert.equal(f.writes.length, 0);
+    for (const options of [
+      { employees: [] }, { employees: [3] }, { clinic: "Other Clinic" }, { clinic: null },
+      { department: "Billing" }, { department: "" }, { unknownScope: true }, { denies: ["tasks.read"] },
+    ]) {
+      const denied = fixture({ owner: 2, employees: [2], ...options });
+      assert.ok([403, 404].includes((await denied.request("GET", "/api/calls/123" + path)).status));
+      assert.equal(denied.writes.length, 0);
+    }
+    assert.equal((await f.request("GET", "/api/calls/123" + path, {}, { userId: 1, originalUserId: 90 })).status, 404);
+  });
+}
+
+test("explicit supervision authorizes list filters but no cross-team filters or aggregate reports", async () => {
+  const f = fixture({ employees: [2] });
+  assert.deepEqual(Array.from((await f.request("GET", "/api/calls")).body, (row: any) => row.id), [123, 124]);
+  assert.deepEqual(Array.from((await f.request("GET", "/api/calls?assignedUserId=2")).body, (row: any) => row.id), [124]);
+  assert.equal((await f.request("GET", "/api/calls?assignedUserId=3&teamId=7&role=admin")).status, 403);
+  assert.equal((await f.request("GET", "/api/calls?assignedUserId=2&assignedUserId=3")).status, 400);
+  for (const path of ["/stats", "/agent-stats", "/rollover-audit?userId=2"])
+    assert.equal((await f.request("GET", "/api/calls" + path)).status, 403);
+  assert.deepEqual(Array.from((await f.request("GET", "/api/calls", {}, { userId: 1, originalUserId: 90 })).body, (row: any) => row.id), [123]);
+});
+
+test("supervised schedules are scoped read-only and never invoke schedule building", async () => {
+  const f = fixture({ employees: [2] });
+  const result = await f.request("GET", "/api/calls/daily-schedule?userId=2");
+  assert.equal(result.status, 200);
+  assert.equal(result.body.length, 1);
+  assert.equal(result.body[0].userId, 2);
+  assert.ok(f.reads.includes("read-only-daily:2"));
+  assert.ok(!f.reads.includes("daily:2"));
+  assert.equal(f.writes.length, 0);
+  for (const options of [{ employees: [] }, { employees: [3] }, { denies: ["tasks.read"] }, { unknownScope: true }])
+    assert.equal((await fixture(options).request("GET", "/api/calls/daily-schedule?userId=2")).status, 403);
+  assert.equal((await f.request("GET", "/api/calls/daily-schedule?userId=2", {}, { userId: 1, originalUserId: 90 })).status, 403);
+});
+
+test("revocation, missing membership and permission/scope removal take effect on the next request", async () => {
+  const options = { employees: [2] };
+  const f = fixture(options);
+  assert.equal((await f.request("GET", "/api/calls/124")).status, 200);
+  assert.equal((await f.request("GET", "/api/calls/capabilities")).body.supervisedEmployees.length, 1);
+  options.employees = [];
+  assert.equal((await f.request("GET", "/api/calls/124")).status, 404);
+  assert.equal((await f.request("GET", "/api/calls/daily-schedule?userId=2")).status, 403);
+  assert.equal((await f.request("GET", "/api/calls/capabilities")).body.supervisedEmployees.length, 0);
+  options.employees = [2];
+  f.context.departmentIds = new Set();
+  assert.equal((await f.request("GET", "/api/calls/124")).status, 404);
+  f.context.departmentIds = new Set(["Verification"]);
+  f.context.userOverrides = new Map([["tasks.read", "deny"]]);
+  assert.equal((await f.request("GET", "/api/calls/124")).status, 403);
+});
+
+test("explicit supervision never adds mutations, delegation, assignment or linked task rights", async () => {
+  for (const [method, path, body] of [
+    ["PATCH", "/124", { callStatus: "Resolved" }],
+    ["POST", "/124/start", {}], ["POST", "/124/cancel", {}],
+    ["POST", "/124/attempts", { outcome: "Resolved" }],
+    ["PATCH", "/daily-schedule/12/status", { dailyStatus: "Done" }],
+    ["PATCH", "/daily-schedule/12/notes", { notes: "Synthetic" }],
+    ["POST", "/daily-schedule/12/ensure-call", {}],
+    ["POST", "/", { assignedUserId: 2, clinic: "Demo Clinic", department: "Verification" }],
+    ["POST", "/123/attempts", { outcome: "Resolved", nextAssignedUserId: 2 }],
+    ["POST", "/123/attempts", { outcome: "Resolved", newTaskStatus: "done" }],
+  ] as const) {
+    const f = fixture({ employees: [2] });
+    assert.ok([403, 404].includes((await f.request(method, "/api/calls" + path, body)).status), path);
+    assert.equal(f.writes.length, 0);
+  }
 });
 
 // Evaluate only production declarations, with all runtime imports replaced by
