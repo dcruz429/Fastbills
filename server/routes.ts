@@ -657,6 +657,12 @@ export async function registerRoutes(
 
       // Express accepts optional trailing slashes on legacy routes. Normalize
       // before applying privilege checks so /:id and /:id/ are identical.
+      // Express decodes route parameters after middleware path matching.
+      // Reject encoded account-write paths so %31 ("1"), encoded separators,
+      // and double-encoding cannot bypass field or role permission checks.
+      if (req.path.includes("%")) {
+        return res.status(400).json({ message: "Encoded account paths are not supported" });
+      }
       const accountPath = req.path.replace(/\/+$/, "") || "/";
       const isAccountPatch = req.method === "PATCH" && /^\/\d+$/.test(accountPath);
       // The generic patch endpoint must not modify privilege bits owned by
