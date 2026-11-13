@@ -13,3 +13,4 @@
 - [Managed dropdown types](managed-dropdown-types.md) — configurable Posting/module types; preserve historical selections and never restore intentionally deleted defaults.
 - [Medical Records Request scope](medical-records-scope.md) — keep workbook tabs and historical text; reusable contact variants autofill without rewriting request snapshots.
 - [Call-calendar policy review](call-calendar-policy-review.md) — security-only fixes must not decide deferred manager visibility, assignment, linking, or missing-clinic policies.
+- [Offline browser verification](offline-browser-verification.md) — preserve synthetic-only isolation if specialized browser-test delegation is unavailable.

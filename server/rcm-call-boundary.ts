@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { permissionAllowed, resourceAllowed, type AccessContext } from "../shared/rcm-access-policy";
 import type { storage } from "./storage";
 import type { ResolvedAccess } from "./rcm-access-service";
+import { CALL_SCOPE_DEPARTMENTS } from "../shared/call-calendar-contract";
 
 // Runtime dependencies are injected: importing this module never opens a DB.
 type CallStorage = Pick<typeof storage,
@@ -38,6 +39,20 @@ export function createCallBoundary(deps: {
       if (!read && req.session.originalUserId)
         return void res.status(403).json({ message: "Calls cannot be modified during impersonation" });
       const permission: Permission = read ? "tasks.read" : "tasks.update";
+      // Self-only, data-free capability projection. No role defaults are
+      // guessed by the client, and explicit denies apply even to admins.
+      if (read && req.path.replace(/\/+$/, "").toLowerCase() === "/capabilities") {
+        const clinics = await deps.clinicIds();
+        const canRead = permissionAllowed(context, "tasks.read");
+        return void res.json({
+          userId, canRead,
+          canMutate: canRead && !req.session.originalUserId && permissionAllowed(context, "tasks.update"),
+          canManage: canRead && context.isSystemAdmin,
+          clinics: canRead ? Array.from(clinics, ([name, id]) => ({ name, id }))
+            .filter(row => context.isSystemAdmin || context.clinicIds.has(row.id)) : [],
+          departments: canRead ? CALL_SCOPE_DEPARTMENTS.filter(d => context.isSystemAdmin || context.departmentIds.has(d)) : [],
+        });
+      }
       if (!permissionAllowed(context, permission))
         return void res.status(403).json({ message: "RCM call permission required" });
       if (req.path.includes("%"))

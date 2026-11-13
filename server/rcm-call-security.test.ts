@@ -324,6 +324,36 @@ test("creation policy unchanged: self-assigned scoped calls allowed, arbitrary l
   }
 });
 
+test("capabilities project effective self access, recognized scopes, and explicit denies", async () => {
+  const f = fixture({ role: "manager" });
+  const caps = await f.request("GET", "/api/calls/CAPABILITIES/?userId=2");
+  assert.equal(caps.status, 200);
+  assert.equal(caps.body.userId, 1);
+  assert.equal(caps.body.canManage, false);
+  assert.equal(caps.body.canMutate, true);
+  assert.deepEqual(Array.from(caps.body.clinics, (c: any) => c.id), [10]);
+  assert.deepEqual(Array.from(caps.body.departments), ["Verification"]);
+  assert.equal(f.reads.length, 0);
+  assert.equal(f.writes.length, 0);
+});
+
+test("capabilities never grant writes during impersonation or override permission denies", async () => {
+  for (const admin of [false, true]) {
+    const denied = await fixture({ admin, denies: ["tasks.update"] }).request("GET", "/api/calls/capabilities");
+    assert.equal(denied.body.canMutate, false);
+    const readDenied = await fixture({ admin, denies: ["tasks.read"] }).request("GET", "/api/calls/capabilities");
+    assert.equal(readDenied.body.canRead, false);
+    assert.equal(readDenied.body.canMutate, false);
+    assert.equal(readDenied.body.canManage, false);
+    assert.equal(readDenied.body.clinics.length, 0);
+    const impersonated = await fixture({ admin }).request("GET", "/api/calls/capabilities", {}, { userId: 1, originalUserId: 2 });
+    assert.equal(impersonated.body.canMutate, false);
+  }
+  assert.equal((await fixture({ inactive: true }).request("GET", "/api/calls/capabilities")).status, 403);
+  assert.equal((await fixture().request("GET", "/api/calls/capabilities", {}, {})).status, 401);
+  assert.equal((await fixture().request("GET", "/api/calls/%63apabilities")).status, 400);
+});
+
 // Evaluate only production declarations, with all runtime imports replaced by
 // stubs. In particular, the financial boundary's DB module is never imported.
 const financialSource = ts.createSourceFile("financial.ts",
