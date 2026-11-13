@@ -1077,7 +1077,7 @@ export async function registerRoutes(
   function scopedLegacyRecord(
     context: NonNullable<Awaited<ReturnType<typeof resolveRcmAccess>>>["context"],
     clinicIds: Map<string,number>, clinic: string | null | undefined,
-    department: "Denials" | "Checks", permission: "tasks.read" | "checks.read"
+    department: "Denials" | "Checks" | "Arbitration" | "Collections" | "Posting" | "RTP", permission: "tasks.read" | "checks.read"
   ) {
     const key = typeof clinic === "string" ? clinic.trim().toLowerCase() : "";
     const clinicId = key ? clinicIds.get(key) : undefined;
